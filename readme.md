@@ -54,9 +54,6 @@ const Timer = observable({
 })
 ```
 
-In fact, I have yet to see an example of computed values using
-a direct object like this i.e. I may be the first!
-
 ## Example
 
 `main.js` is the example code. To run from the command line
@@ -71,50 +68,78 @@ since it uses ES6 modules (and those are a real pain with NodeJS).
 You should get this:
 
 ```
-C:\Users\karlp\my-mobx>deno run main.js
-[subscribe] subdata =  Not found
-[subscribe] subsubdata =  Not found1
-[autorun] subdata =  Not found
-[autorun] subsubdata =  Not found1
-[subscribe] subdata =  3
-[subscribe] subsubdata =  4
-[autorun] subdata =  3
-[autorun] subsubdata =  4
+C:\Users\karlp\mobx-svelte>deno run main.js
+[subscribe] count =  N/A
+[subscribe] count_plus_delta =  N/A1
+[autorun] count =  N/A
+[autorun] count_plus_delta =  N/A1
+----- init over ----
+[subscribe] count =  3
+[subscribe] count_plus_delta =  4
+[autorun] count =  3
+[autorun] count_plus_delta =  4
+----- setting data again ----
+[subscribe] count =  4
+[subscribe] count_plus_delta =  5
+[autorun] count =  4
+[autorun] count_plus_delta =  5
+----- running in action ----
+[subscribe] count =  5
+[subscribe] count_plus_delta =  7
+[autorun] count =  5
+[autorun] count_plus_delta =  7
 ```
 
 This is what main looks like:
 
 ```js
+
 import { observable } from './observable.js';
-import { autorun } from './box.js';
+import { autorun, runInAction } from './box.js';
 
 const makeStore = () => observable({
 
     data: null,
-    
-    get subdata() {
+    delta: 1,
+
+    get count() {
         if (this.data) return this.data.length;
-        else return "Not found"
+        else return "N/A"
     },
 
-    get subsubdata() { return this.subdata + 1; }
+    get count_plus_delta() { return this.count + this.delta; }
 
 });
 
 const store = makeStore();
 
-store.$mobx.subdata.subscribe( (val) => console.log("[subscribe] subdata = ",val));
-store.$mobx.subsubdata.subscribe( (val) => console.log("[subscribe] subsubdata = ",val));
+store.$mobx.count.subscribe( (val) => console.log("[subscribe] count = ",val));
+store.$mobx.count_plus_delta.subscribe( (val) => console.log("[subscribe] count_plus_delta = ",val));
 
 autorun( () => {
-    console.log("[autorun] subdata = ",store.subdata);
+    console.log("[autorun] count = ",store.count);
 });
 
 autorun( () => {
-    console.log("[autorun] subsubdata = ",store.subsubdata);
+    console.log("[autorun] count_plus_delta = ",store.count_plus_delta);
 });
+
+console.log("----- init over ----");
 
 store.data = [1,2,3];
+
+console.log("----- setting data again ----");
+
+store.data = [1,2,3,4];
+
+console.log("----- running in action ----");
+
+runInAction( () => {
+
+    // should get just one set of outputs (not one per assignment)
+    store.data = [1,2,3,4,5];
+    store.delta = 2;
+});
 ```
 
 So we create a store (just an object wrapped in `observable`),
@@ -122,10 +147,10 @@ subscribe to some of the values,
 use autorun (which in Svelte is exactly the same as wrapping
 statements using `$: {}` i.e. reactivity).
 
-We have two derived values in the object: `subdata` and `subsubdata`.
-When we modify `data` then `subdata` should change.
-And then `subsubdata` should change (since it depends on `subdata`).
-This ensures that nested effects to propogate.
+We have two derived values in the object: `count` and `count_plus_delta`.
+When we modify `data` then `count` should change.
+And then `count_plus_delta` should change too (since it depends on `count`).
+This shows that nested affects propogate correctly.
 
 ## Svelte
 
@@ -140,7 +165,7 @@ $: console.log("data = ",$data)
 You really should watch the video to see how this works
 (though I am still confused by Javacript `this` and clojures...)
 
-## WrapInAction
+## runInAction
 
 The only issue left (for my purposes) is making sure you can
 suspend the updates if needs be, e.g. say you wanted to
@@ -156,9 +181,17 @@ In MobX you do this by wrapping code in `runInAction`
 
 ```js
 runInAction( () => {
-    store.data = [2,3,4;
-    store.finished = false;
-})
+
+    // should get just one set of outputs (not one per assignment)
+    store.data = [1,2,3,4,5];
+    store.delta = 2;
+});
 ```
 
-I still need to figure out how this is done.
+This is now working - we only get one set of outputs.
+Otherwise you would get effects for each assignment - 
+this instead just let's you do what you need and
+only the values are set - no effects are run.
+During this all the observables are tracked
+globally.
+Then right at the end we run them all.

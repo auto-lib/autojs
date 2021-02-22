@@ -26,32 +26,41 @@ with all the accessor functions you need.
    (so I implement both together...)
 */
 
-let currentlyRunning;
+let currentlyRunning, inAction, actionObservers;
 
 export function box(initial) {
 
-  //let value = initial;
+  let value = initial;
 
   let obj = {};
 
-  obj.value = initial;
-
-    // i'm still not sure why... value is above and observers is in this object?
+  // this has to be part of the object
+  // as autorun will reference it
   obj.observers = [];
 
   obj.get = () => {
-      // this is the magic part
-      // so now we automatically get a list of variables
-      // that any running function is dependant on
-      if (currentlyRunning) currentlyRunning.observing.push(obj);
-      return obj.value;
-    }
+
+    // this is the magic part
+    // so now we automatically get a list of variables
+    // that any running function is dependant on
+    if (currentlyRunning) currentlyRunning.observing.push(obj);
+
+    return value;
+  }
 
   obj.set = (val) => {
-      obj.value = val;
-      obj.observers.splice(0).forEach(r => r.run());
-    }
-  
+
+    value = val;
+
+    // very confusing but it zeros out the list
+    // somehow _before_ doing a run on each of them
+
+    // don't execute reactions if in an runInAction
+    if (inAction) obj.observers.forEach(o => { if (actionObservers.indexOf(o) === -1) actionObservers.push(o) })
+    else obj.observers.splice(0).forEach(r => r.run());
+  }
+
+  // this will get overwritten when boxing a getter
   obj.subscribe = (fn) => autorun(() => fn(obj.get()))
 
   return obj;
@@ -65,12 +74,31 @@ export function autorun(fn) {
   const reaction = {
     observing: [],
     run() {
-      currentlyRunning = this;
-      this.observing = [];
-      fn();
-      this.observing.forEach(box => box.observers.push(this));
-      currentlyRunning = undefined;
+      
+      // don't run side-effects for runInAction()
+      if (!inAction)
+      {
+        currentlyRunning = this;
+        this.observing = [];
+        fn();
+        this.observing.forEach(box => { if (box.observers.indexOf(this) === -1) box.observers.push(this) });
+        currentlyRunning = undefined;
+      }
     }
   };
-  return reaction.run();
+  reaction.run();
+}
+
+export function runInAction(fn) {
+
+  // turn off side-effects
+  inAction = true;
+
+  // track observers
+  actionObservers = [];
+
+  fn();
+
+  inAction = false;
+  actionObservers.forEach(o => o.run());
 }
