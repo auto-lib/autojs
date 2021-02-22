@@ -15,20 +15,8 @@ export function observable(object) {
         // if it's a getter...
         if (descriptor.get)
         {
-            // Object.defineProperty(res, key, {
-            //     configurable: true,
-            //     enumerable: true,
-            //     get: descriptor.get,
-            // });
-
-            // res.$mobx[key].memoize = true;
-
             // memoize
-            autorun( () => {
-                //console.log('memoing');
-                res.$mobx[key].set(descriptor.get.call(res))
-            })
-            //res.$mobx[key].subscribe = (fn) => autorun( () => fn(descriptor.get.call(res)))
+            autorun( () => { res.$mobx[key].set(descriptor.get.call(res)) })
         }
 
         Object.defineProperty(res, key, {

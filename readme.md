@@ -195,3 +195,54 @@ only the values are set - no effects are run.
 During this all the observables are tracked
 globally.
 Then right at the end we run them all.
+
+### Duplicate functions
+
+One big issue was making sure `runInAction` didn't run
+multiple functions. So I needed to make sure by storing
+the functions in each `autorun`:
+
+```js
+export function autorun(fn,func) {
+```
+
+Here `fn` is the function to run
+but `func` is the source.
+
+```js
+obj.subscribe = (fn) => {
+    autorun(() => fn(obj.get()), fn)
+    return () => {console.log("unsub");} // for svelte. unsub is TODO
+}
+```
+
+Now we use the `func` to check if we need to run them in an action.
+
+```js
+// don't execute reactions if in an runInAction
+if (inAction) obj.observers.forEach(o => { 
+
+    // need to check if the original functions are the same...
+    let found = false;
+    actionObservers.forEach(a => { if (a.func === o.func) found = true; });
+    if (!found) actionObservers.push(o);
+})
+```
+
+## Memoizing derived values
+
+Another issue I found was that the derived values
+were being run each time they were being accessed.
+So I wrapped the getter in `autorun`:
+
+```js
+// if it's a getter...
+if (descriptor.get)
+{
+    // memoize
+    autorun( () => { res.$mobx[key].set(descriptor.get.call(res)) })
+}
+```
+
+Took forever to get it right. Looks like everything now is
+just `autorun`: subscriptions, derived value memoization...

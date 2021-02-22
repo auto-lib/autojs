@@ -56,21 +56,22 @@ export function box(initial) {
 
     // don't execute reactions if in an runInAction
     if (inAction) obj.observers.forEach(o => { 
-      //o.observing.forEach( oo => { if (actionObservers.indexOf(oo) === -1) actionObservers.push(oo) })
+
+      // need to check if the original functions are the same...
       let found = false;
       actionObservers.forEach(a => { if (a.func === o.func) found = true; });
       if (!found) actionObservers.push(o);
     })
+
     // very confusing but it zeros out the list
     // somehow _before_ doing a run on each of them
     else 
       obj.observers.splice(0).forEach(r => r.run());
   }
 
-  // this will get overwritten when boxing a getter
   obj.subscribe = (fn) => {
 	  autorun(() => fn(obj.get()), fn)
-	  return () => {console.log("unsub");} // for svelte
+	  return () => {console.log("unsub");} // for svelte. unsub is TODO
   }
 
   return obj;
