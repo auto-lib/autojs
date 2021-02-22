@@ -45,23 +45,33 @@ export function box(initial) {
     // that any running function is dependant on
     if (currentlyRunning) currentlyRunning.observing.push(obj);
 
+    //if (obj.memo) return obj.memo;
     return value;
   }
 
   obj.set = (val) => {
 
+    //if (obj.memoize) obj.memo = val;
     value = val;
 
+    // don't execute reactions if in an runInAction
+    if (inAction) obj.observers.forEach(o => { 
+      //o.observing.forEach( oo => { if (actionObservers.indexOf(oo) === -1) actionObservers.push(oo) })
+      let found = false;
+      actionObservers.forEach(a => { if (a.func === o.func) found = true; });
+      if (!found) actionObservers.push(o);
+    })
     // very confusing but it zeros out the list
     // somehow _before_ doing a run on each of them
-
-    // don't execute reactions if in an runInAction
-    if (inAction) obj.observers.forEach(o => { if (actionObservers.indexOf(o) === -1) actionObservers.push(o) })
-    else obj.observers.splice(0).forEach(r => r.run());
+    else 
+      obj.observers.splice(0).forEach(r => r.run());
   }
 
   // this will get overwritten when boxing a getter
-  obj.subscribe = (fn) => autorun(() => fn(obj.get()))
+  obj.subscribe = (fn) => {
+	  autorun(() => fn(obj.get()), fn)
+	  return () => {console.log("unsub");} // for svelte
+  }
 
   return obj;
 
@@ -70,14 +80,14 @@ export function box(initial) {
 /* This must be in the same module
    because of currentlyRunning ! */
 
-export function autorun(fn) {
+export function autorun(fn,func) {
   const reaction = {
+    func, // save the originating function so we can get a unique list for runInAction
     observing: [],
     run() {
-      
+
       // don't run side-effects for runInAction()
-      if (!inAction)
-      {
+      if (!inAction) {
         currentlyRunning = this;
         this.observing = [];
         fn();
@@ -100,5 +110,5 @@ export function runInAction(fn) {
   fn();
 
   inAction = false;
-  actionObservers.forEach(o => o.run());
+  actionObservers.forEach(o => { o.run(); })
 }
