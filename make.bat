@@ -1,0 +1,1 @@
+deno run main.js
