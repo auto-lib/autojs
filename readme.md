@@ -257,12 +257,15 @@ inside of the computed function.
 
 ## Nested properties
 
-Not sure if this was done correctly: in my project all
+In my project all
 source values are flat: either strings / numbers,
 or for arrays and objects I assign the whole thing at once.
 I like this style a lot - it's simple.
+
 However, what if you have code (as the example below)
 which depends on the values of what's inside the nested values?
+(I can't think of a good scenario for this: why would you
+have a hard-coded list like this?)
 
 I wrote out part of the example code from the talk into `talk.js`:
 
