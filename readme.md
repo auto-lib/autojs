@@ -22,6 +22,9 @@ I just needed to add a few things:
  - Derived values. That wasn't included in the talk
  - Subscriptions contract. This makes these work with Svelte
 
+Note: the word _derived_ and _computed_ seem to be
+interchangable in the MobX community.
+
 Also I should note that MobX has various styles of usage,
 the most popular is using Javascript classes and then
 calling `makeAutoObservable(this)` in the contructor:
@@ -246,3 +249,97 @@ if (descriptor.get)
 
 Took forever to get it right. Looks like everything now is
 just `autorun`: subscriptions, derived value memoization...
+
+### Testing
+
+To check that values are in fact memoized, put a console log
+inside of the computed function.
+
+## Nested properties
+
+I wrote out part of the example code from the talk into `talk.js`:
+
+```js
+
+import { observable } from './observable.js';
+import { autorun, runInAction } from './box.js';
+
+const store = observable({
+    todos: [
+        {
+            title: "Learn observable",
+            done: false
+        },
+        {
+            title: "Learn autorun",
+            done: true
+        },
+        {
+            title: "Learn computed",
+            done: true
+        },
+        {
+            title: "Learn action",
+            done: true
+        }
+    ],
+    unfinished: 0
+});
+
+autorun(() => {
+    console.log("**Computing**");
+    store.unfinished = store.todos.filter(todo => !todo.done).length;
+});
+
+const d = autorun( () => {
+    console.log("Amount of todos left: " + store.unfinished);
+});
+
+store.todos[0].done = true;
+```
+
+The output is
+
+```
+C:\Users\karlp\mobx-svelte>deno run talk.js
+**Computing**
+Amount of todos left: 1
+**Computing**
+Amount of todos left: 0
+```
+
+This shows that nested properties works.
+
+## Unneeded side-affects
+
+In the talk as well you see that if you double the
+todo setting
+
+```js
+store.todos[0].done = true;
+store.todos[0].done = true;
+```
+
+you should get the same output as before.
+
+```
+C:\Users\karlp\mobx-svelte>deno run talk.js
+**Computing**
+Amount of todos left: 1
+**Computing**
+Amount of todos left: 0
+```
+
+The way I implemented this is to just ignore
+any set statements that have the same value
+as before:
+
+```js
+obj.set = (val) => {
+
+    if (val == value) return;
+```
+
+though I'm worried this might be a bug:
+do we still need to track sets
+even if the value was unchanged?

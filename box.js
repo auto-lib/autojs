@@ -51,7 +51,8 @@ export function box(initial) {
 
   obj.set = (val) => {
 
-    //if (obj.memoize) obj.memo = val;
+    if (val == value) return;
+
     value = val;
 
     // don't execute reactions if in an runInAction

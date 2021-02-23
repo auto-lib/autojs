@@ -2,7 +2,7 @@
 import { observable } from './observable.js';
 import { autorun, runInAction } from './box.js';
 
-const makeStore = () => observable({
+const store = observable({
 
     data: null,
     delta: 1,
@@ -12,11 +12,11 @@ const makeStore = () => observable({
         else return "N/A"
     },
 
-    get count_plus_delta() { return this.count + this.delta; }
+    get count_plus_delta() { 
+        return this.count + this.delta;
+    }
 
 });
-
-const store = makeStore();
 
 store.$mobx.count.subscribe( (val) => console.log("[subscribe] count = ",val));
 store.$mobx.count_plus_delta.subscribe( (val) => console.log("[subscribe] count_plus_delta = ",val));
