@@ -34,4 +34,3 @@ const d = autorun( () => {
 });
 
 store.todos[0].done = true;
-store.todos[0].done = true;

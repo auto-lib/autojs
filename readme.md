@@ -257,6 +257,13 @@ inside of the computed function.
 
 ## Nested properties
 
+Not sure if this was done correctly: in my project all
+source values are flat: either strings / numbers,
+or for arrays and objects I assign the whole thing at once.
+I like this style a lot - it's simple.
+However, what if you have code (as the example below)
+which depends on the values of what's inside the nested values?
+
 I wrote out part of the example code from the talk into `talk.js`:
 
 ```js
@@ -308,7 +315,22 @@ Amount of todos left: 1
 Amount of todos left: 0
 ```
 
-This shows that nested properties works.
+I got this working (by recursively looping through object
+properties and creating boxes for each of them)
+however what if you set a value whole-sale: will the
+reactivity still work if I, say, set an object:
+
+```js
+store.todos = [{done: true}, {done:false}]
+```
+
+and have some function which counts them:
+
+```js
+const count = (store) => return store.todos.filter(todo => !todo.done).length
+```
+
+Will this still work? Need to check...
 
 ## Unneeded side-affects
 
