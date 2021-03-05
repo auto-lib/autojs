@@ -1162,3 +1162,98 @@ and `fn` is something that _responds_ to dirty,
 deps.... i dunno. would be nice to split these two
 out from one another as i did before to make this
 clearer. can't see how, though.
+
+## 006.js
+
+ok let's do the wrap.
+
+```js
+
+let wrap = (object) => {
+
+    // previous code in here
+
+    const res = {
+        _: { deps, dirty, fs, value }, // so we can see from the outside what's going on
+        $: {} // store of atoms
+    };
+
+    Object.keys(object).forEach(key => {
+
+        const descriptor = Object.getOwnPropertyDescriptor(object, key);
+
+        if (descriptor.get) res.$[key] = atom(key, () => descriptor.get.call(res));
+        else res.$[key] = atom(key, object[key]);
+
+        Object.defineProperty(res, key, {
+            configurable: true,
+            enumerable: true,
+            get() {
+                return res.$[key].get();
+            },
+            set(value) {
+                res.$[key].set(value);
+            }
+        });
+
+    });
+
+    return res;
+}
+```
+
+so this is how we use it:
+
+```js
+let $ = wrap({
+
+    data: null,
+    get count() { return this.data ? this.data.length : 0 },
+    get msg() { return "data =" + this.data + ", count = " + this.count },
+    get ['#print data']() { console.log("auto data =",this.data) }
+})
+```
+
+and to get values out:
+
+```js
+console.log("data = ",$.data)
+console.log("count =",$.count)
+console.log("msg =",$.msg)
+
+console.log("deps =",$._.deps);
+
+console.log("Setting data");
+
+$.data = [1,2,3];
+
+console.log("dirty = ",$._.dirty);
+
+console.log("msg = ",$.msg);
+
+console.log("dirty = ",$._.dirty);
+
+console.log("values = ",$._.value);
+```
+
+output: (same as before)
+
+```
+c:\Users\karlp\mobx-svelte\devlog>deno run 006.js
+auto data = undefined
+data =  undefined
+count = 0
+msg = data =undefined, count = 0
+deps = { "#print data": [ "data" ], count: [ "data" ], msg: [ "data", "count" ] }
+Setting data
+auto data = [ 1, 2, 3 ]
+dirty =  { count: true, msg: true }
+msg =  data =1,2,3, count = 3
+dirty =  {}
+values =  { count: 3, msg: "data =1,2,3, count = 3", data: [ 1, 2, 3 ] }
+```
+
+## better testing
+
+next up we need to think about what are all the different scenarious
+we could possibly want to test for.
