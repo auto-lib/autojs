@@ -1256,4 +1256,18 @@ values =  { count: 3, msg: "data =1,2,3, count = 3", data: [ 1, 2, 3 ] }
 ## better testing
 
 next up we need to think about what are all the different scenarious
-we could possibly want to test for.
+we could possibly want to test for. and because of the way we arranged
+in the internal state those variables are all we could need to check:
+
+ - `deps`
+ - `dirty`
+ - `value`
+
+so for any scenario we have a block of code an say "after all this,
+this is how `deps`, `dirty` and `value` should look". seems like a clean
+way to do it - each just one block, with one `wrap` defined and a
+sequence of events, i.e. gets/sets.
+
+that's great, but what are the scenarios? what are the edge cases?
+can i get to a point where i can be certain everything is checked /
+there are no more fundamentally different scenarios?
