@@ -709,3 +709,456 @@ values that set `dirty`, which is unexpected...
 but wait - why are the dependencies for `count` showing
 as empty? hmm, fixed (not gonna paste the whole new
 version...).
+
+## autorun and subscribe and observable
+
+so still three things to do (besides more rigorous
+testing of the current functionality...)
+
+ 1. autorun a block of code
+ 2. add subscribe to both types `atom` and `auto` (maybe a different name)
+ 3. wrap
+
+for the wrap i mean:
+
+```js
+let state = wrap({
+    data: null,
+    get count() { if (this.data) return this.data.length; else return 0; },
+    get msg() { "data =" + this.data + ", count = " + this.count }
+})
+```
+
+which is much cleaner and easy enough to do.
+
+for the subscribe (and the above pattern) i want to be able to say:
+
+```js
+state.data.subscribe( (val) => console.log("data =",val) );
+```
+
+not sure how to do this, though it could be done with `autorun`...
+it's pretty much the same functionality, though i can't think
+of a good reason to use autorun!
+
+```js
+autorun( () => {
+
+    console.log("data = ",state.data);
+
+})
+```
+
+i suppose we could just have a special list just for functions
+and list out their dependencies... and then i suppose their
+own dirty implementation. but what sucks is that now
+both `atom` and `auto` need to have extra code added....
+
+speaking of which
+
+## 004d.js
+
+is this cleaner?
+
+```js
+
+let running;
+let deps = {};
+let dirty = {};
+
+let atom = (name, fn) => {
+
+    let value;
+
+    if (fn) dirty[name] = true;
+
+    return {
+
+        get: () => {
+            if (running) deps[running].push(name);
+            if (fn && dirty[name])
+            {
+                deps[name] = [];
+                running = name;
+                value = fn();
+                running = undefined;
+                delete(dirty[name]);
+            }
+            return value;
+        },
+        set: (val) => {
+            if (fn) console.trace("fatal: not settable");
+            else
+            {
+                value = val;
+                Object.keys(deps).forEach(n => dirty[n] = true )
+            }
+        }
+    }
+}
+
+let data = atom('data');
+let count = atom('count',() => data.get() ? data.get().length : 0);
+let msg = atom('msg', () => "data =" + data.get() + ", count = " + count.get());
+
+console.log("data = ",data.get())
+console.log("count =",count.get())
+console.log("msg =",msg.get())
+
+console.log("data deps =",deps['data']);
+console.log("count deps =",deps['count']);
+console.log("msg deps =",deps['msg']);
+
+console.log("Setting data");
+
+data.set([1,2,3]);
+
+console.log("dirty = ",dirty);
+
+console.log("msg = ",msg.get());
+
+console.log("dirty = ",dirty);
+```
+
+hmmm it does seem logical to combine the two... arrggh i hate it.
+
+hmmm, maybe we can use the function `fn` to reference the `auto`
+and then we could just use the same thing for `autorun`...
+
+(and i've just noticed my dirty code in the setter is just
+setting everything to dirty...)
+
+## 005.js
+
+```js
+let atom = (name, fn) => {
+
+    let value;
+    let tag = name ? name : fn;
+
+    if (fn) dirty[tag] = true;
+
+    return {
+
+        get: () => {
+            if (running) deps[running].push(tag);
+            if (fn && dirty[tag])
+            {
+                deps[tag] = [];
+                running = tag;
+                value = fn();
+                running = undefined;
+                delete(dirty[tag]);
+            }
+            return value;
+        },
+        set: (val) => {
+            if (fn) console.trace("fatal: not settable");
+            else
+            {
+                value = val;
+                Object.keys(deps).forEach(n => dirty[n] = true )
+            }
+        }
+    }
+}
+```
+
+so we have a new variable `tag` which determines how to
+track this value and/or function. so now we can just
+have a function... will autorunning work like this???
+
+```js
+atom(null, () => console.log("auto data =",data.get()));
+```
+
+so this should just run whenever... erm...
+
+```
+c:\Users\karlp\mobx-svelte\devlog>deno run 005.js
+data =  undefined
+count = 0
+msg = data =undefined, count = 0
+data deps = undefined
+count deps = [ "data" ]
+msg deps = [ "data", "count" ]
+Setting data
+dirty =  { '() => console.log("auto data =",data.get())': true, count: true, msg: true }
+msg =  data =1,2,3, count = 3
+dirty =  { '() => console.log("auto data =",data.get())': true }
+```
+
+doesn't run. we need to run the function... plus see what all the deps are:
+
+### 005a.js
+
+```js
+
+let running;
+let deps = {};
+let dirty = {};
+let fns = {};
+let values = {};
+
+let update = (tag) => {
+
+    deps[tag] = [];
+    running = tag;
+    let val = fns[tag]();
+    running = undefined;
+    return val;
+}
+
+let atom = (name, fn) => {
+
+    let tag = name ? name : "#" + Math.round(1000*Math.random()).toString().padStart(3, "0"); // e.g. #012
+
+    fns[tag] = fn;
+
+    if (name && fn) dirty[tag] = true;
+    if (!name) update(tag)
+
+    return {
+
+        get: () => {
+            if (running) deps[running].push(tag);
+            if (fn && dirty[tag])
+            {
+                values[tag] = update(tag);
+                delete(dirty[tag]);
+            }
+            return values[tag];
+        },
+        set: (val) => {
+            if (fn) console.trace("fatal: not settable");
+            else
+            {
+                values[tag] = val;
+                Object.keys(deps).forEach(n => {
+                    if (n[0]=='#') update(n); // auto function
+                    else dirty[n] = true
+                })
+            }
+        }
+    }
+}
+
+let data = atom('data');
+let count = atom('count',() => data.get() ? data.get().length : 0);
+let msg = atom('msg', () => "data =" + data.get() + ", count = " + count.get());
+
+atom(null, () => console.log("auto data =",data.get()));
+
+console.log("data = ",data.get())
+console.log("count =",count.get())
+console.log("msg =",msg.get())
+
+console.log("deps =",deps);
+
+console.log("Setting data");
+
+data.set([1,2,3]);
+
+console.log("dirty = ",dirty);
+
+console.log("msg = ",msg.get());
+
+console.log("dirty = ",dirty);
+
+console.log("values = ",values);
+```
+
+output:
+
+```
+c:\Users\karlp\mobx-svelte\devlog>deno run 005a.js
+auto data = undefined
+data =  undefined
+count = 0
+msg = data =undefined, count = 0
+deps = { "#800": [ "data" ], count: [ "data" ], msg: [ "data", "count" ] }
+Setting data
+auto data = [ 1, 2, 3 ]
+dirty =  { count: true, msg: true }
+msg =  data =1,2,3, count = 3
+dirty =  {}
+values =  { count: 3, msg: "data =1,2,3, count = 3", data: [ 1, 2, 3 ] }
+```
+
+great, it works. the code is messy, and still need to fix the dirty calc
+in `set`, but auto works.
+
+so i've pulled out update functions and current values into their
+own external variables (can wrap these easily inside an object
+when using our `wrap` command). and now i have a single `tag`
+variable for each thing: atoms (just a `name`), derived variables
+(both a `name` and an update `fn`) and an autorun block of code
+(just an update `fn`). so now we can easily see, as well,
+what the state of each variable is i.e. it's good to keep
+actual names in our structures for debugging purposes.
+and we can quickly see what are just blocks of code (though it
+would be great to have some way to trace their tag names
+with them... i mean, having the filename and line number
+would be ideal!).
+
+# 005b.js
+
+perhaps the simplest thing is just to say you gotta name the
+function yourself:
+
+```js
+atom("#log data", () => console.log("auto data =",data.get()));
+```
+
+it must start with a hash... and if you leave it it will generate
+a random hash value for you.
+
+```
+c:\Users\karlp\mobx-svelte\devlog>deno run 005b.js
+auto data = undefined
+data =  undefined
+count = 0
+msg = data =undefined, count = 0
+deps = { "#print data": [ "data" ], count: [ "data" ], msg: [ "data", "count" ] }
+Setting data
+auto data = [ 1, 2, 3 ]
+dirty =  { count: true, msg: true }
+msg =  data =1,2,3, count = 3
+dirty =  {}
+values =  { count: 3, msg: "data =1,2,3, count = 3", data: [ 1, 2, 3 ] }
+```
+
+so now you can see the auto blocks in the data structures.
+
+some things to note:
+
+ - the auto blocks don't show up in `values` or `dirty`
+ - the auto blocks don't use getters or setters:
+
+```js
+let atom = (name, fn) => {
+
+    let tag = name ? name : "#" + Math.round(1000*Math.random()).toString().padStart(3, "0"); // e.g. #012
+
+    fns[tag] = fn;
+
+    if (tag[0] == '#') // auto function (not a variable)
+        update(tag);
+    else
+    {
+        if (fn) dirty[tag] = true;
+    
+        return {
+
+            get: () => {
+                if (running) deps[running].push(tag);
+                if (fn && dirty[tag])
+                {
+                    values[tag] = update(tag);
+                    delete(dirty[tag]);
+                }
+                return values[tag];
+            },
+            set: (val) => {
+                if (fn) console.trace("fatal: not settable");
+                else
+                {
+                    values[tag] = val;
+                    Object.keys(deps).forEach(n => {
+                        if (n[0]=='#') update(n); // auto function
+                        else dirty[n] = true
+                    })
+                }
+            }
+        }
+    }
+}
+```
+
+also notice how all the code can just use the `tag` variable (we could pull
+it all out to separate functions...). just for interest sake:
+
+# 005c.js
+
+```js
+let running;
+let deps = {};
+let dirty = {};
+let fs = {};
+let value = {};
+
+let update = (tag) => {
+
+    deps[tag] = [];
+    running = tag;
+    let val = fs[tag]();
+    running = undefined;
+    return val;
+}
+
+let getter = (tag) => {
+
+    if (running) deps[running].push(tag);
+    if (fs[tag] && dirty[tag])
+    {
+        value[tag] = update(tag);
+        delete(dirty[tag]);
+    }
+    return value[tag];
+}
+
+let setter = (tag, val) => {
+
+    if (fs[tag]) console.trace("fatal: not settable");
+    else
+    {
+        value[tag] = val;
+        Object.keys(deps).forEach(n => {
+            if (n[0]=='#') update(n); // auto function
+            else dirty[n] = true
+        })
+    }
+}
+
+let atom = (name, fn) => {
+
+    let tag = name ? name : "#" + Math.round(1000*Math.random()).toString().padStart(3, "0"); // e.g. #012
+
+    if(fn) fs[tag] = fn;
+
+    if (tag[0] == '#') // auto function (not a variable)
+        update(tag);
+    else
+    {
+        if (fn) dirty[tag] = true;
+    
+        return {
+
+            get: () => getter(tag),
+            set: (val) => setter(tag, val)
+        }
+    }
+}
+```
+
+hmmm weird. not sure splitting them makes things clearer.
+but it is nice to see each function separately - gives you
+confidence in understanding that it literally just...
+take one/two variables and then just updates the global
+structures. you don't have to think about scope. or
+closures. though i feel like there is some kind of
+greater simplicity in here somewhere... all the logic
+really is based on three options:
+
+ - just `name`: **atomic** - no dirty, no deps, no update
+ - just `fn`: **auto** - no getter, no setter
+ - `name` and `fn`: **derivative** - use everything
+
+i suppose those are the three possibilities, except
+for no `name` or `fn` .... which is nothing.
+
+ok but a `name` can _cause_ dirty, deps...
+and `fn` is something that _responds_ to dirty,
+deps.... i dunno. would be nice to split these two
+out from one another as i did before to make this
+clearer. can't see how, though.
