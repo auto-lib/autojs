@@ -368,3 +368,57 @@ obj.set = (val) => {
 though I'm worried this might be a bug:
 do we still need to track sets
 even if the value was unchanged?
+
+## multiple updates
+
+what happens when you have derived values
+that depend on one another - what order
+will they execute?
+
+```js
+import { observable } from './observable.js';
+
+var state = observable({
+    names: null,
+    get count() { if (this.names) return this.names.length; else return 0 },
+    get msg() {
+        return "Got" + this.names + " which have" + this.count + " fields";
+    }
+});
+
+console.log("Message at start is",state.msg());
+state.names = [1,2,3];
+console.log("Message after setting names is",state.msg());
+```
+
+when you set `names` both `count()` and `msg()` need to be
+executed. however `msg()` depends on `count()` so `msg()`
+should be run first. how do we ensure this?
+
+we can't do this currently because of how we implement derived
+values: using *autorun*. here is the code from `observable.js`:
+
+```js
+autorun(() => res.$mobx[key].set(descriptor.get.call(res)));
+```
+
+essentially we are wrapping each getter in an autorun. so we could
+re-write the code above as follows:
+
+```js
+import { box } from './box.js';
+
+var names = box();
+var count = box()
+var msg = box();
+
+autorun( () => count.set( names ? names.length : 0 ));
+autorun( () => msg.set( "Got" + this.names + " which have" + this.count + " fields" );
+
+console.log("Message at start is",msg());
+names = [1,2,3];
+console.log("Message after setting names is",msg());
+```
+
+so we run the setters whenever one of the variables change.
+however, we need to make sure
