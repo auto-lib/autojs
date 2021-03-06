@@ -1,4 +1,8 @@
-# this is for npm
+# changelog
+
+this is for npm verion changes.
+to see a detailed log of
+design changes go to [docs/devlog](docs/devlog).
 
 ## 0.0.1
 

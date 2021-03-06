@@ -48,18 +48,55 @@ on what, what will be updated on next access, and what the values
 are now. This is the core of reactivity and `auto` makes these
 explicit.
 
-### npm
+## usage
+
+this is what using **auto** looks like no matter where you are
+running it from:
+
+```js
+let $ = auto({
+    data: null,
+    count: ($) => $.data ? $.data.length : 0,
+    msg: ($) => "Got " + $.count + " items"
+})
+
+console.log($._);
+```
+
+however getting the `auto` keyword loaded
+depends on the environment you are using.
+
+## environments
+
+there are three versions of the **auto** library in the root folder, each
+contained in separate files:
+
+ - `auto-commonjs.js`
+ - `auto-es6.js`
+ - `auto-no-export.js`
+
+these are all exactly the same file except for the last line
+which determines if it can be used with `npm` (and `node),
+can be used as an `es6` module, and can be used directly in
+a browser:
+
+ - `auto-commonjs.js` for `npm` and `node` (last line is `module.exports = auto;`)
+ - `auto-es6.js` for use as es6 module (last line is `export default auto;`)
+ - `auto-no-export.js` for use in `<script>` tag (no export statement)
+ 
+### npm and node
 
 to use via npm install with `npm install @autolib/auto`
-and then in `test.js` put
+(the npm module is specified to use `auto-commonjs.js`)
+and then, for example, put in `test.js`
 
 ```js
 const auto = require('@autolib/auto');
 
 let $ = auto({
     data: null,
-    get count() { if (this.data) return data.length; else return 0; }
-    get msg() { return "Found "+this.count()+" entries" }
+    count: ($) => $.data ? $.data.length : 0,
+    msg: ($) => "Got " + $.count + " items"
 })
 
 console.log($._);
@@ -74,24 +111,20 @@ c:\Users\karlp\test-auto>node test.js
 
 ### es6 module
 
-to use as an es6 module
-change the last line of the library
-(`auto.js`) from `module.exports = auto;` to
-`export default auto;`. Then you can import it like
-this:
+for this simply use the right lib in the import, i.e.
 
 ```js
-const auto = import('auto.js');
+const auto = import('auto-es6.js');
 ```
 
-it should then work as before.
+and to test you could use, for example, `deno`
+i.e. `deno run test.js`
 
 ### browser
 
-to use directly in a browser
-remove the last line of the
-lib (`auto.js`). see `tests/auto-no-export.js`
-and `tests/test.html`, which looks like
+to use directly in a `<script>`
+tag use `auto-no-import.js`.
+`tests/test.html` has an example of this:
 
 ```html
 <!doctype html>
@@ -101,7 +134,7 @@ and `tests/test.html`, which looks like
   <meta charset="utf-8">
   <title>auto test</title>
 
-<script src="auto-no-export.js"></script>
+<script src="../auto-no-export.js"></script>
 
 </head>
 
@@ -121,10 +154,10 @@ and `tests/test.html`, which looks like
 </html>
 ```
 
-just run `npx http-server` from the root folder
+to see this working run `npx http-server` from the root repo folder
 and then browse to `http://localhost:8080/tests/test.html`
 and you should see `Object { deps: {}, dirty: {…}, value: {} }`
-printed to the console.
+printed to the browser console (press CTRL-SHIFT-k in firefox).
 
 ## development
 

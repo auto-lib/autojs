@@ -2,7 +2,7 @@
   "name": "@autolib/auto",
   "version": "0.0.2",
   "description": "100-line reactivity library",
-  "main": "auto.js",
+  "main": "auto-commonjs.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kewp/auto.git"
