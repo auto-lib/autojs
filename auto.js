@@ -61,7 +61,7 @@ let auto = (object) => {
     }
 
     const res = {
-        _: { deps, dirty, fs, value }, // so we can see from the outside what's going on
+        _: { deps, dirty, value }, // so we can see from the outside what's going on
         $: {} // store of atoms
     };
 

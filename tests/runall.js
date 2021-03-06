@@ -1,5 +1,3 @@
-import auto from '../auto.js'; // auto?
-import test from './001_check_something.js';
 
 // https://javascript.plainenglish.io/4-ways-to-compare-objects-in-javascript-97fe9b2a949c
 function isEqual(obj1, obj2) {
@@ -15,7 +13,7 @@ function isEqual(obj1, obj2) {
     }  return true;
   }
 
-let assert_same = (a,b) =>
+let assert_same = (name,a,b) =>
 {
     let keys = ['deps','dirty','value'];
     let same = true;
@@ -26,16 +24,33 @@ let assert_same = (a,b) =>
 
     if (!same)
     {
+        console.log(name);
         console.trace("not same");
         keys.forEach(key => {
-            console.log("a["+key+"] =",a[key]);
-            console.log("b["+key+"] =",b[key]);
+            console.log("a."+key+" =",a[key]);
+            console.log("b."+key+" =",b[key]);
         })
     }
 
     return same;
 }
 
-let $ = auto(test.obj);
-test.fn($);
-if (assert_same(test._, $._)) console.log("Test passed");
+import auto from '../auto.js'; // auto?
+
+let check = (name, test) => {
+    let $ = auto(test.obj);
+    test.fn($);
+    if (assert_same(name, test._, $._)) console.log(name+": passed")
+}
+
+for (const entry of Deno.readDirSync("."))
+{
+    let name = entry.name;
+    if (parseInt(name.substring(0,3))>0)
+    {
+        const test = await import("./"+name)
+        name = name.replace('.js','');
+        check(name, test.default); 
+    }
+}
+

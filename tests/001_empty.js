@@ -1,0 +1,13 @@
+export default {
+    obj: {
+        // no values to wrap
+    },
+    fn: ($) => {
+        // nothing to do
+    },
+    _: {
+        deps: {}, // no dependencies tracked
+        dirty: {}, // nothing to update
+        value: {} // no values cached
+    }
+}
