@@ -20,6 +20,23 @@ the totality of **auto**'s syntax is:
  - each object member pairs with either a value (e.g. `null`) or a function
  - each function takes in the wrapped object `$` as input, returns a value and can refer to any other members via the wrapped object
 
+> actually i've left out two things: _auto blocks_ and _subscribe_ which i will document soon
+
+## usage
+
+you use the returned wrap as a normal object:
+
+```js
+$.data = [1,2,3];
+console.log("msg =",$.msg);
+```
+
+and everything updates automatically i.e. the above prints
+
+```
+msg = 1,2,3 has 3 items
+```
+
 ## why
 
 > it's worth reading [docs/why-reactivity.md](docs/why-reactivity.md)
@@ -29,24 +46,40 @@ besides how reactivity can help in general
 what distinguishes **auto** from other reactive
 libraries?
 
-### explainability
-
-with **auto** you can _always_ tell why things
-occur where-as other tools are a black-box
-which make debugging a nightmare.
-see [docs/explainability.md](docs/explainability.md)
-for details.
-
 ### simple
 
 the entire **auto** library is 100 lines long,
 has no external dependencies and uses just
 five variables to manage its internal state.
-it is very easy to understand it completely.
+you can understand the whole thing.
 see [docs/internals.md](docs/internals.md)
-for a walk-through and also the [docs/devlog](docs/devlog) 
-which gives a blow-by-blow account of its development
+for a walk-through of the code and also
+[docs/devlog](docs/devlog) 
+for a blow-by-blow account of its development
 and design choices.
+
+### explainability
+
+**auto**'s internal variables are
+so easy to interpret that at any point you
+can understand behavior. they can be
+accessed in a special variable `_`.
+
+```js
+console.log($._)
+```
+
+outputs something like
+
+> {
+>     dep: ['count': ['data'], 'msg': ['data','count']],
+>     dirty: { msg: true },
+>     value: { data: [1,2,3], count: 3 }
+> }
+
+see [docs/explainability.md](docs/explainability.md)
+for details on these three (the other
+two are not in `_` because they aren't really useful for debugging).
 
 ## environments
 
