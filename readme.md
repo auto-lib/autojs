@@ -24,7 +24,7 @@ $.data = [1,2,3];
 console.log("msg =",$.msg);
 ```
 
-everything will update automatically.
+everything will update automatically
 so for example the above will print
 
 ```
@@ -34,17 +34,16 @@ msg = 1,2,3 has 3 items
 ## why
 
 > it's worth reading [docs/why-reactivity.md](docs/why-reactivity.md)
-> and [docs/bad-reactivity.md](docs/bad-reactivity.md) first.
+> and [docs/bad-reactivity.md](docs/bad-reactivity.md) first
 
-besides how reactivity can help in general
 what distinguishes **auto** from other reactive
 libraries?
 
 ### simple
 
-the entire **auto** library is 100 lines long,
+the **auto** library is 100 lines long,
 has no external dependencies and uses just
-five variables to manage its internal state.
+five variables to manage its internal state;
 you can understand the whole thing.
 see [docs/internals.md](docs/internals.md)
 for a walk-through of the code and also
@@ -57,8 +56,7 @@ and design choices.
 **auto**'s internal variables are easy to interpret:
 looking at them explains behaviour.
 three can be viewed via the special `_` member
-(the other two internal vars aren't useful for debugging purposes)
-so
+(the other two aren't useful for debugging) so
 
 ```js
 console.log($._)
