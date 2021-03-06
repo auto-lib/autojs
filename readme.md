@@ -17,14 +17,15 @@ of the syntax.
 
 ## usage
 
-you use the returned wrap as a normal object
+whenever you use the returned object
 
 ```js
 $.data = [1,2,3];
 console.log("msg =",$.msg);
 ```
 
-and everything updates automatically i.e. the above prints
+everything will update automatically.
+so for example the above will print
 
 ```
 msg = 1,2,3 has 3 items
@@ -53,12 +54,10 @@ and design choices.
 
 ### explainability
 
-**auto**'s internal variables are easy to interpret
-so you can understand behavior at any point.
-three of them are accessed via the special `_` member
-
-> the other two internal vars aren't really useful for debugging
-
+**auto**'s internal variables are easy to interpret:
+looking at them explains behaviour.
+three can be viewed via the special `_` member
+(the other two internal vars aren't useful for debugging purposes)
 so
 
 ```js
