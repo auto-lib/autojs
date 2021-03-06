@@ -1,31 +1,13 @@
-**auto** is a 100-line reactivity library
-that works the same way as MobX's `observable`:
-
-```js
-let $ = auto({
-    data: null,
-    get count() { if (this.data) return data.length; else return 0; }
-    get msg() { return "Found "+this.count()+" entries" }
-})
-```
+**auto** is a simple, robust and explainable
+reactivity library.
 
 ## simple
 
-**auto** uses no external libraries.
-the entire internal state is determined by five variables.
-here are the first 10 lines of the library, `auto.js`:
-
-```js
-let auto = (object) => {
-
-    let running;    // used to track variable usage
-    let dep = {};   // dependencies for each variable
-    let dirty = {}; // variables that need to be updated
-    let fs = {};    // update functions for each variable
-    let value = {}; // last calculated variable values
-
-    // ...
-```
+the entire **auto** library is 100 lines long,
+has no external dependencies and uses five variables
+to manage its internal state. for a detailed
+explanation of how everything works see
+[docs/internals.md](docs/internals.md).
 
 ## robust
 
@@ -65,6 +47,84 @@ Notice how we can tell directly what is happening: what depends
 on what, what will be updated on next access, and what the values
 are now. This is the core of reactivity and `auto` makes these
 explicit.
+
+### npm
+
+to use via npm install with `npm install @autolib/auto`
+and then in `test.js` put
+
+```js
+const auto = require('@autolib/auto');
+
+let $ = auto({
+    data: null,
+    get count() { if (this.data) return data.length; else return 0; }
+    get msg() { return "Found "+this.count()+" entries" }
+})
+
+console.log($._);
+```
+
+Now running `node test.js` you should see
+
+```
+c:\Users\karlp\test-auto>node test.js
+{ deps: {}, dirty: { count: true, msg: true }, value: {} }
+```
+
+### es6 module
+
+to use as an es6 module
+change the last line of the library
+(`auto.js`) from `module.exports = auto;` to
+`export default auto;`. Then you can import it like
+this:
+
+```js
+const auto = import('auto.js');
+```
+
+it should then work as before.
+
+### browser
+
+to use directly in a browser
+remove the last line of the
+lib (`auto.js`). see `tests/auto-no-export.js`
+and `tests/test.html`, which looks like
+
+```html
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>auto test</title>
+
+<script src="auto-no-export.js"></script>
+
+</head>
+
+<body>
+
+  <script>
+    let $ = auto({
+        data: null,
+        count: ($) => $.data ? $.data.length : 0,
+        msg: ($) => "Got " + $.count + " items"
+    })
+
+    console.log($._);
+</script>
+
+</body>
+</html>
+```
+
+just run `npx http-server` from the root folder
+and then browse to `http://localhost:8080/tests/test.html`
+and you should see `Object { deps: {}, dirty: {…}, value: {} }`
+printed to the console.
 
 ## development
 

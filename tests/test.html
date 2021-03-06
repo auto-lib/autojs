@@ -1,0 +1,24 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>auto test</title>
+
+  <script src="auto-no-export.js"></script>
+</head>
+
+<body>
+  <script>
+    let $ = auto({
+        data: null,
+        count: ($) => $.data ? $.data.length : 0,
+        msg: ($) => "Got " + $.count + " items"
+    })
+
+    console.log($._);
+</script>
+
+</body>
+</html>
