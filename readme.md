@@ -2,8 +2,7 @@
 
 ## how it looks
 
-**auto** has just one keyword `auto`
-which is used like so:
+just one keyword `auto` is used like this:
 
 ```js
 let $ = auto({
@@ -13,40 +12,42 @@ let $ = auto({
 })
 ```
 
-so explicitly:
+## what this means
+
+the totality of **auto**'s syntax is:
 
  - `auto` wraps a plain object
- -  each object member refers to either a _value_ (e.g. `null`) or a _function_
+ - each object member pairs with either a _value_ (e.g. `null`) or a _function_
  - _functions_ take in the wrapped object as input `($) => ...`
  - _functions_ return a value and can refer to any other members
 
 ## why
 
-it's worth reading (why reactivity)[docs/why-reactivity.md]
-and (bad reactivity)[docs/bad-reactivity.md] first if you haven't
-already, but besides how reactivity can help in general
-what distinguishes **auto** from other reactivity
-solutions?
+> it's worth reading [docs/why-reactivity.md](docs/why-reactivity.md)
+> and [docs/bad-reactivity.md](docs/bad-reactivity.md) first.
+
+besides how reactivity can help in general
+what distinguishes **auto** from other reactive
+libraries?
 
 ### explainability
 
 with **auto** you can _always_ tell why things
 occur where-as other tools are a black-box
-making debugging a nightmare.
-see (explainability)[docs/explainability.md]
+which make debugging a nightmare.
+see [docs/explainability.md](docs/explainability.md)
 for details.
 
 ### simple
 
 the entire **auto** library is 100 lines long,
-it has no external dependencies and uses just
+has no external dependencies and uses just
 five variables to manage its internal state.
-it is thus very easy to understand completely
-how it works. see
-[docs/internals.md](docs/internals.md)
-for a walk-through.
-and for another perspective look at the [devlog](docs/devlog) for a
-blow-by-blow account of its development.
+it is thus very easy to understand it completely.
+see [docs/internals.md](docs/internals.md)
+for a walk-through and also the [docs/devlog](docs/devlog) 
+which gives a blow-by-blow account of its development
+and the design decisions that went into it.
 
 ## environments
 
@@ -57,7 +58,7 @@ as an es6 module and directly in the browser.
 
 to use via npm install with `npm install @autolib/auto`
 and then you can import it with `const auto = require('@autolib/auto';`.
-see (docs/npm-and-node.md)[docs/npm-and-node.md] for
+see [docs/npm-and-node.md](docs/npm-and-node.md) for
 a detailed walkthrough.
 
 ### es6 module
@@ -70,13 +71,13 @@ const auto = import('auto-es6.js');
 
 and to test you could use, for example, `deno`
 i.e. `deno run test.js`. you could use
-(docs/npm-and-node.md)[docs/npm-and-node.md]
+[docs/npm-and-node.md](docs/npm-and-node.md)
 as a template (just replace the import statement).
 
 ### browser
 
 to use directly in a `<script>` tag use `auto-no-import.js`.
-see (docs/html.md)[docs/html.md] for a walk-through.
+see [docs/html.md](docs/html.md) for a walk-through.
 
 ## integrations
 
@@ -97,6 +98,6 @@ todo
 
 this library started as an attempt to create MobX-like observables
 in Svelte. that original version was based largely on a video by MobX's creator
-(see the [old readme](docs/old-readme.md) for more on this).
+(see the [docs/old-readme.md](docs/old-readme.md) for more on this).
 then a new approach written up from scratch in a day which
-was documented in [extreme detail](docs/devlog).
+was documented with extreme detail in [docs/devlog](docs/devlog).
