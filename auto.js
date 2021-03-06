@@ -1,4 +1,3 @@
-
 let auto = (object) => {
 
     let running;
@@ -18,7 +17,7 @@ let auto = (object) => {
 
     let getter = (tag) => {
 
-        if (running && deps[running].indexOf(tag) === -1) deps[running].push(tag);
+        if (running) deps[running].push(tag);
         if (fs[tag] && dirty[tag])
         {
             value[tag] = update(tag);
@@ -67,9 +66,7 @@ let auto = (object) => {
 
     Object.keys(object).forEach(key => {
 
-        const descriptor = Object.getOwnPropertyDescriptor(object, key);
-
-        if (descriptor.get) res.$[key] = atom(key, () => descriptor.get.call(res));
+        if (typeof object[key] == 'function') res.$[key] = atom(key, () => object[key](res));
         else res.$[key] = atom(key, object[key]);
 
         Object.defineProperty(res, key, {
@@ -88,4 +85,4 @@ let auto = (object) => {
     return res;
 }
 
-export default auto;
+module.exports = auto;

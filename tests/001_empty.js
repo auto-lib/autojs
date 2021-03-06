@@ -1,4 +1,4 @@
-export default {
+module.exports = {
     obj: {
         // no values to wrap
     },

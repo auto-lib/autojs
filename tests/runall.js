@@ -35,7 +35,7 @@ let assert_same = (name,a,b) =>
     return same;
 }
 
-import auto from '../auto.js'; // auto?
+const auto  = require('../auto.js');
 
 let check = (name, test) => {
     let $ = auto(test.obj);
@@ -43,14 +43,13 @@ let check = (name, test) => {
     if (assert_same(name, test._, $._)) console.log(name+": passed")
 }
 
-for (const entry of Deno.readDirSync("."))
+require('fs').readdirSync(".").forEach(name =>
 {
-    let name = entry.name;
     if (parseInt(name.substring(0,3))>0)
     {
-        const test = await import("./"+name)
+        const test = require("./"+name);
         name = name.replace('.js','');
-        check(name, test.default); 
+        check(name, test); 
     }
-}
+})
 

@@ -1,1 +1,1 @@
-deno run --allow-read runall.js
+node runall.js
