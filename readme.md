@@ -1,6 +1,6 @@
 ## what
 
-**auto** has just one keyword, `auto`,
+**auto** has just one keyword `auto`
 which is used like so:
 
 ```js
@@ -11,18 +11,24 @@ let $ = auto({
 })
 ```
 
+to explain:
+
  - `auto` wraps a plain object
- -  each object member refers to either a _value_ (e.g. `null`) or a _function_ (e.g. `($) => $.data ? $.data.length : 0`)
+ -  each object member refers to either a _value_ (e.g. `null`) or a _function_
  - _functions_ take in the wrapped object as input i.e. `($) => ...`
- - _functions_ product a return value and refer to any other members (both _values_ and _functions_) e.g. `$.data` or `$.count`
+ - _functions_ return a value and can refer to any other members
 
 ## why
 
-the idea is that we define the _relationships_ between variables
-explicitly and so don't need to orchestrate function execution
-when state changes. to explain:
+the question of _why_ one should use this library
+can be split into two parts: why is _reactivity_
+useful, and what sets _auto_ apart from other
+reactive solutions.
 
-### reactive variables
+### why reactivity
+
+the idea is that we define the _relationships_ between variables
+instead of managing how variables are produced.
 
 after you set a value member of the returned wrap object (`$`)
 
@@ -42,7 +48,7 @@ console.log("msg =",$.msg);
 msg = 1,2,3 has 3 items
 ```
 
-### so?
+#### so what?
 
 notice that we defined a nested
 dependency: `msg` depends on `count`
@@ -61,19 +67,23 @@ console.log("msg = ",msg(data, count(data));
 
 in this case we are responsible for ensuring:
 
- - functions are called in the right order
- - functions are wired together properly
+ - functions are called in the _right order_
+ - functions are _wired together properly_
 
-so this is why a reactive library can be
-so great in software that has complex
-relationships between variables
-(though they can be used incorrectly
-which can go [very badly](docs/bad-reactivity.md)).
+this is why a reactive library can be
+so useful in software that has complex
+relationships between variables:
+you are no longer responsible for
+tying things together and ensuring
+the execution happens in the right order
+(note, though, that reactivity libraries
+can be used [very badly](docs/bad-reactivity.md)).
+
 however, what makes **auto** different from
 other reactive libraries like MobX and
 rxjs or the reactive functionality in SvelteJS?
 
-### explainability
+### why auto
 
 because of how most reactive libraries
 are designed debugging why things occurred as
@@ -84,6 +94,8 @@ use the reactivity in SvelteJS, hence this library!,
 so i may be wrong about this... :|) you never
 know what caused things to execute in the order
 they did, or even what order they ran in.
+
+#### explainability
 
 with **auto** it's very different: because of
 how it is designed you can at any stage see
@@ -113,9 +125,7 @@ after our two statements above this will print
 
 so for example we can see
 
-## other notable features
-
-### simple
+#### simple
 
 the entire **auto** library is 100 lines long,
 it has no external dependencies and uses just
@@ -126,7 +136,7 @@ for a detailed
 explanation of how everything works see
 [docs/internals.md](docs/internals.md).
 
-### robust
+#### robust
 
 each of these are flat structures. the dependencies
 of `get count()` in the example above are in an array
@@ -142,7 +152,7 @@ the **auto** library:
  - `setter(tag,value)` put `val` into `tag`, updating / making dirty each dependency as needed
 
 
-### explainable
+#### explainable
 
 this makes it trivial to understand what is happening
 at any point in time: simply print out the `_` member
@@ -165,7 +175,7 @@ on what, what will be updated on next access, and what the values
 are now. This is the core of reactivity and `auto` makes these
 explicit.
 
-## environments
+## usage
 
 ### npm and node
 
@@ -242,20 +252,20 @@ and then browse to `http://localhost:8080/tests/test.html`
 and you should see `Object { deps: {}, dirty: {…}, value: {} }`
 printed to the browser console (press CTRL-SHIFT-k in firefox).
 
-
-## integrations
+### integrations
 
 **auto** was originally developed to be used with Svelte (see below)
 so works well with it. other integrations i.e. React, Vue and Mithril
-still need to be looked at.
+still need to be done, though the subscribe method makes it easy
+to tie **auto** into any existing javascript code.
 
-### svelte
+#### svelte
 
 
 ## development
 
 this library started as an attempt to create MobX-like observables
-in Svelte. this was based largely on a video by MobX's creator.
-see the [old readme](docs/old-readme.md) for more. then a new
-approach was started and written from scratch in a day which
+in Svelte. that original version was based largely on a video by MobX's creator
+(see the [old readme](docs/old-readme.md) for more on this).
+then a new approach written up from scratch in a day which
 was documented in [extreme detail](docs/devlog).
