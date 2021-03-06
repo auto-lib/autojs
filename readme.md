@@ -1,4 +1,6 @@
-## what
+**auto** is a reactivity tool for javascript.
+
+## how it looks
 
 **auto** has just one keyword `auto`
 which is used like so:
@@ -11,196 +13,52 @@ let $ = auto({
 })
 ```
 
-to explain:
+so explicitly:
 
  - `auto` wraps a plain object
  -  each object member refers to either a _value_ (e.g. `null`) or a _function_
- - _functions_ take in the wrapped object as input i.e. `($) => ...`
+ - _functions_ take in the wrapped object as input `($) => ...`
  - _functions_ return a value and can refer to any other members
 
 ## why
 
-the question of _why_ one should use this library
-can be split into two parts: why is _reactivity_
-useful, and what sets _auto_ apart from other
-reactive solutions.
+it's worth reading (why reactivity)[docs/why-reactivity.md]
+and (bad reactivity)[docs/bad-reactivity.md] first if you haven't
+already, but besides how reactivity can help in general
+what distinguishes **auto** from other reactivity
+solutions?
 
-### why reactivity
+### explainability
 
-the idea is that we define the _relationships_ between variables
-instead of managing how variables are produced.
+with **auto** you can _always_ tell why things
+occur where-as other tools are a black-box
+making debugging a nightmare.
+see (explainability)[docs/explainability.md]
+for details.
 
-after you set a value member of the returned wrap object (`$`)
-
-```js
-$.data = [1,2,3]
-```
-
-any subsequent access to function
-members will produce the correct result based
-on the relationships you defined.
-
-```js
-console.log("msg =",$.msg);
-```
-
-```
-msg = 1,2,3 has 3 items
-```
-
-#### so what?
-
-notice that we defined a nested
-dependency: `msg` depends on `count`
-which depends on `data`. if you coded
-this in the standard way, i.e. with functions,
-it would have been succeptible to bugs:
-
-```js
-let data = null;
-let count = (data) => data ? data.length : 0;
-let msg = (data, count) => data + " has " + count + " items";
-
-data = [1,2,3];
-console.log("msg = ",msg(data, count(data));
-```
-
-in this case we are responsible for ensuring:
-
- - functions are called in the _right order_
- - functions are _wired together properly_
-
-this is why a reactive library can be
-so useful in software that has complex
-relationships between variables:
-you are no longer responsible for
-tying things together and ensuring
-the execution happens in the right order
-(note, though, that reactivity libraries
-can be used [very badly](docs/bad-reactivity.md)).
-
-however, what makes **auto** different from
-other reactive libraries like MobX and
-rxjs or the reactive functionality in SvelteJS?
-
-### why auto
-
-because of how most reactive libraries
-are designed debugging why things occurred as
-they did is neigh impossible (caveat: i actually
-do not have experience in using MobX or rxjs
-but i have a _ton_ of experience trying to
-use the reactivity in SvelteJS, hence this library!,
-so i may be wrong about this... :|) you never
-know what caused things to execute in the order
-they did, or even what order they ran in.
-
-#### explainability
-
-with **auto** it's very different: because of
-how it is designed you can at any stage see
-exactly why things are happening they way they
-are by looking at the actual
-internal state of the wrap
-which determines all of the reactive
-logic simply by accessing the special variable `$._`
-
-```js
-console.log($._)
-```
-
-after our two statements above this will print
-
-```
-{
-  deps: { msg: [ 'count' ], count: [ 'data' ] },
-  dirty: {},
-  value: { data: [ 1, 2, 3 ], count: 3, msg: 'Got 3 items' }
-}
-```
-
- - `deps` what each function member depends on
- - `dirty` what function members need updating
- - `value` current value of each member
-
-so for example we can see
-
-#### simple
+### simple
 
 the entire **auto** library is 100 lines long,
 it has no external dependencies and uses just
-five variables to manage its internal state
-(the three we see in `$._` and two others not
-worth printing out in debugging).
-for a detailed
-explanation of how everything works see
-[docs/internals.md](docs/internals.md).
+five variables to manage its internal state.
+it is thus very easy to understand completely
+how it works. see
+[docs/internals.md](docs/internals.md)
+for a walk-through.
+and for another perspective look at the [devlog](docs/devlog) for a
+blow-by-blow account of its development.
 
-#### robust
+## environments
 
-each of these are flat structures. the dependencies
-of `get count()` in the example above are in an array
-in `dep.count`. similarly for whether `count` needs
-to be re-calculated (`dirty.count`) and what the
-last calculated value is (`value.count`). all these
-structures sit outside of the functions that change
-things. these are the three methods internally in
-the **auto** library:
-
- - `update(tag)` update the value of variable named `tag` (here we use `tag` and not `name` because of autorun blocks. see below)
- - `getter(tag)` get the value of `tag`, updating if dirty. if `running` is set, add to `running`s dependencies
- - `setter(tag,value)` put `val` into `tag`, updating / making dirty each dependency as needed
-
-
-#### explainable
-
-this makes it trivial to understand what is happening
-at any point in time: simply print out the `_` member
-of the returned _auto_ object.
-
-```js
-console.log($._);
-```
-
-> {
->     dep: ['count': ['data'], 'msg': ['data','count']],
->     dirty: { msg: true },
->     value: { data: [1,2,3], count: 3 }
-> }
-
-(We leave out `running` and `fns` since they are not useful to see).
-
-Notice how we can tell directly what is happening: what depends
-on what, what will be updated on next access, and what the values
-are now. This is the core of reactivity and `auto` makes these
-explicit.
-
-## usage
+you can use **auto** with node/npm,
+as an es6 module and directly in the browser.
 
 ### npm and node
 
 to use via npm install with `npm install @autolib/auto`
-(the npm module is specified to use `auto-commonjs.js`)
-and then, for example, put in `test.js`
-
-```js
-const auto = require('@autolib/auto');
-
-let $ = auto({
-    data: null,
-    count: ($) => $.data ? $.data.length : 0,
-    msg: ($) => "Got " + $.count + " items"
-})
-
-console.log($._);
-```
-
-Now running `node test.js` you should see
-
-```
-c:\Users\karlp\test-auto>node test.js
-{ deps: {}, dirty: { count: true, msg: true }, value: {} }
-```
+and then you can import it with `const auto = require('@autolib/auto';`.
+see (docs/npm-and-node.md)[docs/npm-and-node.md] for
+a detailed walkthrough.
 
 ### es6 module
 
@@ -211,56 +69,29 @@ const auto = import('auto-es6.js');
 ```
 
 and to test you could use, for example, `deno`
-i.e. `deno run test.js`
+i.e. `deno run test.js`. you could use
+(docs/npm-and-node.md)[docs/npm-and-node.md]
+as a template (just replace the import statement).
 
 ### browser
 
-to use directly in a `<script>`
-tag use `auto-no-import.js`.
-`tests/test.html` has an example of this:
+to use directly in a `<script>` tag use `auto-no-import.js`.
+see (docs/html.md)[docs/html.md] for a walk-through.
 
-```html
-<!doctype html>
-
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>auto test</title>
-
-<script src="../auto-no-export.js"></script>
-
-</head>
-
-<body>
-
-  <script>
-    let $ = auto({
-        data: null,
-        count: ($) => $.data ? $.data.length : 0,
-        msg: ($) => "Got " + $.count + " items"
-    })
-
-    console.log($._);
-</script>
-
-</body>
-</html>
-```
-
-to see this working run `npx http-server` from the root repo folder
-and then browse to `http://localhost:8080/tests/test.html`
-and you should see `Object { deps: {}, dirty: {…}, value: {} }`
-printed to the browser console (press CTRL-SHIFT-k in firefox).
-
-### integrations
+## integrations
 
 **auto** was originally developed to be used with Svelte (see below)
-so works well with it. other integrations i.e. React, Vue and Mithril
-still need to be done, though the subscribe method makes it easy
-to tie **auto** into any existing javascript code.
+but other specific integrations with React, Vue and Mithril etc.
+still need to be done. however **auto**'s _subscribe_ method makes it easy
+to tie it into any existing framework.
 
-#### svelte
+### subscribe
 
+todo
+
+### svelte
+
+todo
 
 ## development
 
