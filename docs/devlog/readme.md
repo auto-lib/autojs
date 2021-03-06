@@ -1271,3 +1271,110 @@ sequence of events, i.e. gets/sets.
 that's great, but what are the scenarios? what are the edge cases?
 can i get to a point where i can be certain everything is checked /
 there are no more fundamentally different scenarios?
+
+## 007.js
+
+ok so i just realised we can be cleaner:
+
+```js
+let $ = auto({
+    data: null,
+    count: ($) => $.data ? $.data.length : 0,
+    msg: ($) => "Got " + $.count + " items",
+    '#print data': ($) => console.log("auto data =",$.data)
+})
+```
+
+(note i've renamed the function from `wrap` to `auto`).
+
+(also i've created `auto.js` in the root folder which is
+just the latest form the devlog, i.e. `007.js` for now
+and i am going to publish to npm under `@autolib/auto`.
+`auto`, `@kewp` and `@auto` were taken :|).
+
+we needn't specify javascript `get`ers (so now it's shorter),
+we don't need
+to use `this` everywhere (`$` is shorter too), and using `$.` inside will be
+consistent with accessing the state outside
+i.e. `$.data = [1,2,3];`. also note: this is a break from
+MobX's `observable` syntax.
+
+we need to change the
+wrapper function, though, since it looks for getters
+(and should rather just see if everything is a function)
+
+```js
+Object.keys(object).forEach(key => {
+
+    if (typeof object[key] == 'function') res.$[key] = atom(key, () => object[key](res));
+    else res.$[key] = atom(key, object[key]);
+
+    // rest is same as before
+});
+```
+
+so we just check if the propert is a function.
+if so, create an atom with a new function
+that just calls this property but passing in
+`res` (which is just an object with all the atoms
+in it).
+
+## auto blocks
+
+one thing i'm wondering is if the auto blocks can
+be cleaner, or even if they are needed. by this
+i mean `#print data` in the example:
+
+```js
+let $ = auto({
+    data: null,
+    count: ($) => $.data ? $.data.length : 0,
+    msg: ($) => "Got " + $.count + " items",
+    '#print data': ($) => console.log("auto data =",$.data)
+})
+```
+
+can't we just call it `print data` and it will run
+on it's own?
+
+```js
+let $ = auto({
+    // ...
+    'print data': ($) => // ...
+})
+```
+
+hmmm, no. we need this to run whenever updates happen.
+look at the setter code:
+
+```js
+let setter = (tag, val) => {
+
+    if (fs[tag]) console.trace("fatal: not settable");
+    else
+    {
+        value[tag] = val;
+        Object.keys(deps).forEach(n => {
+            if (n[0]=='#') update(n); // auto function
+            else dirty[n] = true
+        })
+    }
+}
+```
+
+notice how if we are in an auto block (name starts with `#`)
+we run the update, otherwise just set the variable to dirty.
+
+this is an important point: a derived value is _lazy_ (for
+some very good reasons...) where-as we want the auto blocks
+to run when changes occur. note though: what about batching?
+this is something i have yet to look at...
+
+## batching
+
+i need to look at when and how to do batching, or if it's
+even needed because of the lazy updating. also would be worth
+writing a document describing the lazy approach and how it
+results in a very different behaviour to ... a not-lazy
+approach... (?)
+

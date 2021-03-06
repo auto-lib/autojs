@@ -11,6 +11,7 @@ let $ = auto({
 
 ## simple
 
+**auto** uses no external libraries.
 the entire internal state is determined by five variables.
 here are the first 10 lines of the library, `auto.js`:
 
