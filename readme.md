@@ -12,19 +12,12 @@ let $ = auto({
 })
 ```
 
-## what this means
-
-the totality of **auto**'s syntax is:
-
- - `auto` wraps a plain object
- - each object member pairs with either a value (e.g. `null`) or a function
- - each function takes in the wrapped object `$` as input, returns a value and can refer to any other members via the wrapped object
-
-> actually i've left out two things: _auto blocks_ and _subscribe_ which i will document soon
+see [docs/syntax.md](docs/syntax.md) for a breakdown
+of the syntax.
 
 ## usage
 
-you use the returned wrap as a normal object:
+you use the returned wrap as a normal object
 
 ```js
 $.data = [1,2,3];
@@ -60,26 +53,30 @@ and design choices.
 
 ### explainability
 
-**auto**'s internal variables are
-so easy to interpret that at any point you
-can understand behavior. they can be
-accessed in a special variable `_`.
+**auto**'s internal variables are easy to interpret
+so you can understand behavior at any point.
+three of them are accessed via the special `_` member
+
+> the other two internal vars aren't really useful for debugging
+
+so
 
 ```js
 console.log($._)
 ```
 
-outputs something like
+will print something like
 
-> {
->     dep: ['count': ['data'], 'msg': ['data','count']],
->     dirty: { msg: true },
->     value: { data: [1,2,3], count: 3 }
-> }
+```js
+{
+    dep: ['count': ['data'], 'msg': ['data','count']],
+    dirty: { msg: true },
+    value: { data: [1,2,3], count: 3 }
+}
+```
 
 see [docs/explainability.md](docs/explainability.md)
-for details on these three (the other
-two are not in `_` because they aren't really useful for debugging).
+for a walk-through on what these variables mean.
 
 ## environments
 
