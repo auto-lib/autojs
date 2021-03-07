@@ -1,13 +1,20 @@
 
-let auto = (obj) => {
+let auto = (obj,c) => {
+
+    c = c || {}
+    c.trace == c.trace || false; // show execution order
 
     let running;
     let deps = {};
     let dirty = {};
     let fn = {};
     let value = {};
+    let stack = [];
 
-    let update = (name) => {
+    let run = (name) => {
+
+        if (c.trace) console.log("[" + name + "]")
+        if (stack.indexOf(name) !== -1) console.trace("fatal: stack loop",stack,",",name);
 
         deps[name] = [];
         running = name;
@@ -21,7 +28,7 @@ let auto = (obj) => {
         if (running) deps[running].push(name);
         if (fn[name] && dirty[name])
         {
-            value[name] = update(name);
+            value[name] = run(name);
             delete(dirty[name]);
         }
         return value[name];
@@ -33,7 +40,7 @@ let auto = (obj) => {
         else {
             value[name] = val;
             Object.keys(deps).forEach(n => {
-                if (n[0]=='#') update(n);
+                if (n[0]=='#') run(n);
                 else dirty[n] = true
             })
         }
@@ -54,7 +61,6 @@ let auto = (obj) => {
         if (typeof obj[name] == 'function')
         {
             fn[name] = () => obj[name](res); // save function
-            value[name] = update(name);                    // calc value
             prop = { get: _get }             // what props to set on return object i.e. a getter
         }    
         else 
@@ -78,73 +84,45 @@ let auto = (obj) => {
     
             let tag = get_sub_tag(name);
             fn[tag] = () => f(getter(name))
-            update(tag)
+            run(tag)
 
             // return unsubscribe method
             return () => { delete(fn[tag]); delete(deps[tag]) }
         };
     });
 
+    // run all the functions
+    Object.keys(fn).forEach(name => {
+        value[name] = run(name);
+    })
+
     return res;
 }
 
-// check for invalid access message when using side affects inside a function
-// i.e. trying to set a variable
-
 /*
 let $ = auto({
-    data: null,
-    update: ($) => { $.data = [1,2,3]; }
-})
-*/
-
-// check possible hack that shouldn't be allowed
-
-/*
-let $ = auto({
-    msg: null,
-    thingy: ($) => console.log($['#msg001'])
+    tick: ($) => $.tock,
+    tock: ($) => $.tick
+}, {
+    trace: true
 })
 
-$['#'].msg.subscribe( (v) => console.log("msg =",v) )
-
-console.log($._)
+console.log($._);
 */
-
-// check unsubscribe
-// removes everything from internals
 
 /*
 let $ = auto({
     data: null,
     count: ($) => $.data ? $.data.length : 0,
-    msg: ($) => $.data + " has " + $.count + " items",
+    msg: ($) => "got " + $.count + " items"
 })
 
-let unsub = $['#'].msg.subscribe( (v) => console.log("msg =",v) )
-
 $.data = [1,2,3];
-
-console.log($._)
-
-console.log("running unsub");
-
-unsub();
-
-console.log($._);
+console.log("msg =",$.msg)
 */
 
-// check the function names for subscribes
-// uses gaps properly
+let $ = auto({
+    data: null
+})
 
-let $ = auto({ msg: null })
-
-let unsub_one = $['#'].msg.subscribe( () => {} )
-let unsub_two = $['#'].msg.subscribe( () => {} )
-let unsub_thr = $['#'].msg.subscribe( () => {} )
-
-console.log($._)
-
-unsub_two();
-let another_unsub = $['#'].msg.subscribe( () => {} )
-console.log($._)
+$['#'].data.subscribe( (v) => $.data = [1,2,3] )

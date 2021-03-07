@@ -7,7 +7,7 @@ let auto = (obj) => {
     let fn = {};
     let value = {};
 
-    let update = (name) => {
+    let run = (name) => {
 
         deps[name] = [];
         running = name;
@@ -21,10 +21,23 @@ let auto = (obj) => {
         if (running) deps[running].push(name);
         if (fn[name] && dirty[name])
         {
-            value[name] = update(name);
+            value[name] = run(name);
             delete(dirty[name]);
         }
         return value[name];
+    }
+
+    let dirty_deps = (name) => {
+
+        Object.keys(deps).forEach(n => {
+    
+            if (!dirty[n] && deps[n].indexOf(name) !== -1 )
+            {
+                dirty[n] = true;
+                if (n[0]=='#') run(n);
+                dirty_deps(n); // since it's dependency is dirty it must be too!
+            }
+        })
     }
 
     let setter = (name, val) => {
@@ -32,10 +45,7 @@ let auto = (obj) => {
         if (running) console.trace("fatal: can't have side affects inside a function")
         else {
             value[name] = val;
-            Object.keys(deps).forEach(n => {
-                if (n[0]=='#') update(n);
-                else dirty[n] = true
-            })
+            dirty_deps(name);
         }
     }
 
@@ -54,15 +64,12 @@ let auto = (obj) => {
         if (typeof obj[name] == 'function')
         {
             fn[name] = () => obj[name](res); // save function
-            value[name] = update(name);                    // calc value
             prop = { get: _get }             // what props to set on return object i.e. a getter
         }    
         else 
             prop = { get: _get, set: _set }  // just set the return props i.e. getter + setter
     
         Object.defineProperty(res, name, prop);
-    
-        // create subscribe method
     
         // get an available name for subscription
         let get_sub_tag = (name) => {
@@ -78,73 +85,38 @@ let auto = (obj) => {
     
             let tag = get_sub_tag(name);
             fn[tag] = () => f(getter(name))
-            update(tag)
+            run(tag)
 
             // return unsubscribe method
             return () => { delete(fn[tag]); delete(deps[tag]) }
         };
     });
 
+    // run all the functions
+    Object.keys(fn).forEach(name => {
+        value[name] = run(name);
+    })
+
     return res;
 }
 
-// check for invalid access message when using side affects inside a function
-// i.e. trying to set a variable
-
 /*
 let $ = auto({
-    data: null,
-    update: ($) => { $.data = [1,2,3]; }
+    a: null,
+    b: null,
+    deps_on_a: ($) => $.a,
+    deps_on_b: ($) => $.b,
+    deps_on_a_and_b: ($) => { $.a; $.b; return null }
 })
 */
 
-// check possible hack that shouldn't be allowed
-
-/*
 let $ = auto({
-    msg: null,
-    thingy: ($) => console.log($['#msg001'])
+    a: null,
+    b: null,
+    c: ($) => $.a,
+    d: ($) => $.c,
+    e: ($) => $.b
 })
 
-$['#'].msg.subscribe( (v) => console.log("msg =",v) )
-
-console.log($._)
-*/
-
-// check unsubscribe
-// removes everything from internals
-
-/*
-let $ = auto({
-    data: null,
-    count: ($) => $.data ? $.data.length : 0,
-    msg: ($) => $.data + " has " + $.count + " items",
-})
-
-let unsub = $['#'].msg.subscribe( (v) => console.log("msg =",v) )
-
-$.data = [1,2,3];
-
-console.log($._)
-
-console.log("running unsub");
-
-unsub();
-
-console.log($._);
-*/
-
-// check the function names for subscribes
-// uses gaps properly
-
-let $ = auto({ msg: null })
-
-let unsub_one = $['#'].msg.subscribe( () => {} )
-let unsub_two = $['#'].msg.subscribe( () => {} )
-let unsub_thr = $['#'].msg.subscribe( () => {} )
-
-console.log($._)
-
-unsub_two();
-let another_unsub = $['#'].msg.subscribe( () => {} )
-console.log($._)
+$.a = 'set';
+console.log($._.dirty)

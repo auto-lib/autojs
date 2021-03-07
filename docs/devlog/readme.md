@@ -1883,3 +1883,799 @@ sense. we do need to keep it in `deps` though even though it's
 a little obvious...
 
 still need to fix that double `data` for `count` `deps`...
+
+## unsubscribe
+
+subscribe was actually quite easy:
+
+```js
+// return unsubscribe method
+return () => {
+    delete(fn[tag])
+    delete(value[tag])
+    delete(deps[tag])
+}
+```
+
+```js
+let $ = auto({
+    data: null,
+    count: ($) => $.data ? $.data.length : 0,
+    msg: ($) => $.data + " has " + $.count + " items",
+})
+
+let unsub = $['#'].msg.subscribe( (v) => console.log("msg =",v) )
+
+$.data = [1,2,3];
+
+console.log($._)
+
+console.log("running unsub");
+
+unsub();
+
+console.log($._);
+```
+
+```
+c:\Users\karlp\auto\docs\devlog>node 010.js
+msg = undefined has 0 items
+msg = 1,2,3 has 3 items
+{
+  fn: { count: [Function], msg: [Function], '#msg000': [Function] },
+  deps: {
+    count: [ 'data', 'data' ],
+    msg: [ 'data', 'count' ],
+    '#msg000': [ 'msg' ]
+  },
+  dirty: {},
+  value: {
+    count: 3,
+    msg: '1,2,3 has 3 items',
+    '#msg000': undefined,
+    data: [ 1, 2, 3 ]
+  }
+}
+running unsub
+{
+  fn: { count: [Function], msg: [Function] },
+  deps: { count: [ 'data', 'data' ], msg: [ 'data', 'count' ] },
+  dirty: {},
+  value: { count: 3, msg: '1,2,3 has 3 items', data: [ 1, 2, 3 ] }
+}
+```
+
+works great (note i added `fn` to `_` temporarily so we
+can see it being removed. should we keep it there?)
+
+(also note i renamed `fs` to `fn`).
+
+since everything is just these flat structures
+you just remove any mention of `tag` e.g. `#msg000`
+and you're done. the only other possibility
+is that it's in `dirty` (subscribe's should
+never show up there - `dirty` is only ever set
+in `setter` and we run `update` instead) or
+that `#msg000` or whatever is referred to
+by another member in `deps`. but that would only
+occur if another member tried to get `$['#msg000']`
+e.g.
+
+```js
+let $ = auto({
+    msg: null,
+    thingy: ($) => console.log($['#msg000'])
+})
+
+$['#'].msg.subscribe( (v) => console.log("msg =",v) )
+```
+
+though that should fail because we would check
+for the existence of `#msg000` initially?
+
+```
+c:\Users\karlp\auto\docs\devlog>node 010.js
+undefined
+msg = undefined
+{
+  fn: { thingy: [Function], '#msg000': [Function] },
+  deps: { thingy: [], '#msg000': [ 'msg' ] },
+  dirty: {},
+  value: { thingy: undefined, '#msg000': undefined }
+}
+```
+
+i don't know if it's worth worrying about...
+
+## rolling
+
+one real issue i've realised is the way i calculate
+the tag i.e. `#msg000` - i can't assume `i` is equal
+to the number of values. what happens if we have this:
+
+```js
+fn = {
+    '#msg000': [Function],
+    '#msg001': [Function],
+    '#msg003': [Function]
+}
+```
+
+our current code basically counts how many functions
+are defined that start with `#msg` and it will get `3`
+i.e. a tag of `#msg003` which will overwrite the
+existing one. because of how unsub works we can
+definitely have holes like this.
+
+one possibility is just to parse the numbers `XXX`
+and just get the highest + 1. but that won't work,
+too - what if you have a lot of subscribe/unsubscribes
+for some really dynamic objects. you could reach 1000
+easily.
+
+the best idea really is to loop through `#msg` values,
+parse the number and then track what the previous value
+was. if we detect a gap, put the value into that gap.
+this assumes everything is saved in order which is
+should be since we're saving it out (though i'm not
+100% of how a javascript object, essentially a map, can have
+order in its keys).
+
+```js
+let get_tag_gap = (name) => {
+
+    let lastval = -1;                                                           // last parsed value
+    Object.keys(fn).forEach( _name => {                                         // loop through existing function names
+        
+        if( _name.substring(0,name.length+1) == '#'+name )                      // if the function name starts with #name
+        {
+            let val = parseInt(_name.substr(_name.length-3));                   // parse last 3 characters
+            if (val-lastval>1)                                                  // found a gap
+                return "#" + name + (lastval+1).toString().padStart(3, "0");    // e.g. #data012
+        }
+    })
+
+    console.trace("fatal: ran out of subscribe names for",name)
+}
+```
+
+hmm what a mess of code. let's see if it works.
+
+hmm, nope. after some retries i got this:
+
+```js
+let get_tag_gap = (name) => {
+
+    let lastval = -1;                                                           
+    for (var _name of Object.keys(fn).filter(n => n.substring(0,name.length+1) == '#'+name ))
+    {   
+        let val = parseInt(_name.substr(_name.length-3));                   // parse last 3 characters
+        if (val-lastval>1) break                                            // found a gap
+        lastval = val
+    }
+
+    if (lastval == 999) console.trace("fatal: ran out of subscribe names for",name)
+
+    return '#' + name + (lastval+1).toString().padStart(3, "0"); // e.g. #msg012
+}
+```
+
+could still be cleaner.
+and now:
+
+```js
+let $ = auto({ msg: null })
+
+let unsub_one = $['#'].msg.subscribe()
+let unsub_two = $['#'].msg.subscribe()
+let unsub_thr = $['#'].msg.subscribe()
+
+console.log($._)
+```
+
+```js
+{
+  fn: {
+    '#msg000': [Function],
+    '#msg001': [Function],
+    '#msg002': [Function]
+  },
+  deps: { '#msg000': [ 'msg' ], '#msg001': [ 'msg' ], '#msg002': [ 'msg' ] },
+  dirty: {},
+  value: { '#msg000': undefined, '#msg001': undefined, '#msg002': undefined }
+}
+```
+
+which looks right. except we shouldn't have `dirty` values for subscribes...
+
+what about the gap issue?
+
+```js
+unsub_two();
+let another_unsub = $['#'].msg.subscribe( () => {} )
+console.log($._)
+```
+
+```js
+{
+  fn: {
+    '#msg000': [Function],
+    '#msg002': [Function],
+    '#msg001': [Function]
+  },
+  deps: { '#msg000': [ 'msg' ], '#msg002': [ 'msg' ], '#msg001': [ 'msg' ] },
+  dirty: {},
+  value: { '#msg000': undefined, '#msg002': undefined, '#msg001': undefined }
+}
+```
+
+hmm it works but now the order is screwed up!
+should we return where to insert it into `fn`?
+we will have to if we want our code to work.
+
+another thing we could do is ... loop from `0` to `999`
+and just check if that value is inside of `fn` or not...
+will make the code much cleaner but then each subscribe
+could potentially have `1000` things to do...
+
+how about going back to a random number? could create
+clashes...
+
+we're going to have a bunch of these things appearing...
+
+ok this works fine:
+
+```js
+let get_sub_tag = (name) => {
+
+    let num = 0;
+    let tag = () => '#' + name + num.toString().padStart(3, "0"); // e.g. #msg012
+    while( tag() in fn ) num += 1; // search for gap
+    return tag();
+}
+```
+
+does the same as before but not reliant on parsing
+or checking the last value. much simpler.
+
+also i think it's worth leaving `fn` in `_`
+because you want to see what the subscribes
+are.
+
+## subscriber values
+
+why are the subscribers showing up in `value`?
+it's because we set `value` in `update()`
+
+```js
+let update = (name) => {
+
+    deps[name] = [];
+    running = name;
+    value[name] = fn[name]();
+    running = undefined;
+}
+```
+
+we should return the value as before.
+
+```js
+let update = (name) => {
+
+    deps[name] = [];
+    running = name;
+    let val = fn[name]();
+    running = undefined;
+    return val;
+}
+```
+
+and then let each usage decide if it should
+save the result out. there are four uses:
+
+ - `getter`: save
+ - `setter`: dont
+ - fn init in the wrapper: save
+ - `subscribe`: dont
+
+ working well.
+
+ ```js
+ {
+  fn: {
+    '#msg000': [Function],
+    '#msg002': [Function],
+    '#msg001': [Function]
+  },
+  deps: { '#msg000': [ 'msg' ], '#msg002': [ 'msg' ], '#msg001': [ 'msg' ] },
+  dirty: {},
+  value: {}
+}
+```
+
+the subscribe method is really screwing me up: 20 lines of
+code i.e. `20%` of the whole thing. why do we really need
+it (except to work with Svelte) ? really the whole functionality
+can be done with what we have already:
+
+```js
+let $ = auto({
+    msg: null,
+    sub: ($) => {
+        $.msg; // access var to signal dependency
+        console.log("this will run whenever msg changes");
+    }
+})
+```
+
+why all this fuss? we just need to ignore the return
+value of `sub` just for our own clarity,
+though we can do that with a simple naming convention
+as we did before with
+
+```js
+let $ = auto({
+    msg: null,
+    '#sub': ($) => { /* ... */ }
+})
+```
+
+i suppose our big issue is:
+
+ - we want to have multiple subscribes
+ - we want to do it _outside_ of the wrap i.e. programmatically and at any stage
+
+anyway. it's not so bad. it's mostly coming up with a name...
+let's leave it for now.
+
+### 011.js circle detection
+
+one big thing still todo is check whether
+you are going in circles:
+
+```js
+let $ = auto({
+    tick: ($) => $.tock,
+    tock: ($) => $.tick
+})
+```
+
+which will end the universe.
+
+i think it should be easy to fix.
+we need to introduce a new internal variable: `stack`.
+this will track the current execution stack
+of functions (which could be useful in debugging):
+
+```js
+stack: [ 'msg', 'count' [
+```
+
+all we need do is push/pop onto it when
+we run `update` (which i think should be
+renamed to `run` since that's what it's going:
+running `name`)
+
+```js
+let run = (name) => {
+
+    if (stack.indexOf(name) !== -1) console.trace("fatal: stack loop",stack,",",name);
+    
+    deps[name] = [];
+    running = name;
+    stack.push(name); let val = fn[name](); stack.pop();
+    running = undefined;
+    return val;
+}
+```
+
+what happens when we run our loop? hmm, nothing. weird.
+
+might be worth having some kind of configuration or
+convention to ... trace out exactly what happens.
+maybe an execution trace variable? or just a config
+you pass in to `auto`... going to have to be like
+that if you want global settings...
+
+```js
+let $ = auto({
+    tick: ($) => $.tock,
+    tock: ($) => $.tick
+}, {
+    trace: true
+})
+```
+
+not as clean as i would hope... can't think of a better way.
+
+to do this we say:
+
+```js
+let auto = (obj, conf) => {
+
+    let trace = conf.trace || false;
+    
+    // ...
+```
+
+these debugging options are going to mess up my code!
+
+```js
+let run = (name) => {
+
+    if (c.trace) console.log("[" + name + "]")
+    
+    // ...
+```
+
+hmmm. is that really going to be useful?
+why not just print out `$._` ?
+
+```js
+{
+  fn: { tick: [Function], tock: [Function] },
+  deps: { tick: [], tock: [ 'tick' ] },
+  dirty: {},
+  value: { tick: undefined, tock: undefined }
+}
+```
+
+yup - see it's much better to see the _data_
+that to print out an occurance. i'm going to
+scrap the config idea for now (isn't `$_` gonna
+show you all you need?)
+
+so on first run `tick` doesn't see any dependencies
+because ... i dunno? i get that it's first
+and `tock` wasn't defined ... but then why don't
+we get an undefined error? i suppose because
+`$.tock` does have a value it's `undefined`.
+would be nice if our object was smart enough
+to tell this - can we do that? have a generic
+getter that says "does this exist? hmmm".
+
+but on top of that - we should do the wrap
+in two stages - one just runs through and
+notes all the members we have (and their types).
+and only on the second run through we go
+through the functions and mark out all the
+dependencies.
+
+hmmm, no - it's called _computed property names_
+and it only works on creating an object. you
+can't have a generic getter than operates
+differently for a different name... (though
+that could be cool). one option, though,
+is to replace `$` with a function like
+in jQuery i.e. `$('count')` but i dunno
+that looks weird. maybe i'm being too sensitive -
+if it has a good design reason might be
+worth looking into.
+
+## circles some more
+
+so i took the run for the functions outside
+the wrapper, i.e. just before we return
+`res` i say:
+
+```js
+Object.keys(obj).forEach(name => {
+    value[name] = run(name);
+})
+```
+
+and now when we print out the state
+we get
+
+```js
+{
+  fn: { tick: [Function], tock: [Function] },
+  deps: { tick: [ 'tock' ], tock: [ 'tick' ] },
+  dirty: {},
+  value: { tick: undefined, tock: undefined }
+}
+```
+
+which is right, but why didn't it freeze when
+the functions ran?
+
+ok putting back in the trace config:
+
+```js
+let $ = auto({
+    tick: ($) => $.tock,
+    tock: ($) => $.tick
+}, {
+    trace: true
+})
+```
+
+we get
+
+```js
+c:\Users\karlp\auto\docs\devlog>node "011 - circle detection.js"
+[tick]
+[tock]
+{
+  fn: { tick: [Function], tock: [Function] },
+  deps: { tick: [ 'tock' ], tock: [ 'tick' ] },
+  dirty: {},
+  value: { tick: undefined, tock: undefined }
+}
+```
+
+hmmm ... why did running `tock` not then run `tick` ?
+
+oh, it's because `tick` is not dirty! have i somehow
+made ... circle issues impossible? i know svelte uses
+the idea of `dirty` (i stole the word from looking
+at the source they generate... trying desperately to
+figure out what is happening with my reactive statements)
+and it tells you when things are circular... but
+have i implemented things differently, i.e. in such
+a way that it can't happen?
+
+what is a _circle_ ? i think perhaps it can only happen
+when using **lazy** evaluation (but then why does svelte
+use the term `dirty` ?).
+
+ok, so what do we know:
+
+ - when you `run` a function it's `dirty` is **unset**
+
+> this means when you try to `get` it subsequently it won't `run` anymore, i.e. just return the cached `value`
+
+however! surely when you run a function any dependents based on it need
+to be made dirty? the presumption being that whenever you `run` something
+it has changed.
+
+hmmm, i'm starting to think there is a fundamental issue with the code:
+that i only mark things as dirty when you set a value...
+in fact the only line that has `dirty[name] = true` is inside
+of `setter` which cannot be called on a function!
+
+if that is true then this shouldn't work:
+
+```js
+let $ = auto({
+    data: null,
+    count: ($) => $.data ? $.data.length : 0,
+    msg: ($) => "got " + $.count + " items"
+})
+```
+
+since `msg` depends only on `count`. so when
+i update `data` `msg` won't update...
+
+```js
+$.data = [1,2,3];
+console.log("msg =",$.msg)
+```
+
+```js
+c:\Users\karlp\auto\docs\devlog>node "011 - circle detection.js"
+msg = got 3 items
+```
+
+nope. because `count` does update - it gets set to
+dirty when `data` is set. and then when you try
+get `msg` it runs, which then gets `count` which
+is dirty so it recalculates!
+
+i don't get it. why are circular dependencies a thing?
+
+it makes sense that with **auto**'s design you _can't_
+have any kind of infinite loop: there are only two
+ways to interact with an **auto** wrap - `get` a value
+or `set` a value. that's it. when you set a value
+nothing happens! i.e. nothing runs.
+
+```js
+let setter = (name, val) => {
+
+    if (running) console.trace("fatal: can't have side affects inside a function")
+    else {
+        value[name] = val;
+        Object.keys(deps).forEach(n => {
+            if (n[0]=='#') run(n);
+            else dirty[n] = true
+        })
+    }
+}
+```
+
+ok, firstly - you cannot set a function. so when you `set`
+anything with **auto** it's always a value!
+
+```js
+$.totals = 10
+```
+
+secondly - _all_ that happens is the dependencies are set to
+dirty: only if the dependency starts with `#` i.e. it's a subscribe
+function is it run. and subscribe functions by definition don't touch
+the state...
+
+hmmm well actually what if you accessed the global `$` from inside
+your subscribe function, you could totally lock things up... hmmm ...
+though will the first line of `setter` catch that?
+
+```js
+let $ = auto({
+    data: null
+})
+
+$['#'].data.subscribe( (v) => $.data = [1,2,3] )
+```
+
+```
+c:\Users\karlp\auto\docs\devlog>node "011 - circle detection.js"
+Trace: fatal: can't have side affects inside a function
+```
+
+woohoo!
+
+anyway, so the point i was making is that `setter` doesn't
+trigger any function runs (i should come up with names
+to differentiate between the two **auto** function types:
+those that connect to a wrap member and those that
+just run and don't affect values i.e. start with `#`).
+
+ok so what does that mean? it means that setting a
+wrap value (could use a better name for this too - **auto**
+object? i guess _wrap_ is ok...) will never lock up. what
+about `getter` ?
+
+same thing - even though `getter` _does_ run functions,
+no function can be run more than once:
+
+```js
+let getter = (name) => {
+
+    if (running) deps[running].push(name);
+    if (fn[name] && dirty[name])
+    {
+        value[name] = run(name);
+        delete(dirty[name]);
+    }
+    return value[name];
+}
+```
+
+so `run` only occurs when a member (value or function)
+is dirty, but then it's dirtiness is _unset_. and setting
+something as dirty only happens in `setter`. and since
+`setter` can only ever be called from outside a function
+(remember the first line of `setter` - checks if a function
+is currently running) any `getter` call will only ever
+run a function once. **auto** is lock-proof! (i should
+mention this in the hero page).
+
+this is very cool and all but i still don't get it.
+i'm convinced i'm right but ... how does this work again?
+if `tick` depends on `tock` and `tock` depends on `tick`,
+and i don't have locks, what do the values i get mean?
+i need to carefully think about what the `dirty`
+architecture means ... perhaps i should start by using
+a better word than `dirty`. `dependencies-have-changed` ?
+
+again, isn't it weird that when you `run` a function we
+don't go through it's dependents and say "hey, this function
+has updated it's values. so you must have changed too". ?
+
+no (and i have covered this already but this is difficult
+stuff) - again, there is only one place in the code where
+`dirty` is set to true: in `setter`. and `setter` will only
+run on values i.e. not functions. so this is how `dirty` works:
+
+ 1. set some value with `$.val = something`
+ 2. loop through `val`'s dependents
+ 3. umm....
+
+ok i just saw this now (again):
+
+```js
+Object.keys(deps).forEach(n => {
+    if (n[0]=='#') run(n);
+    else dirty[n] = true
+})
+```
+
+i just set everything to dirty! ha. oops. hmmm.
+
+## 012_optimize_dirty.js
+
+yeah so ok. what should happen?
+
+ - i should recursively (aarrg) find all things that depend on `val` and set them to dirty
+
+what kind of test would confirm this is happening properly?
+
+```js
+let $ = auto({
+    a: null,
+    b: null,
+    deps_on_a: ($) => $.a,
+    deps_on_b: ($) => $.b,
+    deps_on_a_and_b: ($) => { $.a; $.b; return null }
+})
+```
+
+what i want is a tree of dependencies, and then to set
+one of the values and check the dirty ...
+
+```js
+$.a = 'set';
+assert_equal($._.dirty, {
+    deps_on_a: true,
+    deps_on_a_and_b: true
+})
+```
+
+though that's not nested enough... what do we get?
+
+```
+c:\Users\karlp\auto\docs\devlog>node 012_optimize_dirty.js
+{ deps_on_a: true, deps_on_b: true, deps_on_a_and_b: true }
+```
+
+ok so as i mentioned - right now everything is set to dirty
+(i didn't do an assert, just `console.log($._.dirty`). let's
+fix it with a function (that we can try call recursively):
+
+```js
+let dirty_deps(name) => {
+ // ...
+}
+```
+
+still don't like the name but it's short and to the point.
+
+ok, firstly we can't just loop through the `deps` as we were
+before: `deps` lists the dependencies of a function - it's
+the wrong way round. instead we need to loop through recursively
+checking if our `name` appears - set to dirty, and recurse.
+
+```js
+let dirty_deps(name) => {
+
+    Object.keys(deps).forEach(n => {
+
+        if (!dirty[n] && deps[n].indexOf(name) !== -1 )
+        {
+            dirty[n] = true;
+            (n[0]=='#') run(n);
+            dirty_deps(n); // since it's dependency is dirty it must be too!
+        }
+    })
+}
+```
+
+```
+c:\Users\karlp\auto\docs\devlog>node 012_optimize_dirty.js
+{ deps_on_a: true, deps_on_a_and_b: true }
+```
+
+woohoo!. so what about a more nested dependency tree...
+
+```js
+let $ = auto({
+    a: null,
+    b: null,
+    c: ($) => $.a,
+    d: ($) => $.c,
+    e: ($) => $.b
+})
+
+$.a = 'set';
+console.log($._.dirty)
+```
+
+```
+c:\Users\karlp\auto\docs\devlog>node 012_optimize_dirty.js
+{ c: true, d: true }
+```
+
+that's right. ... are we good? i'm happy. guess we can remove
+the circular code ... and the configs / stack trace. i should
+also write these tests out in `tests/` ... 101 lines...
