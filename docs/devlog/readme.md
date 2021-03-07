@@ -1378,3 +1378,508 @@ writing a document describing the lazy approach and how it
 results in a very different behaviour to ... a not-lazy
 approach... (?)
 
+## 008.js
+
+seriously considering removing auto blocks. what is the point
+of them? perhaps they could be useful for a ui library.
+
+one thing i've decided in writing the docs is a hard rule:
+functions cannot have side affects! so in
+
+```js
+let $ = auto({
+    data: null,
+    count: ($) => $.data ? $.data.length : 0
+})
+```
+
+the `$` passed into `count` cannot have setters assigned
+to the members, i.e. this should fail
+
+```js
+let $ = auto({
+    data: null,
+    update: ($) => { $.data = [1,2,3]; }
+})
+```
+
+without auto blocks the atom code is much simpler:
+
+```js
+let atom = (name, fn) => {
+
+    if(fn) {
+        fs[name] = fn;
+        dirty[name] = true;
+    }
+    return {
+
+        get: () => getter(name),
+        set: (val) => setter(name, val)
+    }
+}
+```
+
+the setter is simpler too:
+
+```js
+let setter = (name, val) => {
+
+    if (fs[name]) console.trace("fatal: not settable"); // do we need this?
+    else
+    {
+        value[name] = val;
+        Object.keys(deps).forEach(n => dirty[n] = true)
+    }
+}
+```
+
+if we just checking if `running` is set will that
+ensure side affects?
+
+```js
+let setter = (name, val) => {
+
+    if (fs[name]) console.trace("fatal: not settable"); // do we need this?
+    else
+    {
+        if (running) console.trace("fatal: can't have side affects inside a function")
+        else
+        {
+            value[name] = val;
+            Object.keys(deps).forEach(n => dirty[n] = true)
+        }
+    }
+}
+```
+
+let's see what happens with the previous code:
+
+```js
+let $ = auto({
+    data: null,
+    update: ($) => { $.data = [1,2,3]; }
+})
+```
+
+```
+c:\Users\karlp\auto\docs\devlog>deno run 008.js
+
+c:\Users\karlp\auto\docs\devlog>
+```
+
+nothing happens - we don't run the inner functions
+at first (what was the reason for that?).
+we have to access it (i guess lazy is ... efficient?)
+
+```js
+$.update;
+```
+
+```
+c:\Users\karlp\auto\docs\devlog>deno run 008.js
+Trace: fatal: can't have side affects inside a function
+    at setter (file:///C:/Users/karlp/auto/docs/devlog/008.js:35:34)
+    at Object.set (file:///C:/Users/karlp/auto/docs/devlog/008.js:53:27)
+    at Object.set [as data] (file:///C:/Users/karlp/auto/docs/devlog/008.js:74:28)
+    at Object.update (file:///C:/Users/karlp/auto/docs/devlog/008.js:85:29)
+    at Object.update (file:///C:/Users/karlp/auto/docs/devlog/008.js:64:87)
+    at update (file:///C:/Users/karlp/auto/docs/devlog/008.js:14:27)
+    at getter (file:///C:/Users/karlp/auto/docs/devlog/008.js:24:27)
+    at Object.get (file:///C:/Users/karlp/auto/docs/devlog/008.js:52:24)
+    at Object.get [as update] (file:///C:/Users/karlp/auto/docs/devlog/008.js:71:35)
+    at file:///C:/Users/karlp/auto/docs/devlog/008.js:88:3
+
+c:\Users\karlp\auto\docs\devlog>
+```
+
+why is the stack trace so big?
+seems to work though.
+but it might be cleaner to have
+two atom types: one for values
+and another for functions (didn't we have this debate before?)
+
+## 009.js
+
+let's try a new wrapper loop:
+
+```js
+Object.keys(obj).forEach(name => {
+
+    if (typeof obj[name] == 'function') add_fn(res, obj, name);
+    else add_val(res, obj, name);
+});
+```
+
+(i'm renaming `object` to `obj` for some reason. also using `name`
+instead of `key` because it's the same thing!).
+now we define each method separately:
+
+```js
+let add_fn = (res, obj, name) => 
+{
+    fs[name] = fn;
+    dirty[name] = true;
+
+    Object.defineProperty(res, key, {
+        configurable: true,
+        enumerable: true,
+        get() {
+            return getter(name)
+        },
+    });
+}
+
+let add_val = (res, obj, name) => {
+
+    Object.defineProperty(res, name, {
+        configurable: true,
+        enumerable: true,
+        get() {
+            return getter(name)
+        },
+        set(value) {
+            return setter(name, value)
+        }
+    });
+}
+```
+
+hmmm could be even simpler (not sure the previous will work though...)
+
+```js
+Object.keys(obj).forEach(name => {
+
+    if (typeof obj[name] == 'function')
+    {
+        fs[name] = fn;
+        dirty[name] = true;
+
+        Object.defineProperty(res, key, {
+            configurable: true,
+            enumerable: true,
+            get() {
+                return getter(name)
+            },
+        });
+    }    
+    else
+    {
+        Object.defineProperty(res, name, {
+            configurable: true,
+            enumerable: true,
+            get() {
+                return getter(name)
+            },
+            set(value) {
+                return setter(name, value)
+            }
+        });
+    }
+
+});
+```
+
+now we can remove `atom` completely.
+also `setter` is a bit simpler:
+
+```js
+let setter = (name, val) => {
+
+    if (running) console.trace("fatal: can't have side affects inside a function")
+    else {
+        value[name] = val;
+        Object.keys(deps).forEach(n => dirty[n] = true)
+    }
+}
+```
+
+down to 73 lines, but does it work?
+
+```
+c:\Users\karlp\auto\docs\devlog>deno run 009.js
+Trace: fatal: can't have side affects inside a function
+    at setter (file:///C:/Users/karlp/auto/docs/devlog/009.js:32:30)
+    at Object.set [as data] (file:///C:/Users/karlp/auto/docs/devlog/009.js:68:28)
+    at Object.update (file:///C:/Users/karlp/auto/docs/devlog/009.js:80:29)
+    at Object.fs.<computed> [as update] (file:///C:/Users/karlp/auto/docs/devlog/009.js:48:39)
+    at update (file:///C:/Users/karlp/auto/docs/devlog/009.js:14:27)
+    at getter (file:///C:/Users/karlp/auto/docs/devlog/009.js:24:27)
+    at Object.get [as update] (file:///C:/Users/karlp/auto/docs/devlog/009.js:55:28)
+    at file:///C:/Users/karlp/auto/docs/devlog/009.js:83:3
+```
+
+seems so. what about the old test?
+
+```js
+let $ = auto({
+    data: null,
+    count: ($) => $.data ? $.data.length : 0,
+    msg: ($) => $.data + " has " + $.count + " items",
+})
+
+$.data = [1,2,3];
+console.log("msg =",$.msg);
+```
+
+```
+c:\Users\karlp\auto\docs\devlog>deno run 009.js
+msg = 1,2,3 has 3 items
+```
+
+looks good.
+
+i've also change it so that the functions run update
+immediately (can't remember why i thought lazy was
+a good idea)
+
+```js
+if (typeof obj[name] == 'function')
+{
+    fs[name] = () => obj[name](res);
+    update(name);
+    // ...
+```
+
+i also changed `update` to not return a value
+and just set `value` directly
+
+```js
+let update = (name) => {
+
+    deps[name] = [];
+    running = name;
+    value[name] = fs[name]();
+    running = undefined;
+}
+```
+
+this is actually cleaner. (`update` had a
+small change too because of this:
+no need to record a return value).
+
+hmmm, much cleaner wrapping now:
+
+```js
+Object.keys(obj).forEach(name => {
+
+    let _get = () => getter(name)
+    let _set = (v) => setter(name, v)
+
+    let prop;
+
+    if (typeof obj[name] == 'function')
+    {
+        fs[name] = () => obj[name](res);
+        update(name);
+        prop = { get: _get }
+    }    
+    else 
+        prop = { get: _get, set: _set }
+
+    Object.defineProperty(res, name, prop);
+
+});
+```
+
+took out `configurable: true` and `enumerable: true`.
+can't figure if we need it - it still works!
+
+64 lines!
+
+hmmm, just realised we don't use `$` anymore so now
+
+```js
+const res = {
+    _: { deps, dirty, value }, // so we can see from the outside what's going on
+};
+```
+
+weird.
+
+## 010.js
+
+ok time for _subscribe_. perfect place to put it
+is at the end of the wrapping. but first
+
+```js
+const res = {
+    _: { deps, dirty, value }, // so we can see from the outside what's going on
+    '#': {}
+};
+```
+
+i like a hash so then we can say
+
+```js
+$['#'].data.subscribe( (v) => console.log("data =",v) )
+```
+
+doesn't look too bad. so now for each `name` we need to define
+a subscribe function.
+
+```js
+Object.keys(obj).forEach(name => {
+
+    // existing code here
+
+    res['#'][name] = {}
+    res['#'][name].subscribe = (fn) => {
+
+        // ???
+
+    };
+})
+```
+
+so we need a tag for the subscribe
+so we can see what's happening in the vars...
+something like `sub_data_001` or maybe
+`#data001` since you'll be use to seeing the hash
+character. getting the number will be tricky,
+a random variable will be easier... though
+using incremental numbers will making them
+deterministic and thus repeatable...
+
+we have to loop through all the existing names.
+if they start with `#myvarname` then increment.
+not so hard after all.
+
+```js
+// existing code here
+
+let i = 0;
+Object.keys(fn).forEach( f => if( f.substring(0,name.length+1) == '#'+name ) i += 1 )
+let tag = "#" + name + i.toString().padStart(3, "0"); // e.g. #data012
+```
+
+ok now what? we have a tag with a hash. however no need
+to set any properties on the return object.
+i guess we just save the function out?
+
+```js
+fs[tag] = () => obj[tag](res); // save function
+update(tag);                    // calc value
+```
+
+hmmm no, that's not what this is.
+we don't want to run this function
+whenever a dependent variable changes...
+we want to run it if just _one_ variable
+changes...
+
+hmmm no wait
+
+```js
+fs[tag] = () => fn(res[name])
+```
+
+ok that's it. we use the function they
+gave us and pass in the current wrapper
+value (which will call the respective getter).
+
+that should be it
+
+```js
+
+Object.keys(obj).forEach(name => {
+
+    let _get = () => getter(name)
+    let _set = (v) => setter(name, v)
+
+    let prop;
+
+    if (typeof obj[name] == 'function')
+    {
+        fs[name] = () => obj[name](res); // save function
+        update(name);                    // calc value
+        prop = { get: _get }             // what props to set on return object i.e. a getter
+    }    
+    else 
+        prop = { get: _get, set: _set }  // just set the return props i.e. getter + setter
+
+    Object.defineProperty(res, name, prop);
+
+    // create subscribe method
+
+    res['#'][name] = {}
+    res['#'][name].subscribe = (fn) => {
+
+        let i = 0;
+        Object.keys(fn).forEach( f => if( f.substring(0,name.length+1) == '#'+name ) i += 1 )
+        let tag = "#" + name + i.toString().padStart(3, "0"); // e.g. #data012
+
+        fs[tag] = () => fn(res[name])
+    };
+});
+```
+
+two things left to do, though: return an unsubscribe
+function (svelte needs this) and don't save values
+out if we have a hash (else the `value` object will
+be confusing to look at). but first let's test this.
+
+```js
+let $ = auto({
+    data: null,
+    count: ($) => $.data ? $.data.length : 0,
+    msg: ($) => $.data + " has " + $.count + " items",
+})
+
+$['#'].msg.subscribe( (v) => console.log("msg =",v) )
+
+$.data = [1,2,3];
+```
+
+hmmm lots of rewrites to get it to work as expected:
+
+```
+c:\Users\karlp\auto\docs\devlog>deno run 010.js
+msg = undefined has 0 items
+msg = 1,2,3 has 3 items
+```
+
+the rule is - run subscribes immediately. so we get
+`undefined` and `0` first which is right.
+then when we set `data` is runs again correctly.
+
+i had to change the function save as
+
+```js
+fs[tag] = () => fn(getter(name))
+update(tag)
+```
+
+i also had to revert the setter to the old version,
+strangely
+
+```js
+if (running) console.trace("fatal: can't have side affects inside a function")
+else {
+    value[name] = val;
+    Object.keys(deps).forEach(n => {
+        if (n[0]=='#') update(n);
+        else dirty[n] = true
+    })
+}
+```
+
+how does the state look?
+
+```js
+console.log($._)
+```
+
+```js
+{
+    deps: { count: [ "data", "data" ], msg: [ "data", "count" ], "#msg000": [ "msg" ] },
+    dirty: {},
+    value: { count: 3, msg: "1,2,3 has 3 items", "#msg000": undefined, data: [ 1, 2, 3 ] }
+}
+```
+
+ok, right: so now we save out a value for `#msg000` which makes no
+sense. we do need to keep it in `deps` though even though it's
+a little obvious...
+
+still need to fix that double `data` for `count` `deps`...

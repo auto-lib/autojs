@@ -51,6 +51,10 @@ for a walk-through of the code and also
 for a blow-by-blow account of its development
 and design choices.
 
+### robust
+
+...
+
 ### explainability
 
 **auto**'s internal variables are easy to interpret:
@@ -127,3 +131,20 @@ in Svelte. that original version was based largely on a video by MobX's creator
 (see the [docs/old-readme.md](docs/old-readme.md) for more on this).
 then a new approach written up from scratch in a day which
 was documented with extreme detail in [docs/devlog](docs/devlog).
+
+## what's left out
+
+what i can imagine some people might want in **auto**
+(because of what i've seen in other reactive libraries)
+but that i left out on purpose.
+
+### nesting
+
+there was a version of the old library (`mobx-svelte`)
+that had nested reactivity (because i saw the
+MobX creator use it in the video that started this)
+but i didn't put it into the new one.
+i'm still haven't come across a convincing use-case.
+i'm using **auto** in a very large project
+and never needed nesting. i'd rather leave it
+out for now.
