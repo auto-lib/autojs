@@ -3327,3 +3327,49 @@ let delete_deps = (name) => {
 ```
 
 seems simple enough.
+
+## setting
+
+so `014_conditional_circle_triggered.js` works
+
+```js
+module.exports = {
+    obj: {
+        data: null,
+        a: ($) => $.b,
+        b: ($) => $.c,
+        c: ($) => $.data ? $.a : 0
+    },
+    fn: ($) => {
+        $.data = true;
+        $.a;
+    },
+    _: {
+        deps: { a: [], b: ['c'], c: ['data', 'a'] },
+        value: { data: true, a: 0, b: 0, c: 0 },
+        fatal: {
+            source: 'run',
+            msg: 'circular dependency',
+            stack: [ 'a', 'b', 'c', 'a' ]
+        }
+    }
+}
+```
+
+but what bothers me is `$.a` in `fn` - should we
+tell that there is a problem when we say `$.data = true` ?
+i guess **auto** is designed as a lazy-evaluator - setting
+variables just makes things stale: no function is run...
+what are the drawbacks of this?
+
+hmmm, one really cool feature is _batching_ i.e. i don't
+need to implement it! it batches automatically. right up
+until you try to access a variable... but that is pretty
+cool.
+
+and another cool feature, i.e. how this fixes a major issue
+i had before, is ordering - i think... i mean i _think_
+that by waiting for the user to trigger functions
+(by using `getter` essentially) everything should evaluate
+in the right sequence? how do i test this? when will things
+_not_ evualuate in the right sequence?
