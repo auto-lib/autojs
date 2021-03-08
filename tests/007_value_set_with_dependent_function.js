@@ -8,7 +8,6 @@ module.exports = {
     },
     _: {
         deps: { count: ['data'] },
-        stale: { count: true },
         value: { data: [1,2,3], count: 0 }
     }
 }

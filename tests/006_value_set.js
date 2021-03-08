@@ -7,7 +7,6 @@ module.exports = {
     },
     _: {
         deps: {},
-        stale: {},
         value: { data: [1,2,3] }
     }
 }
