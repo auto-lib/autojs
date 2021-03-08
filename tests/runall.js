@@ -62,9 +62,9 @@ require('fs').writeFileSync("../auto-es6.js", latest + "\n\nexport default auto;
 
 const auto = require('../auto-commonjs.js');
 
-require('fs').readdirSync(".").forEach(name => {
+require('fs').readdirSync("./files").forEach(name => {
   if (parseInt(name.substring(0, 3)) > 0) {
-    const test = require("./" + name);
+    const test = require("./files/" + name);
     name = name.replace('.js', '');
     check(name, test);
   }
