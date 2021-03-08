@@ -26,7 +26,7 @@ let auto = (obj) => {
 
     let getter = (name) => {
 
-        if (running) deps[running].push(name);
+        if (running && deps[running].indexOf(name) == -1) deps[running].push(name);
         if (fn[name] && !value[name]) value[name] = run(name);
 
         return value[name];
