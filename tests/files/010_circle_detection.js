@@ -6,7 +6,7 @@ module.exports = {
     fn: ($) => {},
     _: {
         deps: { tick: [], tock: ['tick'] },
-        value: { tick: undefined, tock: undefined },
+        value: {},
         fatal: {
             source: 'run',
             msg: 'circular dependency',

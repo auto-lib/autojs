@@ -41,7 +41,8 @@ let auto = (obj) => {
         else
         {
             stack.push(name);
-            value[name] = fn[name]();
+            let val = fn[name]();
+            if (!fatal.msg) value[name] = val;
             stack.pop();
         }
         

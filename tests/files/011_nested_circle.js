@@ -7,7 +7,7 @@ module.exports = {
     fn: ($) => {},
     _: {
         deps: { b: [], c: ['a', 'b'] },
-        value: { a: null, c: NaN, b: NaN },
+        value: { a: null },
         fatal: {
             source: 'run',
             msg: 'circular dependency',
