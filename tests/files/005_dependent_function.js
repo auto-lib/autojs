@@ -10,6 +10,6 @@ module.exports = {
     _: {
         deps: { count: ['data'] },
         value: { data: null, count: 0 },
-        stale: {}
+        fatal: {}
     }
 }

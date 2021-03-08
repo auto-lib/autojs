@@ -11,6 +11,6 @@ module.exports = {
     _: {
         deps: { b: ['a'], c:['b'] },
         value: { a: 5, b: 15, c: 35 },
-        stale: {}
+        fatal: {}
     }
 }

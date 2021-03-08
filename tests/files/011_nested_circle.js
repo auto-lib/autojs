@@ -4,13 +4,14 @@ module.exports = {
         b: ($) => $.a + $.c,
         c: ($) => $.a + $.b,
     },
-    fn: ($) => {
-        $.a = 1
-    },
+    fn: ($) => {},
     _: {
-        deps: { b: ['a', 'c'], c: ['a', 'b'] },
-        value: { a: 1, b: NaN, c: NaN },
-        stale: { b: true, c: true },
-        fatal: "circular dependency b -> c -> b"
+        deps: { b: [], c: ['a', 'b'] },
+        value: { a: null, c: NaN, b: NaN },
+        fatal: {
+            source: 'run',
+            msg: 'circular dependency',
+            stack: ['b', 'c', 'b']
+        }
     }
 }

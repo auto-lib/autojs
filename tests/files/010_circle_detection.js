@@ -3,11 +3,14 @@ module.exports = {
         tick: ($) => $.tock,
         tock: ($) => $.tick
     },
-    fn: ($) => {
-    },
+    fn: ($) => {},
     _: {
-        deps: { tick: ['tock'], tock: ['tick'] },
+        deps: { tick: [], tock: ['tick'] },
         value: { tick: undefined, tock: undefined },
-        stale: {}
+        fatal: {
+            source: 'run',
+            msg: 'circular dependency',
+            stack: [ 'tick', 'tock', 'tick' ]
+        }
     }
 }

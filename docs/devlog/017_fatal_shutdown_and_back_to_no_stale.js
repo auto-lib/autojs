@@ -1,6 +1,4 @@
 
-// 017_fatal_shutdown_and_back_to_no_stale.js
-
 let auto = (obj) => {
 
     let running;     // what function is currently running
@@ -125,5 +123,3 @@ let auto = (obj) => {
 
     return res;
 }
-
-export default auto;

@@ -8,6 +8,6 @@ module.exports = {
     _: {
         deps: {}, // no dependencies tracked
         value: { data: null },
-        stale: {}
+        fatal: {}
     }
 }

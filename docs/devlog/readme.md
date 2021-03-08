@@ -3241,3 +3241,89 @@ was we don't see when we have a circle when updating things...
 
 also it's strange both `run` and `setter` each use a separate
 stack to detect issues...
+
+## boot order
+
+what should happen on boot, i.e. when you just say `let $ = auto(...)`
+and nothing else?
+
+it would be nice to just do nothing - so everything is on-demand,
+so to speak. however we need to figure out the initial dependencies
+first; otherwise how would you know what to do when a value is set?
+
+so that is the reason for looping through and saying `run` on all
+the functions:
+
+```js
+Object.keys(fn).forEach(name => { if (name[0]!='#') value[name] = run(name); })
+```
+
+why are we leaving out functions that start with `#`? they have relationships
+too. they just don't write to `value`.
+
+what if there's an error? what if the first `run` generates a fatal - 
+should we stop running the rest? in fact, what should `fatal` do?
+should we just shut everything down?
+
+ - we could put a check for `fatal` at the start of `getter` and `setter`.
+   it makes sense since `fatal` essentially means undefined behavior.
+
+however, would you want things to keep working even if there's a fatal error?
+perhaps it's easiest for now just to shut it all down and we can revisit that.
+
+### 017_fatal_shutdown_and_back_to_no_stale.js
+
+ok lets do a full rewrite again - fatal shuts things down,
+we no longer use stale
+and only `run` checks for circles using a global `stack`
+variable.
+
+first thing: rename run to `update` and no return value:
+
+```js
+Object.keys(fn).forEach(name => update(name));
+```
+
+and update everything. next kill the whole of `set_stale`.
+but what do we do in `setter` now?
+
+```js
+let setter = (name, val) => {
+
+    if (running) fail("can't have side affects inside a function")
+    else {
+        value[name] = val;
+        set_stale(name);
+    }
+}
+```
+
+don't we just go through the dependencies ... erm... and delete
+all the values? so we don't calculate things, hmmm ...
+
+```js
+let setter = (name, val) => {
+
+    if (running) fail("can't have side affects inside a function")
+    else {
+        value[name] = val;
+        delete_deps(name);
+    }
+}
+```
+
+```js
+let delete_deps = (name) => {
+
+    Object.keys(deps).forEach( key => {
+
+        if (name == key)
+        {
+            delete(value[key]);
+            delete_deps(name);
+        }
+    })
+}
+```
+
+seems simple enough.

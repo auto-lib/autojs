@@ -20,7 +20,7 @@ function isEqual(obj1, obj2) {
 }
 
 let assert_same = (name, a, b) => {
-  let keys = ['deps', 'stale', 'value', 'fatal'];
+  let keys = ['stack', 'deps', 'value', 'fatal'];
   let diff = [];
 
   keys.forEach(key => { if ( !isEqual(a[key], b[key]) ) diff.push(key); })
