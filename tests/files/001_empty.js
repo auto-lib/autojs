@@ -6,7 +6,8 @@ module.exports = {
         // nothing to do
     },
     _: {
-        deps: {}, // no dependencies tracked
-        value: {} // no values cached
+        deps: {},  // no dependencies tracked
+        value: {}, // no values cached,
+        stale: {}
     }
 }

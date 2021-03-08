@@ -7,6 +7,7 @@ module.exports = {
     },
     _: {
         deps: { func: [] }, // no dependencies tracked
-        value: { func: 'val' } // no values cached
+        value: { func: 'val' }, // no values cached
+        stale: {}
     }
 }

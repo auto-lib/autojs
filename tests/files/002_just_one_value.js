@@ -7,6 +7,7 @@ module.exports = {
     },
     _: {
         deps: {}, // no dependencies tracked
-        value: { data: null }
+        value: { data: null },
+        stale: {}
     }
 }

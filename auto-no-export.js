@@ -1,34 +1,51 @@
 
-// 015_no_stale_structure.js
+// 016_back_to_stale.js
 
 let auto = (obj) => {
 
     let running;
     let deps = {};
+    let stale = {}; // function has a value that has changed since it was last run
     let fn = {};
     let value = {};
+    let stack = [];
 
-    const res = {                                   // return object
-        _: { running, fn, deps, value },            // so we can see from the outside what's going on
-        '#': {}                                     // subscribe methods for each member
+    const res = {                                    // return object
+        _: { running, fn, deps, stale, value },      // so we can see from the outside what's going on
+        '#': {}                                      // subscribe methods for each member
     };
 
     let fail = (msg) => { res._.fatal = msg; if (fn['#fatal']) fn['#fatal'](res); }
+    let circle = (stack,name) => {
+        let msg = name; while (stack.length>0) msg += ' -> ' + stack.pop(); // a -> b -> c
+        fail("circular dependency "+msg);
+    }
 
     let run = (name) => {
 
         deps[name] = [];
         running = name;
+        if (stack.indexOf(name) !== -1)
+        {
+            circle(stack,name);
+            return;
+        }
+        stack.push(name);
         let val = fn[name]();
+        stack.pop();
         running = undefined;
         return val;
     }
 
     let getter = (name) => {
 
-        if (running && deps[running].indexOf(name) == -1) deps[running].push(name);
-        if (fn[name] && !value[name]) value[name] = run(name);
-
+        if (running && deps[running].indexOf(name) === -1) deps[running].push(name);
+        if (fn[name])
+        //if (fn[name] && stale[name])
+        {
+            value[name] = run(name);
+            //delete(stale[name]);
+        }
         return value[name];
     }
 
@@ -47,22 +64,20 @@ let auto = (obj) => {
                 {
                     if (stack.indexOf(n) !== -1)
                     {
-                        let msg = n; while (stack.length>0) msg += ' -> ' + stack.pop(); // a -> b -> c
-                        fail("circular dependency "+msg);
+                        circle(stack,n);
                         return;
                     }
-
                     stack.push(n);
-    
-                    if (value[n] && deps[n].indexOf(name) !== -1 )
-                    {
-                        delete(value[n]);
-                        if (n[0]=='#') run(n);
-                        set_stale(n,stack); // since it's dependency is dirty it must be too!
-                    }
-        
-                    stack.pop();
                 }
+    
+                if (!stale[n] && deps[n].indexOf(name) !== -1 )
+                {
+                    //stale[n] = true;
+                    if (n[0]=='#') run(n);
+                    set_stale(n,stack); // since it's dependency is dirty it must be too!
+                }
+    
+                if (fn[n]) stack.pop();
             }
         })
     }
@@ -124,3 +139,15 @@ let auto = (obj) => {
 
     return res;
 }
+
+/*
+let $ = auto({
+    a: null,
+    b: ($) => $.a + $.c,
+    c: ($) => $.a + $.b,
+    '#fatal': ($) => console.log('fatal:',$._.fatal)
+})
+
+$.a = 1;
+console.log($._);
+*/

@@ -3129,3 +3129,115 @@ if (fn[n]) // so n is a function which depends on n
     stack.pop();
 }
 ```
+
+## 016_back_to_stale.js
+
+we get infinite loops if we don't have a separate `stale` structure:
+
+```js
+let getter = (name) => {
+
+    if (running && deps[running].indexOf(name) == -1) deps[running].push(name);
+    if (fn[name] && !value[name]) run(name);
+
+    return value[name];
+}
+```
+
+so if the function value is not set run the function,
+but in `run`...
+
+```js
+let run = (name) => {
+
+    deps[name] = [];
+    running = name;
+    let val = fn[name]();
+    if (name[0] != '#') value[name] = val;
+    running = undefined;
+}
+```
+
+run then runs the function _before_ setting `value` !
+so you go into the function which calls `getter`
+before the value has been set .... so it keeps going.
+
+having a separate `stale` structure means we don't have
+to wait for functions to finish in order to know if they
+have been made un-stale... but... don't we still need
+to wait for it to return?
+
+```js
+let getter = (name) => {
+
+    if (running) deps[running].push(name);
+    if (fn[name] && stale[name])
+    {
+        value[name] = run(name);
+        delete(stale[name]);
+    }
+    return value[name];
+}
+```
+
+so we run `run` ... which runs the function ...
+which runs `getter` ... hmmm .... i don't get it.
+
+ok - the reason it doesn't hang is because at first
+there is nothing in `stale`! remember `stale` is only
+modified by a setter... ok, so having `stale` is making
+more and more sense now.
+
+## tests/010_circle_detection.js
+
+one weird thing about this test:
+
+```js
+module.exports = {
+    obj: {
+        tick: ($) => $.tock,
+        tock: ($) => $.tick
+    },
+    fn: ($) => {
+        $.tick = 1;
+    },
+    _: {
+        deps: { tick: ['tock'], tock: ['tick'] },
+        value: { tick: undefined, tock: undefined },
+        stale: {}
+    }
+}
+```
+
+well, firstly: it doesn't work. it should die saying
+we have a circle but it doesn't. also - we only detect
+circles on `set` hence the need for `$.tick = 1` in `fn`.
+
+ok i figure we should put circle detection in `runner` too...
+
+```js
+let run = (name, stack) => {
+
+    stack = stack || [];
+    deps[name] = [];
+    running = name;
+    if (stack.indexOf(name) !== -1)
+    {
+        circle(stack,name);
+        return;
+    }
+    stack.push(name);
+    let val = fn[name]();
+    stack.pop(name);
+    running = undefined;
+    return val;
+}
+```
+
+i don't like how this is all tied together now: it use to be
+that `setter` and `getter` were separate i.e. `setter` was
+the only one that set `stale`. however, the issue with that
+was we don't see when we have a circle when updating things...
+
+also it's strange both `run` and `setter` each use a separate
+stack to detect issues...

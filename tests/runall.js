@@ -2,28 +2,25 @@
 // https://javascript.plainenglish.io/4-ways-to-compare-objects-in-javascript-97fe9b2a949c
 function isEqual(obj1, obj2) {
   
+  if (typeof(obj1) != typeof(obj2)) return false;
   if (obj1 == null && obj2 == null) return true;
-  if (!obj1 && !obj2) return true;
-  if (obj1 == null && obj2 != null) return false
-  if (!obj1 && obj2) return false;
-  if (obj1 && !obj2) return false;
+  if (typeof obj1 === 'number' && isNaN(obj1) && isNaN(obj2)) return true; // NaN!
 
-  let props1 = Object.getOwnPropertyNames(obj1);
-  let props2 = Object.getOwnPropertyNames(obj2);
-  
-  if (props1.length != props2.length) return false;
-  
-  for (let i = 0; i < props1.length; i++) {
-    let prop = props1[i];
-    let bothAreObjects = typeof (obj1[prop]) === 'object' && typeof (obj2[prop]) === 'object'; if ((!bothAreObjects && (obj1[prop] !== obj2[prop]))
-      || (bothAreObjects && !isEqual(obj1[prop], obj2[prop]))) {
-      return false;
-    }
-  } return true;
+  if (typeof(obj1) === 'object')
+  {
+    let keys = Object.keys(obj1);
+    if (keys.length != Object.keys(obj2).length) return false;
+    let equal = true;
+    keys.forEach(key => {
+      equal = equal && isEqual(obj1[key], obj2[key])
+    });
+    return equal;
+  }
+  else return obj1 == obj2;
 }
 
 let assert_same = (name, a, b) => {
-  let keys = ['deps', 'stale', 'value'];
+  let keys = ['deps', 'stale', 'value', 'fatal'];
   let diff = [];
 
   keys.forEach(key => { if ( !isEqual(a[key], b[key]) ) diff.push(key); })
