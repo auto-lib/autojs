@@ -6,6 +6,7 @@ module.exports = {
         // nothing to do
     },
     _: {
+        fn: [ 'func' ],
         deps: { func: [] }, // no dependencies tracked
         value: { func: 'val' }, // no values cached
         fatal: {}

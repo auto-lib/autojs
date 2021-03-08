@@ -36,7 +36,7 @@ let auto = (obj) => {
         else
         {
             let val = fn[name]();
-            if (!fatal.msg) value[name] = val;
+            if (!fatal.msg && name[0]!='#') value[name] = val;
         }
         
         stack.pop()
@@ -110,7 +110,7 @@ let auto = (obj) => {
     
             let tag = get_sub_tag(name);
             fn[tag] = () => f(getter(name))
-            run(tag)
+            update(tag)
 
             // return unsubscribe method
             return () => { delete(fn[tag]); delete(deps[tag]) }

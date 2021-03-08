@@ -8,6 +8,7 @@ module.exports = {
         //let x = $.count;
     },
     _: {
+        fn: ['count'],
         deps: { count: ['data'] },
         value: { data: null, count: 0 },
         fatal: {}

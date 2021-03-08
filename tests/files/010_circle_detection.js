@@ -5,6 +5,7 @@ module.exports = {
     },
     fn: ($) => {},
     _: {
+        fn: ['tick','tock'],
         deps: { tick: [], tock: ['tick'] },
         value: {},
         fatal: {

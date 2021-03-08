@@ -1,14 +1,15 @@
 module.exports = {
     obj: {
-        data: null
+        data: null,
     },
     fn: ($) => {
-        $.data = [1,2,3];
+        let unsub = $['#'].data.subscribe( () => {} );
+        unsub();
     },
     _: {
         fn: [],
         deps: {},
-        value: { data: [1,2,3] },
+        value: { data: null },
         fatal: {}
     }
 }

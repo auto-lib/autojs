@@ -1,13 +1,13 @@
 module.exports = {
     obj: {
-        data: null
+        data: null,
     },
     fn: ($) => {
-        // nothing to do
+        $['#'].data.subscribe( () => {} );
     },
     _: {
-        fn: [],
-        deps: {}, // no dependencies tracked
+        fn: ['#data000'],
+        deps: { '#data000': [ 'data' ] },
         value: { data: null },
         fatal: {}
     }

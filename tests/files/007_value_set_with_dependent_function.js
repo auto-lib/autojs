@@ -7,6 +7,7 @@ module.exports = {
         $.data = [1,2,3];
     },
     _: {
+        fn: ['count'],
         deps: { count: ['data'] },
         value: { data: [1,2,3], count: 0 },
         fatal: {}
