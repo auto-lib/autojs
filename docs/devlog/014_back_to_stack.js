@@ -3,9 +3,16 @@ let auto = (obj) => {
 
     let running;
     let deps = {};
-    let dirty = {};
+    let stale = {}; // function has a value that has changed since it was last run
     let fn = {};
     let value = {};
+
+    const res = {                                    // return object
+        _: { running, fn, deps, stale, value },      // so we can see from the outside what's going on
+        '#': {}                                      // subscribe methods for each member
+    };
+
+    let fail = (msg) => { res._.fatal = msg; if (fn['#fatal']) fn['#fatal'](res); }
 
     let run = (name) => {
 
@@ -19,40 +26,56 @@ let auto = (obj) => {
     let getter = (name) => {
 
         if (running) deps[running].push(name);
-        if (fn[name] && dirty[name])
+        if (fn[name] && stale[name])
         {
             value[name] = run(name);
-            delete(dirty[name]);
+            delete(stale[name]);
         }
         return value[name];
     }
 
-    let dirty_deps = (name) => {
+    let set_stale = (name, stack) => {
+
+        stack = stack || [];
 
         Object.keys(deps).forEach(n => {
     
-            if (!dirty[n] && deps[n].indexOf(name) !== -1 )
+            if (deps[n].indexOf(name) !== -1)
             {
-                dirty[n] = true;
-                if (n[0]=='#') run(n);
-                dirty_deps(n); // since it's dependency is dirty it must be too!
+                // ok, we have found 'name' as a dependent of something i.e. of 'n'
+                // (wish this could be simpler...)
+    
+                if (fn[n]) // so n is a function which depends on n
+                {
+                    if (stack.indexOf(n) !== -1)
+                    {
+                        let msg = n; while (stack.length>0) msg += ' -> ' + stack.pop(); // a -> b -> c
+                        fail("circular dependency "+msg);
+                        return;
+                    }
+                    stack.push(n);
+                }
+    
+                if (!stale[n] && deps[n].indexOf(name) !== -1 )
+                {
+                    stale[n] = true;
+                    if (n[0]=='#') run(n);
+                    set_stale(n,stack); // since it's dependency is dirty it must be too!
+                }
+    
+                if (fn[n]) stack.pop();
             }
         })
     }
 
     let setter = (name, val) => {
 
-        if (running) console.trace("fatal: can't have side affects inside a function")
+        if (running) fail("can't have side affects inside a function")
         else {
             value[name] = val;
-            dirty_deps(name);
+            set_stale(name);
         }
     }
-
-    const res = {
-        _: { fn, deps, dirty, value },  // so we can see from the outside what's going on
-        '#': {}                         // subscribe methods for each member
-    };
 
     Object.keys(obj).forEach(name => {
 
@@ -94,29 +117,18 @@ let auto = (obj) => {
 
     // run all the functions
     Object.keys(fn).forEach(name => {
-        value[name] = run(name);
+        if (name[0]!='#') value[name] = run(name);
     })
 
     return res;
 }
 
-/*
 let $ = auto({
     a: null,
-    b: null,
-    deps_on_a: ($) => $.a,
-    deps_on_b: ($) => $.b,
-    deps_on_a_and_b: ($) => { $.a; $.b; return null }
-})
-*/
-
-let $ = auto({
-    a: null,
-    b: null,
-    c: ($) => $.a,
-    d: ($) => $.c,
-    e: ($) => $.b
+    b: ($) => $.a + $.c,
+    c: ($) => $.a + $.b,
+    '#fatal': ($) => console.log('fatal:',$._.fatal)
 })
 
-$.a = 'set';
-console.log($._.dirty)
+$.a = 1;
+console.log($._);

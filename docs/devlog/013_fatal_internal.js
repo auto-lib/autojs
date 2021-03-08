@@ -6,6 +6,13 @@ let auto = (obj) => {
     let dirty = {};
     let fn = {};
     let value = {};
+    
+    const res = {                                   // return object
+        _: { running, fn, deps, dirty, value },     // so we can see from the outside what's going on
+        '#': {}                                     // subscribe methods for each member
+    };
+
+    let fail = (msg) => { res._.fatal = msg; console.trace("fatal:",msg); }
 
     let run = (name) => {
 
@@ -42,17 +49,12 @@ let auto = (obj) => {
 
     let setter = (name, val) => {
 
-        if (running) console.trace("fatal: can't have side affects inside a function")
+        if (running) fail("can't have side affects inside a function")
         else {
             value[name] = val;
             dirty_deps(name);
         }
     }
-
-    const res = {
-        _: { fn, deps, dirty, value },  // so we can see from the outside what's going on
-        '#': {}                         // subscribe methods for each member
-    };
 
     Object.keys(obj).forEach(name => {
 
@@ -100,23 +102,10 @@ let auto = (obj) => {
     return res;
 }
 
-/*
 let $ = auto({
-    a: null,
-    b: null,
-    deps_on_a: ($) => $.a,
-    deps_on_b: ($) => $.b,
-    deps_on_a_and_b: ($) => { $.a; $.b; return null }
-})
-*/
-
-let $ = auto({
-    a: null,
-    b: null,
-    c: ($) => $.a,
-    d: ($) => $.c,
-    e: ($) => $.b
+    data: null
 })
 
-$.a = 'set';
-console.log($._.dirty)
+$['#'].data.subscribe( (v) => $.data = [1,2,3] )
+
+console.log($._)

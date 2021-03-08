@@ -2679,3 +2679,347 @@ c:\Users\karlp\auto\docs\devlog>node 012_optimize_dirty.js
 that's right. ... are we good? i'm happy. guess we can remove
 the circular code ... and the configs / stack trace. i should
 also write these tests out in `tests/` ... 101 lines...
+
+## 013_fatal_internal.js
+
+i want to add one more internal variable: `fatal`.
+
+```js
+let running;
+let deps = {};
+let dirty = {};
+let fn = {};
+let value = {};
+let fatal;
+```
+
+all it stores is a message: a fatal error that occured.
+the reason is so that i can have automated tests
+which check that any error cases did in fact occur.
+
+so with the tests i want to write each of them
+in three sections:
+
+ 1. the `obj` to wrap in auto
+ 2. the code to run
+ 3. what `$._` will be
+
+it's cleaner. and with `fatal` inside of `$._` i can
+check for errors ... though i see right now i
+only have one error case: when you try use `setter`
+inside of a function, hmmm... though that is an
+important thing to check for.
+
+first i need a function that both sets this variable
+and gives a stack trace:
+
+```js
+let error = (msg) => { fatal = msg; console.trace("fatal:",msg); }
+```
+
+don't like how i have two names now: `fatal` and `error`...
+let's use `fail` instead of `error`.
+
+ok, so let's see what the test might look like. let's call it
+`003_side_affects.js`
+
+```js
+module.exports = {
+    obj: {
+        data: null
+    },
+    fn: ($) => {
+        $['#'].data.subscribe( (v) => $.data = [1,2,3] )
+    },
+    _: {
+        fn: [ '#data000' ],
+        deps: { '#data000': [ 'data' ] },
+        dirty: {},
+        value: {},
+        fatal: 
+    }
+}
+```
+
+hmmm
+
+```
+c:\Users\karlp\auto\docs\devlog>node 013_fatal_internal.js
+Trace: fatal: can't have side affects inside a function
+    at fail (c:\Users\karlp\auto\docs\devlog\013_fatal_internal.js:11:48)
+    at setter (c:\Users\karlp\auto\docs\devlog\013_fatal_internal.js:48:22)
+    at Object._set (c:\Users\karlp\auto\docs\devlog\013_fatal_internal.js:63:27)
+    at c:\Users\karlp\auto\docs\devlog\013_fatal_internal.js:110:38
+    at Object.fn.<computed> [as #data000] (c:\Users\karlp\auto\docs\devlog\013_fatal_internal.js:90:29)
+    at run (c:\Users\karlp\auto\docs\devlog\013_fatal_internal.js:17:27)
+    at Object.res.#.<computed>.subscribe (c:\Users\karlp\auto\docs\devlog\013_fatal_internal.js:91:13)
+    at Object.<anonymous> (c:\Users\karlp\auto\docs\devlog\013_fatal_internal.js:110:13)
+    at Module._compile (internal/modules/cjs/loader.js:956:30)
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:973:10)
+{
+  fn: { '#data000': [Function] },
+  deps: { '#data000': [ 'data' ] },
+  dirty: {},
+  value: {},
+  fatal: undefined
+}
+```
+
+(i just put this at the end of `013_fatal_internal.js`)
+
+```js
+let $ = auto({
+    data: null
+})
+
+$['#'].data.subscribe( (v) => $.data = [1,2,3] )
+
+console.log($._)
+```
+
+still don't like how long the trace is. also - how will i suppress it during testing?
+
+`fatal` shows up as undefined even though i did put it into `_`. and this is because...
+it's not an object! i.e. returning `fatal` does not return a reference.
+
+ok so i've moved `res` to the top just below the internals decl.
+
+```js
+const res = {                                   // return object
+    _: { running, fn, deps, dirty, value },     // so we can see from the outside what's going on
+    '#': {}                                     // subscribe methods for each member
+};
+```
+
+so now i can set `_.fatal` directly in my fail function:
+
+```js
+let fail = (msg) => { res._.fatal = msg; console.trace("fatal:",msg); }
+```
+
+not great. it's not as clean as before. but now i get:
+
+```
+{
+  running: undefined,
+  fn: { '#data000': [Function] },
+  deps: { '#data000': [ 'data' ] },
+  dirty: {},
+  value: {},
+  fatal: "can't have side affects inside a function"
+}
+```
+
+which is brilliant: i have a complete test of (nearly) all the
+internals.
+
+## revisiting tests
+
+so what does the test code look like now?
+
+```js
+let check = (name, test) => {
+    let $ = auto(test.obj);
+    test.fn($);
+    if (assert_same(name, test._, $._)) console.log(name+": passed")
+}
+```
+
+pretty easy. i need to make sure that checking `fn` is modified:
+we don't need to specify the function - they should all
+be functions. i think it's fine just to check that the
+right names are in there i.e. just make it an array.
+i think? or will saying `fn: { '#data000': [Function] }`
+work?
+
+## 014_back_to_stack.js
+
+ok so even though we don't get infinite loops
+we still can't allow circular references:
+
+```js
+let $ = auto({
+    a: null,
+    b: ($) => $.a + $.c,
+    c: ($) => $.a + $.b
+})
+```
+
+what should we get if we set `a` to, say, `1` ?
+
+```js
+$.a = 1
+```
+
+i mean, what does `b` equal? let's see what we get
+after printing `$._`
+
+```js
+{
+  running: undefined,
+  fn: { b: [Function], c: [Function] },
+  deps: { b: [ 'a', 'c' ], c: [ 'a', 'b' ] },
+  dirty: { b: true, c: true },
+  value: { b: NaN, c: NaN, a: 1 }
+}
+```
+
+that's about right. what could possibly be the use
+to get nan values ... so let's put back the circle
+detection.
+
+```js
+// ...
+let stack = [];
+// ...
+let run = (name) => {
+
+    if (stack.indexOf(name) !== -1) fail("circular reference");
+    // ...
+    stack.push(name); let val = fn[name](); stack.pop();
+    // ...
+```
+
+```js
+{
+  running: undefined,
+  fn: { b: [Function], c: [Function] },
+  deps: { b: [ 'a', 'c' ], c: [ 'a', 'b' ] },
+  dirty: { b: true, c: true },
+  value: { b: NaN, c: NaN, a: 1 },
+  stack: []
+}
+```
+
+hmmm why isn't it detecting the circle?
+
+struggling to figure this out:
+
+1. we set `a`
+2. we loop through `a`'s dependents
+3. for each one, loop through _their_ dependents
+
+so what will happen in the above case?
+
+1. we set `a`
+2. we loop through _all_ the dependents first i.e. `b` and `c`
+3. so we are on `b`: loop through what it depends on
+4. `b` is a function - add to stack, so `stack = ['b']`
+5. the first dependent of `b` is `a`. `a` is dirty already - ignore
+6. the next dependent is `c`. it's not dirty so we recurse.
+   but first since it's a function we add it to the stack so `stack = ['b','c']`
+   note the stack is backwards i.e. `b <- c` i.e. "`b` depends on `c`"
+7. we are recursing through `c` now. but note: we don't add it to the stack immediately:
+   so we only add to the stack when we loop through dependencies...
+8. the first dependent is `a`. dirty. nevermind
+9. the next dependent is `b` it's dirty but it's a function...
+   so we should check first if a dependent is a function.
+   does it matter that it's not dirty?
+
+i've decided to use the word `stale` instead.
+
+```js
+let set_stale = (name, stack) => {
+
+    Object.keys(deps).forEach(n => {
+
+        if (deps[n].indexOf(name) !== -1)
+        {
+            // ok, we have found 'name' as a dependent of something i.e. of 'n'
+            // (wish this could be simpler...)
+
+            if (fn[n]) // so n is a function which depends on n
+            {
+                if (stack.indexOf(n) !== -1)
+                {
+                    let msg = ''; stack.forEach(s => msg += s + ' -> '); msg += n; // a -> b -> c
+                    console.log(msg);
+                    return;
+                }
+                stack.push(n);
+            }
+
+            if (!stale[n] && deps[n].indexOf(name) !== -1 )
+            {
+                stale[n] = true;
+                if (n[0]=='#') run(n);
+                set_stale(n,stack); // since it's dependency is dirty it must be too!
+            }
+
+            if (fn[n]) stack.pop();
+        }
+    })
+}
+```
+
+```
+b -> c -> b
+{
+  running: undefined,
+  fn: { b: [Function], c: [Function] },
+  deps: { b: [ 'a', 'c' ], c: [ 'a', 'b' ] },
+  stale: { b: true, c: true },
+  value: { b: NaN, c: NaN, a: 1 }
+}
+```
+
+woohoo! though it should print things out backwards...
+
+```js
+if (stack.indexOf(n) !== -1)
+{
+    let msg = n; while (stack.length>0) msg += ' -> ' + stack.pop(); // a -> b -> c
+    console.log(msg);
+    return;
+}
+```
+
+## 015_no_console_log.js
+
+instead of logging out to the console when something
+goes wrong i.e. a fatal error, i'm going to put say
+if you specify a special function which should run
+when a fatal error happens
+
+```js
+let $ = auto({
+    // ...
+    '#': ($) => console.log("fatal:",$._.fatal)
+})
+```
+
+bit weird using just `#` but it's already used
+to specify that a function doesn't write out
+a variable... maybe i should call it `#fatal` ?
+
+```js
+let fail = (msg) => { res._.fatal = msg; if (fn['#fatal']) fn['#fatal'](res); }
+```
+
+```js
+if (stack.indexOf(n) !== -1)
+{
+    let msg = n; while (stack.length>0) msg += ' -> ' + stack.pop(); // a -> b -> c
+    fail("circular dependency",msg);
+    return;
+}
+```
+
+```js
+let $ = auto({
+    a: null,
+    b: ($) => $.a + $.c,
+    c: ($) => $.a + $.b,
+    '#fatal': ($) => console.log('fatal:',$._.fatal)
+})
+
+$.a = 1;
+```
+
+```
+c:\Users\karlp\auto\docs\devlog>node 014_back_to_stack.js
+fatal: circular dependency b -> c -> b
+```
+
+maybe i could use `#` functions to do something every time
+any internal variable changes ...
