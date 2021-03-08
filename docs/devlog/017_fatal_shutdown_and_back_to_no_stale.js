@@ -13,11 +13,10 @@ let auto = (obj) => {
         '#': {}                                        // subscribe methods for each member
     };
 
-    let fail = (source, msg) => { 
+    let fail = (msg) => { 
         
         let _stack = []; stack.forEach(s => _stack.push(s));
 
-        fatal.source = source;
         fatal.msg = msg;
         fatal.stack = _stack;
         
@@ -32,7 +31,7 @@ let auto = (obj) => {
         running = name;
         stack.push(name);
 
-        if (stack.indexOf(name) < stack.length-1) fail('run', 'circular dependency');
+        if (stack.indexOf(name) < stack.length-1) fail('circular dependency');
         else
         {
             let val = fn[name]();
@@ -68,7 +67,7 @@ let auto = (obj) => {
 
         if (fatal.msg) return; // do nothing if a fatal error occured
 
-        if (running) fail("can't have side affects inside a function")
+        if (running) fail("can't have side affects (setting "+name+") inside a function ("+running+")")
         else {
             value[name] = val;
             delete_deps(name);

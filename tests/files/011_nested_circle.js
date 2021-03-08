@@ -10,7 +10,6 @@ module.exports = {
         deps: { b: [], c: ['a', 'b'] },
         value: { a: null },
         fatal: {
-            source: 'run',
             msg: 'circular dependency',
             stack: ['b', 'c', 'b']
         }

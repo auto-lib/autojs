@@ -1,0 +1,16 @@
+module.exports = {
+    obj: {
+        data: null,
+        count: ($) => $.data = 10
+    },
+    fn: ($) => {},
+    _: {
+        fn: [ 'count' ],
+        deps: { 'count': [] },
+        value: { data: null },
+        fatal: {
+            msg: "can't have side affects (setting data) inside a function (count)",
+            stack: ['count']
+        }
+    }
+}

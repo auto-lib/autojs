@@ -9,7 +9,6 @@ module.exports = {
         deps: { tick: [], tock: ['tick'] },
         value: {},
         fatal: {
-            source: 'run',
             msg: 'circular dependency',
             stack: [ 'tick', 'tock', 'tick' ]
         }
