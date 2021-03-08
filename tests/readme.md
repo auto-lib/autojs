@@ -1,5 +1,7 @@
 # tests
 
+> i need to rewrite this. the internal structure has changed a bit. _lots_ of tests working now
+
 each file in this directory is another test
 and looks like `001_check_something.js`,
 and each of these files exports the same

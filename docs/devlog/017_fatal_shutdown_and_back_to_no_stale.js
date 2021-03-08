@@ -21,35 +21,31 @@ let auto = (obj) => {
         fatal.msg = msg;
         fatal.stack = _stack;
         
-        if (fn['#fatal']) fn['#fatal'](res);
+        if (fn['#fatal']) fn['#fatal'](res); // special function to react to fatal errors
     }
 
     let update = (name) => {
 
-        if (fatal.msg) return;
+        if (fatal.msg) return; // do nothing if fatal error occurred
 
         deps[name] = [];
         running = name;
-        if (stack.indexOf(name) !== -1)
-        {
-            stack.push(name);
-            fail('run', 'circular dependency');
-            stack.pop();
-        }
+        stack.push(name);
+
+        if (stack.indexOf(name) < stack.length-1) fail('run', 'circular dependency');
         else
         {
-            stack.push(name);
             let val = fn[name]();
             if (!fatal.msg) value[name] = val;
-            stack.pop();
         }
         
+        stack.pop()
         running = undefined;
     }
 
     let getter = (name) => {
 
-        if (fatal.msg) return;
+        if (fatal.msg) return; // do nothing if a fatal error occured
 
         if (running && deps[running].indexOf(name) === -1) deps[running].push(name);
         if (fn[name]) update(name);
@@ -70,7 +66,7 @@ let auto = (obj) => {
 
     let setter = (name, val) => {
 
-        if (fatal.msg) return;
+        if (fatal.msg) return; // do nothing if a fatal error occured
 
         if (running) fail("can't have side affects inside a function")
         else {
@@ -79,6 +75,7 @@ let auto = (obj) => {
         }
     }
 
+    // this whole section is run once
     Object.keys(obj).forEach(name => {
 
         let _get = () => getter(name)
@@ -120,7 +117,7 @@ let auto = (obj) => {
         };
     });
 
-    Object.keys(fn).forEach(name => update(name));
+    Object.keys(fn).forEach(name => update(name)); // boot process: update all functions, setting initial values and dependencies
 
     return res;
 }
