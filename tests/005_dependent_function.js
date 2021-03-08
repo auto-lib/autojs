@@ -1,7 +1,7 @@
-export default {
+module.exports = {
     obj: {
         data: null,
-        get count() { return this.data ? this.data.length : 0 },
+        count: ($) => $.data ? $.data.length : 0 
     },
     fn: ($) => {
         //$.data = [1,2,3];
@@ -9,7 +9,7 @@ export default {
     },
     _: {
         deps: { count: ['data'] },
-        dirty: {},
-        value: { data: [1,2,3], count: 3 }
+        stale: {},
+        value: { data: null, count: 0 }
     }
 }

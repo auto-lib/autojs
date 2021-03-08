@@ -1,6 +1,4 @@
 
-// 015_no_stale_structure.js
-
 let auto = (obj) => {
 
     let running;
@@ -124,5 +122,3 @@ let auto = (obj) => {
 
     return res;
 }
-
-export default auto;

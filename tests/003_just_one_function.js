@@ -1,13 +1,13 @@
 module.exports = {
     obj: {
-        // no values to wrap
+        func: ($) => 'val'
     },
     fn: ($) => {
         // nothing to do
     },
     _: {
-        deps: {}, // no dependencies tracked
+        deps: { func: [] }, // no dependencies tracked
         stale: {}, // nothing to update
-        value: {} // no values cached
+        value: { func: 'val' } // no values cached
     }
 }

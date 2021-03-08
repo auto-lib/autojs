@@ -3023,3 +3023,109 @@ fatal: circular dependency b -> c -> b
 
 maybe i could use `#` functions to do something every time
 any internal variable changes ...
+
+## setters don't run functions
+
+busy with tests. check out `007_value_set_with_dependent_function.js`
+
+```js
+module.exports = {
+    obj: {
+        data: null,
+        count: ($) => $.data ? $.data.length : 0 
+    },
+    fn: ($) => {
+        $.data = [1,2,3];
+    },
+    _: {
+        deps: { count: ['data'] },
+        stale: { count: true },
+        value: { data: [1,2,3], count: 0 }
+    }
+}
+```
+
+even though we set `data` `count` is not updated.
+
+perhaps this is a good principle to keep in mind:
+**setting sets stale**. also worth noting: setting
+is only done on _values_. so set:
+
+ 1. saves to `value`
+ 2. sets `stale`
+
+hmm but check this out: we know only function
+values can be stale. so really the same result
+to setting stale is just __removing the function
+key from value__ !.
+
+so we have two options:
+
+a. instead of checking `stale` everywhere we just check if the function key is in `value`
+b. functions have their own `value`-like structure...
+
+supoose it's cleaner just to have one `value` object? though is that
+confusing?
+
+it's also weird you won't be able to see from the internal
+data which functions need updating ... but if the internal
+structure is simpler then that should win out.
+
+## 015_no_stale_structure.js
+
+let's see what it looks like.
+
+`getter` is a bit simpler:
+
+```js
+let getter = (name) => {
+
+    if (running) deps[running].push(name);
+    if (fn[name] && !value[name]) value[name] = run(name);
+    
+    return value[name];
+}
+```
+
+(we just don't have to delete from `stale`).
+
+what about `set_stale` ? what name should we use?
+what we are doing is "unsetting dependent function
+values"...
+
+the only section we need to change is where `stale`
+is mentioned:
+
+```js
+if (value[n] && deps[n].indexOf(name) !== -1 )
+{
+    delete(value[n]);
+    if (n[0]=='#') run(n);
+    set_stale(n,stack); // since it's dependency is dirty it must be too!
+}
+```
+
+but also we need to check it so this is inside the
+function check (should have been like this before)
+
+```js
+if (fn[n]) // so n is a function which depends on n
+{
+    if (stack.indexOf(n) !== -1)
+    {
+        let msg = n; while (stack.length>0) msg += ' -> ' + stack.pop(); // a -> b -> c
+        fail("circular dependency "+msg);
+        return;
+    }
+    stack.push(n);
+
+    if (value[n] && deps[n].indexOf(name) !== -1 )
+    {
+        delete(value[n]);
+        if (n[0]=='#') run(n);
+        set_stale(n,stack); // since it's dependency is dirty it must be too!
+    }
+
+    stack.pop();
+}
+```

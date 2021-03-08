@@ -89,9 +89,12 @@ let auto = (obj) => {
             fn[name] = () => obj[name](res); // save function
             prop = { get: _get }             // what props to set on return object i.e. a getter
         }    
-        else 
+        else
+        {
+            value[name] = obj[name];
             prop = { get: _get, set: _set }  // just set the return props i.e. getter + setter
-    
+        }
+
         Object.defineProperty(res, name, prop);
     
         // get an available name for subscription

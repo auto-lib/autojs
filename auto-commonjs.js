@@ -1,86 +1,126 @@
-let auto = (object) => {
+
+// 015_no_stale_structure.js
+
+let auto = (obj) => {
 
     let running;
     let deps = {};
-    let dirty = {};
-    let fs = {};
+    let fn = {};
     let value = {};
 
-    let update = (tag) => {
+    const res = {                                   // return object
+        _: { running, fn, deps, value },            // so we can see from the outside what's going on
+        '#': {}                                     // subscribe methods for each member
+    };
 
-        deps[tag] = [];
-        running = tag;
-        let val = fs[tag]();
+    let fail = (msg) => { res._.fatal = msg; if (fn['#fatal']) fn['#fatal'](res); }
+
+    let run = (name) => {
+
+        deps[name] = [];
+        running = name;
+        let val = fn[name]();
         running = undefined;
         return val;
     }
 
-    let getter = (tag) => {
+    let getter = (name) => {
 
-        if (running) deps[running].push(tag);
-        if (fs[tag] && dirty[tag])
-        {
-            value[tag] = update(tag);
-            delete(dirty[tag]);
-        }
-        return value[tag];
+        if (running) deps[running].push(name);
+        if (fn[name] && !value[name]) value[name] = run(name);
+
+        return value[name];
     }
 
-    let setter = (tag, val) => {
+    let set_stale = (name, stack) => {
 
-        if (fs[tag]) console.trace("fatal: not settable");
-        else
-        {
-            value[tag] = val;
-            Object.keys(deps).forEach(n => {
-                if (n[0]=='#') update(n); // auto function
-                else dirty[n] = true
-            })
-        }
-    }
+        stack = stack || [];
 
-    let atom = (name, fn) => {
+        Object.keys(deps).forEach(n => {
+    
+            if (deps[n].indexOf(name) !== -1)
+            {
+                // ok, we have found 'name' as a dependent of something i.e. of 'n'
+                // (wish this could be simpler...)
+    
+                if (fn[n]) // so n is a function which depends on n
+                {
+                    if (stack.indexOf(n) !== -1)
+                    {
+                        let msg = n; while (stack.length>0) msg += ' -> ' + stack.pop(); // a -> b -> c
+                        fail("circular dependency "+msg);
+                        return;
+                    }
 
-        let tag = name ? name : "#" + Math.round(1000*Math.random()).toString().padStart(3, "0"); // e.g. #012
-
-        if(fn) fs[tag] = fn;
-
-        if (tag[0] == '#') // auto function (not a variable)
-            update(tag);
-        else
-        {
-            if (fn) dirty[tag] = true;
+                    stack.push(n);
+    
+                    if (value[n] && deps[n].indexOf(name) !== -1 )
+                    {
+                        delete(value[n]);
+                        if (n[0]=='#') run(n);
+                        set_stale(n,stack); // since it's dependency is dirty it must be too!
+                    }
         
-            return {
-
-                get: () => getter(tag),
-                set: (val) => setter(tag, val)
+                    stack.pop();
+                }
             }
+        })
+    }
+
+    let setter = (name, val) => {
+
+        if (running) fail("can't have side affects inside a function")
+        else {
+            value[name] = val;
+            set_stale(name);
         }
     }
 
-    const res = {
-        _: { deps, dirty, value }, // so we can see from the outside what's going on
-        $: {} // store of atoms
-    };
+    Object.keys(obj).forEach(name => {
 
-    Object.keys(object).forEach(key => {
+        let _get = () => getter(name)
+        let _set = (v) => setter(name, v)
+    
+        let prop;
+    
+        if (typeof obj[name] == 'function')
+        {
+            fn[name] = () => obj[name](res); // save function
+            prop = { get: _get }             // what props to set on return object i.e. a getter
+        }    
+        else
+        {
+            value[name] = obj[name];
+            prop = { get: _get, set: _set }  // just set the return props i.e. getter + setter
+        }
 
-        if (typeof object[key] == 'function') res.$[key] = atom(key, () => object[key](res));
-        else res.$[key] = atom(key, object[key]);
+        Object.defineProperty(res, name, prop);
+    
+        // get an available name for subscription
+        let get_sub_tag = (name) => {
 
-        Object.defineProperty(res, key, {
-            configurable: true,
-            enumerable: true,
-            get() {
-                return res.$[key].get();
-            },
-            set(value) {
-                res.$[key].set(value);
-            }
-        });
+            let val = 0;
+            let tag = () => '#' + name + val.toString().padStart(3, "0"); // e.g. #msg012
+            while( tag() in fn ) val += 1; // increment until not found
+            return tag();
+        }
 
+        res['#'][name] = {}
+        res['#'][name].subscribe = (f) => {
+    
+            let tag = get_sub_tag(name);
+            fn[tag] = () => f(getter(name))
+            run(tag)
+
+            // return unsubscribe method
+            return () => { delete(fn[tag]); delete(deps[tag]) }
+        };
     });
+
+    // run all the functions
+    Object.keys(fn).forEach(name => {
+        if (name[0]!='#') value[name] = run(name);
+    })
 
     return res;
 }
