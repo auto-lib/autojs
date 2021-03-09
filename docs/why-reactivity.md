@@ -1,3 +1,10 @@
+
+## why reactivity
+
+because of `sequence orchestration`. reactivity
+takes away the need to manage doing things in
+the right order.
+
 why one should use **auto**
 can be split into two parts: why is _reactivity_
 useful, and what sets _apart_ from other

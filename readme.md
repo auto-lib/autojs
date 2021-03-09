@@ -7,7 +7,7 @@ reactivity has immense potential but is currently broken.
 for wordier versions of this.
 
 **auto** reckons it can fix things by enforcing
-no side affects [docs/no-side-affects.md](docs/no-side-affects.md).
+no side effects [docs/no-side-effects.md](docs/no-side-effects.md).
 
 > check out the next section for a taste of what this means.
 
@@ -54,6 +54,9 @@ fatal: function update is trying to change value data
 see [docs/no-side-affects.md](docs/no-side-affects.md) on
 why this is a _really good idea_.
 
+> and now checkout [docs/ok-but-what-is-auto.md](docs/ok-but-what-is-auto.md)
+to be explicit
+
 ## features
 
 besides no side affects
@@ -63,7 +66,7 @@ _really simple_, it's _really robust_, and you can _debug it_.
 ### simple
 
 the **auto** library is 150 lines long and it uses no external libraries.
-the code is also flat and clean:
+the code is also flat and clean
 
  - 6 state variables
  - 3 main functions and 3 helpers functions
@@ -71,8 +74,8 @@ the code is also flat and clean:
 
 it's worth trying to understand
 the whole thing [docs/internals.md](docs/internals.md).
-the entire development with all the thinking and
-design choices is documented in
+its development and
+design choices are documented in
 [docs/devlog](docs/devlog).
 
 ### robust
@@ -118,11 +121,11 @@ each version of **auto** is in the root folder:
  - `auto-es6.js`
  - `auto-no-export.js`
 
-they are the same except for the last line (the export statement).
+they are all the same except for the last line (the export statement).
 
 ### npm and node
 
-`npm install @autolib/auto`
+run `npm install @autolib/auto`
 and then import with `const auto = require('@autolib/auto');`.
 see [docs/npm-and-node.md](docs/npm-and-node.md) for
 a walkthrough.
