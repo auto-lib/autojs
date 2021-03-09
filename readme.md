@@ -1,8 +1,19 @@
-**auto** is a reactivity tool for javascript.
 
-## create an object
+## manifesto
 
-just one keyword `auto` is used like this:
+reactivity has immense potential but is currently broken.
+
+> see [docs/why-reactivity.md](docs/why-reactivity.md) and [docs/bad-reactivity.md](docs/bad-reactivity.md)
+for wordier versions of this.
+
+**auto** reckons it can fix things by enforcing
+no side affects [docs/no-side-affects.md](docs/no-side-affects.md).
+
+> check out the next section for a taste of what this means.
+
+## tiny tutorial
+
+you use `auto` like this
 
 ```js
 let $ = auto({
@@ -12,54 +23,71 @@ let $ = auto({
 })
 ```
 
-see [docs/syntax.md](docs/syntax.md) for a breakdown
-of the syntax.
-
-## and magic happens
-
-whenever you use the returned object
+and then everything updates automatically
 
 ```js
 $.data = [1,2,3];
 console.log("msg =",$.msg);
 ```
 
-everything will update automatically
-
 ```
 msg = 1,2,3 has 3 items
 ```
 
-## why
+> see [docs/syntax.md](docs/syntax.md) for a breakdown of the syntax.
 
-reactivity is a really good idea [docs/why-reactivity.md](docs/why-reactivity.md)
-(though it can be done badly [docs/bad-reactivity.md](docs/bad-reactivity.md)).
+this is much like other libraries but this is different:
 
-what distinguishes **auto** from other reactive libraries is it's
+```js
+let $ = auto({
+    data: null,
+    update: ($) => $.data = [1,2,3]
+})
+```
+
+```
+fatal: function update is trying to change value data
+```
+
+see [docs/no-side-affects.md](docs/no-side-affects.md) on
+why this is a _really good idea_.
+
+## features
+
+besides the fundamental differences with other reactivity tools
+what makes **auto** great is it's
 really _simple_, it's really _robust_, and you can _debug it_.
 
 ### simple
 
-the **auto** library is 100 lines long,
-has no external dependencies and uses just
-five variables to manage its internal state;
-you can understand the whole thing.
-see [docs/internals.md](docs/internals.md)
-for a walk-through of the code and also
-[docs/devlog](docs/devlog) 
-for a blow-by-blow account of its development
-and design choices.
+the **auto** library is 150 lines long and uses no external libraries.
+the code is flat and clean:
+
+ - all state is in 6 variables
+ - the code is comprised of 3 functions, 3 helpers and an init block.
+
+it's really worth trying to understand
+the whole thing [docs/internals.md](docs/internals.md).
+the entire development from _scratch_
+is documented with all the thinking and
+design choices in
+[docs/devlog](docs/devlog).
 
 ### robust
 
-...
+several things make **auto** robust
+but each need their own explanations:
 
-### debuggable
+ - update functions cannot change the state [docs/no-side-affects.md](docs/no-side-affects.md)
+ - setting values don't trigger side affects [docs/lazy-evaluation.md](docs/lazy-evaluation.md)
+ - this _is_ standard but worth mentioning [docs/circle-detection.md](docs/circle-detection.md)
+ - but this certainly is not: tests check the _entire_ internal state (not just values) [docs/deep-testing.md](docs/deep-testing.md)
+
+### debug it
 
 **auto**'s internal variables are easy to interpret:
 looking at them explains behaviour.
-three can be viewed via the special `_` member
-(the other two aren't useful for debugging) so
+they can be viewed via the special `_` member. for example
 
 ```js
 console.log($._)
@@ -78,34 +106,37 @@ will print something like
 see [docs/explainability.md](docs/explainability.md)
 for a walk-through on what these variables mean.
 
+> TODO the internal variables have changed a bit recently
+
 ## environments
 
-you can use **auto** with node/npm,
-as an es6 module and directly in the browser.
+note each version of **auto** is in the root folder:
+
+ - `auto-commonjs.js`
+ - `auto-es6.js`
+ - `auto-no-export.js`
+
+they are the same except for the last line
+and are generated from the last file in [docs/devlog](docs/devlog).
 
 ### npm and node
 
-to use via npm install with `npm install @autolib/auto`
-and then you can import it with `const auto = require('@autolib/auto';`.
+run `npm install @autolib/auto`
+and then import with `const auto = require('@autolib/auto';`.
 see [docs/npm-and-node.md](docs/npm-and-node.md) for
-a detailed walkthrough.
+a walkthrough.
 
 ### es6 module
 
-for this simply use the right lib in the import, i.e.
-
-```js
-const auto = import('auto-es6.js');
-```
-
-and to test you could use, for example, `deno`
-i.e. `deno run test.js`. you could use
+simply use the right, i.e. `const auto = import('auto-es6.js');`
+to test you could use `deno`
+i.e. `deno run test.js`. see
 [docs/npm-and-node.md](docs/npm-and-node.md)
-as a template (just replace the import statement).
+for a template - just replace the import statement.
 
 ### browser
 
-to use directly in a `<script>` tag use `auto-no-import.js`.
+in a `<script>` tag link to `auto-no-import.js`.
 see [docs/html.md](docs/html.md) for a walk-through.
 
 ## integrations
@@ -137,7 +168,33 @@ what i can imagine some people might want in **auto**
 (because of what i've seen in other reactive libraries)
 but that i left out on purpose.
 
-### nesting
+### side affects
+
+this is the big one - really the reason this library had to be made.
+it's a long story but basically all reactivity these days allows
+one to do this:
+
+```js
+alwaysRun( () => {
+
+    some_variable = 10;
+    another_variable = [1,2,3];
+
+    do_something();
+    do_something_else();
+})
+```
+
+the idea is that the whole block of code will re-run
+any time any of the referenced variables i.e. `some_variable`
+or `another_variable` change. this is a _terrible_ idea,
+and **auto** was created specifically to do reactivity correctly,
+or rather to hone it down to one idea: automatic _variables_,
+not code.
+
+i need to write this up properly.
+
+### nested reactivity
 
 there was a version of the old library (`mobx-svelte`)
 that had nested reactivity (because i saw the
