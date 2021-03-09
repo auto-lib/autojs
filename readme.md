@@ -55,7 +55,7 @@ see [docs/no-side-affects.md](docs/no-side-affects.md) on
 why this is a _really good idea_.
 
 > and now checkout [docs/ok-but-what-is-auto.md](docs/ok-but-what-is-auto.md)
-to be explicit
+for more explicitness
 
 ## features
 
