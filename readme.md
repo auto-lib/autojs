@@ -23,7 +23,10 @@ let $ = auto({
 })
 ```
 
-and then everything updates automatically
+> see [docs/syntax.md](docs/syntax.md) for a breakdown of the syntax.
+
+and then when you use `$` everything updates automatically
+including nested relationships
 
 ```js
 $.data = [1,2,3];
@@ -34,9 +37,8 @@ console.log("msg =",$.msg);
 msg = 1,2,3 has 3 items
 ```
 
-> see [docs/syntax.md](docs/syntax.md) for a breakdown of the syntax.
-
-this is much like other libraries but this is different:
+this is much like other libraries but with the following
+it's quite different
 
 ```js
 let $ = auto({
@@ -54,23 +56,23 @@ why this is a _really good idea_.
 
 ## features
 
-besides the fundamental differences with other reactivity tools
+besides no side affects
 what makes **auto** great is it's
-really _simple_, it's really _robust_, and you can _debug it_.
+_really simple_, it's _really robust_, and you can _debug it_.
 
 ### simple
 
-the **auto** library is 150 lines long and uses no external libraries.
-the code is flat and clean:
+the **auto** library is 150 lines long and it uses no external libraries.
+the code is also flat and clean:
 
- - all state is in 6 variables
- - the code is comprised of 3 functions, 3 helpers and an init block.
+ - 6 state variables
+ - 3 main functions and 3 helpers functions
+ - an init block.
 
-it's really worth trying to understand
+it's worth trying to understand
 the whole thing [docs/internals.md](docs/internals.md).
-the entire development from _scratch_
-is documented with all the thinking and
-design choices in
+the entire development with all the thinking and
+design choices is documented in
 [docs/devlog](docs/devlog).
 
 ### robust
@@ -110,19 +112,18 @@ for a walk-through on what these variables mean.
 
 ## environments
 
-note each version of **auto** is in the root folder:
+each version of **auto** is in the root folder:
 
  - `auto-commonjs.js`
  - `auto-es6.js`
  - `auto-no-export.js`
 
-they are the same except for the last line
-and are generated from the last file in [docs/devlog](docs/devlog).
+they are the same except for the last line (the export statement).
 
 ### npm and node
 
-run `npm install @autolib/auto`
-and then import with `const auto = require('@autolib/auto';`.
+`npm install @autolib/auto`
+and then import with `const auto = require('@autolib/auto');`.
 see [docs/npm-and-node.md](docs/npm-and-node.md) for
 a walkthrough.
 
