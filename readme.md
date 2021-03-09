@@ -1,6 +1,6 @@
 **auto** is a reactivity tool for javascript.
 
-## how it looks
+## create an object
 
 just one keyword `auto` is used like this:
 
@@ -15,7 +15,7 @@ let $ = auto({
 see [docs/syntax.md](docs/syntax.md) for a breakdown
 of the syntax.
 
-## usage
+## and magic happens
 
 whenever you use the returned object
 
@@ -25,7 +25,6 @@ console.log("msg =",$.msg);
 ```
 
 everything will update automatically
-so for example the above will print
 
 ```
 msg = 1,2,3 has 3 items
@@ -33,11 +32,11 @@ msg = 1,2,3 has 3 items
 
 ## why
 
-> it's worth reading [docs/why-reactivity.md](docs/why-reactivity.md)
-> and [docs/bad-reactivity.md](docs/bad-reactivity.md) first
+reactivity is a really good idea [docs/why-reactivity.md](docs/why-reactivity.md)
+(though it can be done badly [docs/bad-reactivity.md](docs/bad-reactivity.md)).
 
-what distinguishes **auto** from other reactive
-libraries?
+what distinguishes **auto** from other reactive libraries is it's
+really _simple_, it's really _robust_, and you can _debug it_.
 
 ### simple
 
@@ -55,7 +54,7 @@ and design choices.
 
 ...
 
-### explainability
+### debuggable
 
 **auto**'s internal variables are easy to interpret:
 looking at them explains behaviour.
