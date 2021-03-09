@@ -9,9 +9,10 @@ let auto = (obj) => {
     let value = {};  // current actual values
     let stack = [];  // call stack
     let fatal = {};  // only set if fatal error occurs (and everything stops if this is set)
-    
+    let subs = {};
+
     const res = {                                      // return object
-        _: { running, fn, deps, value, fatal },        // so we can see from the outside what's going on
+        _: { subs, running, fn, deps, value, fatal },        // so we can see from the outside what's going on
         '#': {}                                        // subscribe methods for each member
     };
 
@@ -23,6 +24,14 @@ let auto = (obj) => {
         fatal.stack = _stack;
         
         if (fn['#fatal']) fn['#fatal'](res); // special function to react to fatal errors
+    }
+
+    let run_subs = (name) => {
+        
+        Object.keys(subs).forEach(tag => { 
+            if (tag.length == name.length+4 && tag.substring(0,name.length+1) == '#'+name)
+                subs[tag](value[name]); 
+        });
     }
 
     let update = (name) => {
@@ -37,7 +46,11 @@ let auto = (obj) => {
         else
         {
             let val = fn[name]();
-            if (!fatal.msg && name[0]!='#') value[name] = val;
+            if (!fatal.msg && name[0]!='#')
+            {
+                value[name] = val;
+                run_subs(name);
+            }  
         }
         
         stack.pop()
@@ -73,48 +86,48 @@ let auto = (obj) => {
         else {
             value[name] = val;
             delete_deps(name);
+            run_subs(name);
         }
+    }
+
+    // get an available name for subscription
+    let get_subtag = (name) => {
+
+        let val = 0;
+        let tag = () => '#' + name + val.toString().padStart(3, "0"); // e.g. #msg012
+        while( tag() in subs ) val += 1; // increment until not found
+        return tag();
     }
 
     // this whole section is run once
     Object.keys(obj).forEach(name => {
 
-        let _get = () => getter(name)
-        let _set = (v) => setter(name, v)
-    
         let prop;
     
         if (typeof obj[name] == 'function')
         {
             fn[name] = () => obj[name](res); // save function
-            prop = { get: _get }             // what props to set on return object i.e. a getter
+            prop = { get() { return getter(name) }}             // what props to set on return object i.e. a getter
         }    
         else
         {
             value[name] = obj[name];
-            prop = { get: _get, set: _set }  // just set the return props i.e. getter + setter
+            prop = { get() { return getter(name) }, set(v) { setter(name, v) } }  // just set the return props i.e. getter + setter
         }
 
         Object.defineProperty(res, name, prop);
-    
-        // get an available name for subscription
-        let get_sub_tag = (name) => {
-
-            let val = 0;
-            let tag = () => '#' + name + val.toString().padStart(3, "0"); // e.g. #msg012
-            while( tag() in fn ) val += 1; // increment until not found
-            return tag();
-        }
 
         res['#'][name] = {}
+        res['#'][name].get = () => getter(name);
+        res['#'][name].set = (v) => setter(name, v);
         res['#'][name].subscribe = (f) => {
     
-            let tag = get_sub_tag(name);
-            fn[tag] = () => f(getter(name))
-            update(tag)
+            let subtag = get_subtag(name);
+            subs[subtag] = (v) => f(v);
+            f(value[name]);
 
             // return unsubscribe method
-            return () => { delete(fn[tag]); delete(deps[tag]) }
+            return () => { delete(subs[subtag]); }
         };
     });
 
@@ -122,5 +135,18 @@ let auto = (obj) => {
 
     return res;
 }
+
+/*
+$ = auto({
+    data: null
+})
+
+$['#'].data.subscribe( d => console.log(d));
+$['#'].data.subscribe( d => console.log(d));
+$['#'].data.subscribe( d => console.log(d));
+
+$.data = [1,2,3];
+$.data = [3,4,5];
+*/
 
 export default auto;

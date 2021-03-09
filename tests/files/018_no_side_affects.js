@@ -6,6 +6,7 @@ module.exports = {
     fn: ($) => {},
     _: {
         fn: [ 'count' ],
+        subs: [],
         deps: { 'count': [] },
         value: { data: null },
         fatal: {

@@ -20,12 +20,16 @@ function isEqual(obj1, obj2) {
 }
 
 let assert_same = (name, a, b) => {
-  let keys = ['fn', 'stack', 'deps', 'value', 'fatal'];
+  let keys = ['subs', 'fn', 'stack', 'deps', 'value', 'fatal'];
   let diff = [];
 
   let fns = [];
   Object.keys(b.fn).forEach( name => fns.push(name) );
   b.fn = fns; // replace with an array of names (can't really check the actual function definitions)
+
+  let subs = [];
+  Object.keys(b.subs).forEach( name => subs.push(name) );
+  b.subs = subs; // replace with an array of names (can't really check the actual function definitions)
 
   keys.forEach(key => { if ( !isEqual(a[key], b[key]) ) diff.push(key); })
 

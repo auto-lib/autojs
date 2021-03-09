@@ -7,6 +7,7 @@ module.exports = {
     },
     _: {
         fn: [],
+        subs: [],
         deps: {}, // no dependencies tracked
         value: { data: null },
         fatal: {}

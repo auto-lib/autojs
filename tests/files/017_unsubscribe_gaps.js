@@ -12,12 +12,9 @@ module.exports = {
         let unsub_for = $['#'].data.subscribe( () => {} );
     },
     _: {
-        fn: [ '#data000', '#data002', '#data001' ],
-        deps: {
-            '#data000': [ 'data' ],
-            '#data002': [ 'data' ],
-            '#data001': [ 'data' ]
-        },
+        fn: [],
+        deps: {},
+        subs: [ '#data000', '#data002', '#data001' ],
         value: { data: null },
         fatal: {}
     }

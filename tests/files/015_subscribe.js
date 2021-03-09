@@ -6,8 +6,9 @@ module.exports = {
         $['#'].data.subscribe( () => {} );
     },
     _: {
-        fn: ['#data000'],
-        deps: { '#data000': [ 'data' ] },
+        fn: [],
+        deps: [],
+        subs: ['#data000'],
         value: { data: null },
         fatal: {}
     }
