@@ -48,8 +48,11 @@ let auto = (obj) => {
             let val = fn[name]();
             if (!fatal.msg && name[0]!='#')
             {
-                value[name] = val;
-                run_subs(name);
+                if (val !== value[name])
+                {
+                    value[name] = val;
+                    run_subs(name);
+                }
             }  
         }
         
@@ -84,9 +87,12 @@ let auto = (obj) => {
 
         if (running) fail("can't have side affects (setting "+name+") inside a function ("+running+")")
         else {
-            value[name] = val;
-            delete_deps(name);
-            run_subs(name);
+            if (value[name] !== val)
+            {
+                value[name] = val;
+                delete_deps(name);
+                run_subs(name);
+            }
         }
     }
 
