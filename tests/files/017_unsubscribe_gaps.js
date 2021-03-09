@@ -14,7 +14,7 @@ module.exports = {
     _: {
         fn: [],
         deps: {},
-        subs: [ '#data000', '#data002', '#data001' ],
+        subs: { data: ['000','002','001'] },
         value: { data: null },
         fatal: {}
     }

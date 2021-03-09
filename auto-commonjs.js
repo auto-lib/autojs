@@ -1,5 +1,5 @@
 
-// 017_fatal_shutdown_and_back_to_no_stale.js
+// 018_optimized_subs.js
 
 let auto = (obj) => {
 
@@ -27,11 +27,7 @@ let auto = (obj) => {
     }
 
     let run_subs = (name) => {
-        
-        Object.keys(subs).forEach(tag => { 
-            if (tag.length == name.length+4 && tag.substring(0,name.length+1) == '#'+name)
-                subs[tag](value[name]); 
-        });
+        if (subs[name]) Object.key(subs[name]).forEach( tag => subs[name][tag](value[name]) )
     }
 
     let update = (name) => {
@@ -100,8 +96,8 @@ let auto = (obj) => {
     let get_subtag = (name) => {
 
         let val = 0;
-        let tag = () => '#' + name + val.toString().padStart(3, "0"); // e.g. #msg012
-        while( tag() in subs ) val += 1; // increment until not found
+        let tag = () => val.toString().padStart(3, "0"); // e.g. #012
+        while( subs[name] && tag() in subs[name] ) val += 1; // increment until not found
         return tag();
     }
 
@@ -129,11 +125,14 @@ let auto = (obj) => {
         res['#'][name].subscribe = (f) => {
     
             let subtag = get_subtag(name);
-            subs[subtag] = (v) => f(v);
+        
+            if (!subs[name]) subs[name] = {}; // added this
+            subs[name][subtag] = (v) => f(v); // now inside [name]
+            
             f(value[name]);
-
+        
             // return unsubscribe method
-            return () => { delete(subs[subtag]); }
+            return () => { delete(subs[name][subtag]); } // now inside [name]
         };
     });
 
@@ -142,17 +141,5 @@ let auto = (obj) => {
     return res;
 }
 
-/*
-$ = auto({
-    data: null
-})
-
-$['#'].data.subscribe( d => console.log(d));
-$['#'].data.subscribe( d => console.log(d));
-$['#'].data.subscribe( d => console.log(d));
-
-$.data = [1,2,3];
-$.data = [3,4,5];
-*/
 
 module.exports = auto;

@@ -1,6 +1,4 @@
 
-// 018_optimized_subs.js
-
 let auto = (obj) => {
 
     let running;     // what function is currently running
@@ -140,6 +138,3 @@ let auto = (obj) => {
 
     return res;
 }
-
-
-export default auto;

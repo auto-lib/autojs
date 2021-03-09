@@ -8,7 +8,7 @@ module.exports = {
     },
     _: {
         fn: [],
-        subs: [],
+        subs: { data: [] },
         deps: {},
         value: { data: null },
         fatal: {}

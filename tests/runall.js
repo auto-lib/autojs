@@ -27,8 +27,32 @@ let assert_same = (name, a, b) => {
   Object.keys(b.fn).forEach( name => fns.push(name) );
   b.fn = fns; // replace with an array of names (can't really check the actual function definitions)
 
-  let subs = [];
-  Object.keys(b.subs).forEach( name => subs.push(name) );
+  // subs looks like
+  // {
+  //      'data': {
+  //        '000': [Function],
+  //        '001': [Function]
+  //      }
+  //      'count': {
+  //        '000': [Funcion]
+  //      }
+  // }
+  // but to check we need it to look like
+  // {
+  //      'data': ['000','001'],
+  //      'count': ['000']
+  // }
+
+  // (why don't i make it look like that? '000' could refer to a function in fn...)
+
+  let subs = {};
+  Object.keys(b.subs).forEach( name => {
+    let arr = [];
+    Object.keys(b.subs[name]).forEach( tag => {
+      arr.push(tag);
+    });
+    subs[name] = arr;
+  });
   b.subs = subs; // replace with an array of names (can't really check the actual function definitions)
 
   keys.forEach(key => { if ( !isEqual(a[key], b[key]) ) diff.push(key); })

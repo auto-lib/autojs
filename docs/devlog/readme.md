@@ -3373,3 +3373,109 @@ that by waiting for the user to trigger functions
 (by using `getter` essentially) everything should evaluate
 in the right sequence? how do i test this? when will things
 _not_ evualuate in the right sequence?
+
+## 018_optimized_subs.js
+
+huge rewrite in the previous post. getting things working
+in my svelte app. one thing i realised is i can optimize
+the sub access greatly:
+
+```js
+let run_subs = (name) => {
+        
+    Object.keys(subs).forEach(tag => { 
+        if (tag.length == name.length+4 && tag.substring(0,name.length+1) == '#'+name)
+            subs[tag](value[name]); 
+    });
+}
+```
+
+we don't need to use a flat list. right now the subs look like this:
+
+```js
+{
+    '#data000': [Function],
+    '#data001': [Function],
+    '#count000': [Function]
+}
+```
+
+so i loop through _all_ the values and check what matches
+the name. i did this before because i have the subs in
+with all the other functions. i don't need to do that:
+just group them with their dependent values (remember
+every sub just one _one_ dependent)
+
+```js
+{
+    'data': [
+        '000': [Function],
+        '001': [Function]
+    ],
+    'count': [
+        '000': [Function]
+    ]
+}
+```
+
+and so now the subs code is
+
+```js
+let run_subs = (name) => {
+        
+    if (subs[name]) Object.key(subs[name]).forEach( tag => subs[name][tag](value[name]) )
+}
+```
+
+simpler and way more efficient. before for every variable
+access we looped through and checked it again each sub.
+
+just need to change how we define the `subscribe` method:
+
+```js
+res['#'][name].subscribe = (f) => {
+    
+    let subtag = get_subtag(name);
+
+    if (!subs[name]) subs[name] = {}; // added this
+    subs[name][subtag] = (v) => f(v); // now inside [name]
+    
+    f(value[name]);
+
+    // return unsubscribe method
+    return () => { delete(subs[name][subtag]); } // now inside [name]
+};
+```
+
+oh and the subtag calc is a bit simpler too (no hash or name):
+
+```js
+let get_subtag = (name) => {
+
+    let val = 0;
+    let tag = () => val.toString().padStart(3, "0"); // e.g. #012
+    while( subs[name] && tag() in subs[name] ) val += 1; // increment until not found
+    return tag();
+}
+```
+
+and now this is what `tests/015_subscribe.js` is
+
+```js
+module.exports = {
+    obj: {
+        data: null,
+    },
+    fn: ($) => {
+        $['#'].data.subscribe( () => {} );
+    },
+    _: {
+        fn: [],
+        deps: [],
+        subs: { data: ['000'] },
+        value: { data: null },
+        fatal: {}
+    }
+}
+```
+
