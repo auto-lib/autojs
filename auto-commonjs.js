@@ -9,11 +9,11 @@ let auto = (obj) => {
     let value = {};  // current actual values
     let stack = [];  // call stack
     let fatal = {};  // only set if fatal error occurs (and everything stops if this is set)
-    let subs = {};
+    let subs = {};   // functions to run each time a value changes
 
-    const res = {                                      // return object
-        _: { subs, running, fn, deps, value, fatal },  // so we can see from the outside what's going on
-        '#': {}                                        // subscribe methods for each member
+    const res = {                             // return object
+        _: { subs, fn, deps, value, fatal },  // so we can see from the outside what's going on
+        '#': {}                               // subscribe methods for each member
     };
 
     let fail = (msg) => { 
@@ -30,24 +30,24 @@ let auto = (obj) => {
         if (subs[name]) Object.key(subs[name]).forEach( tag => subs[name][tag](value[name]) )
     }
 
-    let update = (name) => {
+    let update = (name) => {   // update a function
 
-        if (fatal.msg) return; // do nothing if fatal error occurred
+        if (fatal.msg) return; // do nothing if a fatal error has occurred
 
-        deps[name] = [];
-        running = name;
+        deps[name] = [];       // reset dependencies for this function
+        running = name;        // globally set that we are running
         stack.push(name);
 
         if (stack.indexOf(name) < stack.length-1) fail('circular dependency');
         else
         {
-            let val = fn[name]();
-            if (!fatal.msg && name[0]!='#')
+            let val = fn[name]();           // run the function
+            if (!fatal.msg && name[0]!='#') // any function that starts with '#' is a function that doesn't save a corresponding value
             {
-                if (val !== value[name])
+                if (val !== value[name])    // don't react if the value didn't change
                 {
                     value[name] = val;
-                    run_subs(name);
+                    run_subs(name);         // we only want to run these if the value has actually changed
                 }
             }  
         }
@@ -61,7 +61,7 @@ let auto = (obj) => {
         if (fatal.msg) return; // do nothing if a fatal error occured
 
         if (running && deps[running].indexOf(name) === -1) deps[running].push(name);
-        if (fn[name]) update(name);
+        if (!(name in value)) update(name);
         return value[name];
     }
 
@@ -69,11 +69,14 @@ let auto = (obj) => {
 
         Object.keys(deps).forEach( key => {
     
-            if (name == key)
-            {
-                delete(value[key]);
-                delete_deps(name);
-            }
+            deps[key].forEach( sub => {
+
+                if (name == sub)
+                {
+                    delete(value[key]);
+                    delete_deps(key);
+                }
+            })
         })
     }
 
@@ -81,7 +84,7 @@ let auto = (obj) => {
 
         if (fatal.msg) return; // do nothing if a fatal error occured
 
-        if (running) fail("can't have side affects (setting "+name+") inside a function ("+running+")")
+        if (running) fail("function "+running+" is trying to change value "+name)
         else {
             if (value[name] !== val)
             {

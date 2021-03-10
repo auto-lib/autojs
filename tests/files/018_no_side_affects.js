@@ -10,7 +10,7 @@ module.exports = {
         deps: { 'count': [] },
         value: { data: null },
         fatal: {
-            msg: "can't have side affects (setting data) inside a function (count)",
+            msg: "function count is trying to change value data",
             stack: ['count']
         }
     }

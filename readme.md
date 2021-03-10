@@ -3,9 +3,9 @@
 
 reactivity has immense potential but it is currently broken.
 
-> see [what-i-mean-by-reactivity](docs/discussion/what-i-mean-by-reactivity.md),
-> [why-reactivity-is-a-game-changer](docs/discussion/why-reactivity-is-a-game-changer.md) and 
-> [why-reactivity-is-broken-right-now](docs/discussion/why-reactivity-is-broken-right-now.md).
+> see [what i mean by reactivity](docs/discussion/what-i-mean-by-reactivity.md),
+> [why reactivity is a game changer](docs/discussion/why-reactivity-is-a-game-changer.md) and 
+> [why reactivity is broken right now](docs/discussion/why-reactivity-is-broken-right-now.md).
 
 the solution to this is [reactivity with no side effects](docs/discussion/reactivity-with-no-side-effects.md)
 and **auto** provides this as a javascript library.
@@ -58,9 +58,9 @@ _really good idea_.
 ## features
 
 besides no side affects what makes **auto** great is that it's
-design is _really simple_, _really robust_, and you can _debug it_.
+design is _really simple_, it is _really robust_, and you can _debug it_.
 
-### really simple
+### really simple design
 
 the **auto** library is 150 lines long, it uses no external libraries
 and the code is flat and clean
