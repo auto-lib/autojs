@@ -345,6 +345,11 @@ mess, some special thing you knew back when and
 that seemed like a good idea at the time. designing
 with blinkers on.
 
+> would be epic: a choose your own adventure where you
+> get a brief "make a charting app" and it starts by
+> saying "1. i am just going to dive in", "2. use react",
+> "3. use vue", "4. use rxjs", "5. use auto"
+
 ## older attempt
 
 **auto** is a reactivity tool where you connect _values_ to _functions_.

@@ -3,7 +3,7 @@
 
 because of `sequence orchestration`. reactivity
 takes away the need to manage doing things in
-the right order.
+the right order. it is
 
 why one should use **auto**
 can be split into two parts: why is _reactivity_
