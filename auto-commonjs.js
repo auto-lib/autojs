@@ -12,7 +12,7 @@ let auto = (obj) => {
     let subs = {};
 
     const res = {                                      // return object
-        _: { subs, running, fn, deps, value, fatal },        // so we can see from the outside what's going on
+        _: { subs, running, fn, deps, value, fatal },  // so we can see from the outside what's going on
         '#': {}                                        // subscribe methods for each member
     };
 

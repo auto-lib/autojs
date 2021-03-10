@@ -1,15 +1,16 @@
 
 ## manifesto
 
-reactivity has immense potential but is currently broken.
+reactivity has immense potential but it is currently broken.
 
-> see [docs/why-reactivity.md](docs/why-reactivity.md) and [docs/bad-reactivity.md](docs/bad-reactivity.md)
-for wordier versions of this.
+> see [what-i-mean-by-reactivity](docs/discussion/what-i-mean-by-reactivity.md),
+> [why-reactivity-is-a-game-changer](docs/discussion/why-reactivity-is-a-game-changer.md) and 
+> [why-reactivity-is-broken-right-now](docs/discussion/why-reactivity-is-broken-right-now.md).
 
-**auto** reckons it can fix things by enforcing
-no side effects [docs/no-side-effects.md](docs/no-side-effects.md).
+the solution to this is [reactivity with no side effects](docs/discussion/reactivity-with-no-side-effects.md)
+and **auto** provides this as a javascript library.
 
-> check out the next section for a taste of what this means.
+> check out the next section for what this looks like in practice.
 
 ## tiny tutorial
 
@@ -23,9 +24,9 @@ let $ = auto({
 })
 ```
 
-> see [docs/syntax.md](docs/syntax.md) for a breakdown of the syntax.
+> see [manual/syntax.md](docs/manual/syntax.md) for a breakdown of the syntax.
 
-and then when you use `$` everything updates automatically
+now when you use `$` everything updates automatically
 including nested relationships
 
 ```js
@@ -37,7 +38,7 @@ console.log("msg =",$.msg);
 msg = 1,2,3 has 3 items
 ```
 
-this is much like other libraries but with the following
+this is much like other reactivity libraries but with the following
 it's quite different
 
 ```js
@@ -51,48 +52,37 @@ let $ = auto({
 fatal: function update is trying to change value data
 ```
 
-see [docs/no-side-affects.md](docs/no-side-affects.md) on
-why this is a _really good idea_.
-
-> and now checkout [docs/ok-but-what-is-auto.md](docs/ok-but-what-is-auto.md)
-for more explicitness
+see the aforementioned discussions on why this is a
+_really good idea_.
 
 ## features
 
-besides no side affects
-what makes **auto** great is it's
-_really simple_, it's _really robust_, and you can _debug it_.
+besides no side affects what makes **auto** great is that it's
+design is _really simple_, _really robust_, and you can _debug it_.
 
-### simple
+### really simple
 
-the **auto** library is 150 lines long and it uses no external libraries.
-the code is also flat and clean
+the **auto** library is 150 lines long, it uses no external libraries
+and the code is flat and clean
 
- - 6 state variables
- - 3 main functions and 3 helpers functions
+ - 7 state variables
+ - 3 main functions and 4 helpers functions
  - an init block.
 
-it's worth trying to understand
-the whole thing [docs/internals.md](docs/internals.md).
-its development and
-design choices are documented in
-[docs/devlog](docs/devlog).
+see [manual/internals.md](docs/manual/internals.md) for details on these.
+also worth reading is the devlog
+[docs/devlog](docs/devlog) of its development and design choices.
 
-### robust
+### really robust
 
-several things make **auto** robust
-but each need their own explanations:
+**auto**'s internals are checked precisely by the tests. take a look at
+some of them in [tests/](tests/) and you'll see they each perform an exact match
+on the state including the call stack, function dependencies and fatal errors.
 
- - update functions cannot change the state [docs/no-side-affects.md](docs/no-side-affects.md)
- - setting values don't trigger side affects [docs/lazy-evaluation.md](docs/lazy-evaluation.md)
- - this _is_ standard but worth mentioning [docs/circle-detection.md](docs/circle-detection.md)
- - but this certainly is not: tests check the _entire_ internal state (not just values) [docs/deep-testing.md](docs/deep-testing.md)
+### you can debug it
 
-### debug it
-
-**auto**'s internal variables are easy to interpret:
-looking at them explains behaviour.
-they can be viewed via the special `_` member. for example
+**auto**'s internal variables are easy to interpret
+and are available at any time in the `_` variable so
 
 ```js
 console.log($._)
@@ -102,16 +92,18 @@ will print something like
 
 ```js
 {
-    dep: ['count': ['data'], 'msg': ['data','count']],
-    dirty: { msg: true },
-    value: { data: [1,2,3], count: 3 }
+    fn: ['count'],
+    subs: [],
+    deps: { count: ['data'] },
+    value: { data: [1,2,3], count: 3 },
+    fatal: {}
 }
 ```
 
-see [docs/explainability.md](docs/explainability.md)
-for a walk-through on what these variables mean.
-
-> TODO the internal variables have changed a bit recently
+it's worth looking at the tests in [tests/](tests/)
+to see what different states are produced by which
+situations and also [tutorial/explainability.md](docs/tutorial/explainability.md)
+for a walkthrough of what these mean.
 
 ## environments
 
