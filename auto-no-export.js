@@ -38,7 +38,7 @@ let auto = (obj) => {
         running = name;        // globally set that we are running
         stack.push(name);
 
-        if (stack.indexOf(name) < stack.length-1) fail('circular dependency');
+        if (stack.length>1 && stack[0] == stack[stack.length-1]) fail('circular dependency');
         else
         {
             let val = fn[name]();           // run the function
