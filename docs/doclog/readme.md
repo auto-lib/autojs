@@ -113,3 +113,66 @@ this, and saying "ok what would you do?" and show how the standard approach
 does not work. it's not so much about "ok this is how you should see software"
 which is what a lot of the `docs/discussion` is about, but really it's about
 saying "let's sit down and chat".... :|
+
+## asynchronous code
+
+saw an article on hacker news where someone was complaining about how bad
+asynchronous code is in rust ... and they referenced this apparently famous
+diatribe about how broken asynchronous code is in javascript
+https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/
+and i feel like this whole reactivity without side effects thing fixes
+that - in fact, and i admit this feel vague but, it seems as though this
+might be a new thing altogether.
+
+when i first came upon this idea really i thought - i could write software
+this way (i actually have a blog where i ranted about this but really it
+was just about emotions). that this really is different, it's like ...
+i can't think of a good analogy. like flying as opposed to driving - not
+the same thing at all. game changer. like a real one. a new way to write
+software.
+
+to be honest, i'm not sure about ordinary one-run software, like something
+that just does some particular thing and then exits. i mean, who cares
+about sequences then. i suppose it could help ... i need to flesh this out.
+but one thing i feel a lot more sure of it interactive software - software
+that must manage unknown events. software without a single flow. it's not
+just one path, one run through. it's multi-variate paths that need to flow
+around circumstance. in that case ... in that case defining state in terms
+of functions ... if it really does do what i think it does, which is encode
+logic without sequencing, if you really can replace existing software with
+that paradyme - one object with all the logic ...
+
+and it seems naturally to handle asynchronous stuff. it is asynchronous
+but definition. having some event return some data at some unknown stage
+in the future it what the architecture is based on. that is the architecture.
+
+i just don't know how to flesh this out. firstly, just to convince people of
+the idea that "we should be writing all code this way". i mean, even just to
+say it ... and if it were true, why? well the reason is obvious - because
+all this stuff you were managing before you don't have to manage anymore.
+because it's better - _way_ better. because it makes complicated things
+simple. this one idea.
+
+and i think "reactivity without side effects" isn't strong enough if this
+is really what i'm going to go for - declaring all code needs to be written
+in a totally new way. i need a term, something that encapsulates that you
+are no longer writing lists of instructions, each of which call other lists.
+path-free programming? nice. a lot of people are going to say "this is just
+declarative programming" which isn't completely incorrect, which will make
+it that much more insidious. yes - you are declaring things. you declare
+what things are. but you do so with normal functions, not with some clever
+syntax. it's still normal programming - this isn't a new language or new
+platform or mathematical thing. you can do this with any programming
+system. it's just an approach - an approach that is (i think...) light
+years away from what we do now. an approach where ... every piece of
+business logic (i hate that term) is cellular. every idea, every thing
+you wire together are values - important values. you decide on what the
+important values are, and then you define their relationships. that's it.
+you don't define a machine that does things. we no longer do that. we are
+no longer in the business of building machines - we are instead talking to
+a machine. don't tell the machine what to do....
+
+again the whole declarative programming term comes in. these words, man they
+can be so destructive when they are close enough to convince people to stop
+listening.
+
