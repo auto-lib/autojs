@@ -259,3 +259,30 @@ and so, again, back to my big debate: is this just about programming for
 events / non-sequential programming, or can this be seen as some deeper,
 more powerful truth about what software is?
 
+## purpose of main readme
+
+i think the front-page readme should just give an overview of the pertinent
+questions anyone might have - basically, you don't want people to have
+to hunt down prominent questions before knowing if they are interested.
+so for example - i decided to add a section called "compare auto to x"
+where i go through some thoughts about comparing the library to rxjs,
+for example. or mobx. it's going to be a bit messy at first, but certainly
+i think this is something someone who is coming across the library for the
+first time would want to hear.
+
+though another unrelated point - again, the library vs the idea. i have
+so much to say about this _idea_ that one should be writing software
+a particular way, what asynchronous code means, why writing ui's is so
+challenging... why react became so popular, why functional programming
+is so in vogue ... i feel it can all be boiled down to this one notion,
+one i am still trying to approach the zenith of. and this library is
+kind of a reification of this - the library came first and the ideas
+are in it's wake, trying to catch up. is it right to have these two
+sets of things in the same place? the library is on github under
+`kewp/auto`. should there be a separate place for this "idea" ?
+
+i don't think so - it's kind of like electromagnetic waves, they are
+intertwined but perpendicular to one another. it makes sense they
+are together. though perhaps there is a better way to keep them
+separate - perhaps that would help them reinforce one another better.
+the real and the corporeal... hmmm ok proust, take it down a notch ...
