@@ -176,3 +176,86 @@ again the whole declarative programming term comes in. these words, man they
 can be so destructive when they are close enough to convince people to stop
 listening.
 
+## the pitch
+
+there are a few directions I could take about **auto** when pitching it
+on the front-page:
+
+ - `reactivity without side effects`. i like this because it is relateable.
+ it links with topics that people are discussing a lot right now, _reactivity_
+ and _side effects_, and it's technical spot on: it is reactivity and side effects.
+ - `automatic variables`. this i like too because it gives a fresh perspective.
+ it's more towards saying "this is a new way of seeing things". i do think
+ there is more to say than "reactivity could be done better". really what
+ i'm saying is "this is a different paradyme" ... or ... i don't want to loose
+ the strength of this as an approach. i feel as though an entire class of
+ software problems need to use this technique, this thing of associating
+ variables with functions.
+
+ one recurring issue i'm having, though, is deciding on the scope of this
+ 'new paradyme' - is it just for events? there is clarity there somewhere...
+ there is a core principal at play here which will make it clear where
+ this is applicable. because part of me feels like "well if you can define
+ variables as a particular process why wouldn't you just codefy it, and
+ let the software keep it up to date" ... but does that apply to any
+ software? there is something pernicious in particular about dealing with
+ events ... like an interrupt - something that occurs right in the middle
+ of your code. non-linear code ... or non-sequential code. hmmm i like
+ that. new discussion: `non-sequential code`... because that really is
+ a separate paradyme (ok - the word is spelt **paradigm**) - old software
+ just ran once. it started at the beginning, went through a bunch of steps,
+ and then exited. but if it keeps running ... then that means it's
+ waiting for _something to happen_. and it's this that changes everything...
+ because ... why? because of state?
+
+ i need to separate the idea from the library. and so i need a term for
+ the idea, or approach:
+
+  - `single-variableness`
+  - `connected quantities`
+  - `declarative values`
+
+again, i loathe to think how many people will say "this is just
+declarative programming". i need to flesh out why this is not that...
+
+# this is not declarative programming
+
+> isn't it, though?
+
+no, seriously - if it was then why am i jumping up and down about this
+being a new and amazing thing?
+
+ok, let's go to wikipedia:
+
+> In computer science, declarative programming is a programming paradigm—a style of building the structure and elements of computer > programs—that expresses the logic of a computation without describing its control flow
+
+yeah that's pretty much what i'm doing here... they even used the word
+_paradigm_ ...
+
+i mean, look - yes this falls into the category of declarative programming.
+but imagine somebody said "hey check out this new thing called haskell"
+and people said "that's just functional programming"... hmmm bad analogy.
+
+let's take another crack - what am i doing:
+
+> all global state is either a value, which can be set, or a function which
+> uses the state
+
+hmmm that's ok. i hate the word `state`. it's like a word that people say so
+much that nobody stops and says "what does that mean, really?". you know,
+because people would look at you incredulously like you just asked what is
+the sky. i'd like to circumvent this by using another term...
+
+a deeper way to think about "state" is that it ties your software together:
+values (or variables) really are like nodules that hold nerves together
+(synapses?). they are way points. they are cross-roads. (i'm loving these
+analogies). it's where functions meet. ha! this is brilliant.
+
+> variables are where functions meet
+
+that's definitely a t-shirt.
+
+and so, again, back to my big debate: is this just about programming for
+events / non-sequential programming, or can this be seen as some deeper,
+more powerful truth about what software is?
+
