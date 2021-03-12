@@ -1,8 +1,4 @@
 
-// what if the conditional dependency is itself a function?
-// checking to see if func2 picks up the data2 dependency
-// since it has to first check func1... which is a function...
-
 module.exports = {
     obj: {
         data1: null,

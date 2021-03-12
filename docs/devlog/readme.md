@@ -4042,3 +4042,280 @@ first. i suppose that's because `func1` isn't defined initially?
 but ... i only go and run through the functions at the end...
 
 the line `running = stack[stack.length-1];` fixes the issue, though...
+
+## inner objects
+
+hmmm so the project i'm now converting to use auto has
+a piece of code like this:
+
+```js
+function get_minmaxyval( $, start, end )
+{
+    let ymin=999999999, ymax=-999999999;
+    $.charts.forEach( c => {
+        c.values = getValues(c.points,start,end)
+        c.values.forEach(v => {
+            if (v.price != null && v.price > ymax) ymax = v.price;
+            if (v.price != null && v.price < ymin) ymin = v.price;
+        })
+    })
+
+    return {
+        yminval: ymin,
+        ymaxval: ymax
+    }
+}
+```
+
+so it's trying to do two things:
+
+1. build out a `values` object for each entry in an array (`charts`)
+2. save min/max values for the whole thing
+
+how should this be split out in an auto wrap?
+right now auto can't detect sub-object access. it's possible
+but let's see how i would do it otherwise...
+
+ok, so i start with the `charts` object...
+
+
+```js
+$ = auto({
+    // ...
+    charts: ($) => /* ... */,
+    // ...
+})
+```
+
+but now i need to define a separate list ...
+oh and wait - first i need to define `points`
+
+```js
+$ = auto({
+
+    charts: ($) => /* ... */,
+    points: ($) => /* use charts in here */,
+})
+```
+
+and finally `values` which depends on both
+`points` and other values (`start` and `end`)
+
+> `points` is actually a window into `values`...
+
+right, but this could certainly be a draw-back
+of the current design: that everything needs
+to be flat. previously i had an object called
+`charts` which contained everything i needed
+to draw the charts
+
+```js
+charts = [
+    {
+        dataset: /* ... */, // original data
+        points: /* ... */, // built out from dataset
+        values: /* ... */, // built out from values
+    },
+    {
+        // and another one here
+    }
+]
+```
+
+now i need to split these up into separate objects
+
+```js
+datasets = [];
+points = [];
+values = [];
+```
+
+and you need to access them using the same index
+which is hackey. and the structure of my code
+will have to change.
+
+but reactivity for sub-objects? i don't know how
+i feel about that. it seems tricky enough
+having to corral one object with another...
+i mean, how would that even look? how would
+you write a function that says "ok this part
+of the object is written like this"...
+
+```js
+let $ = auto({
+    charts: {}, // starts off as just an object
+    'charts.dataset': ($) => /* hmmmm .... */,
+    'charts.values': ($) => /* .... */,
+    'charts.points': ($) => /* ... */
+})
+```
+
+hmmm actually what about
+
+```js
+let $ = auto({
+    charts: {
+        dataset: ($) => /* ... */,
+        points: ($) => /* ... */,
+        values: ($) => /* ... */
+    }
+})
+```
+
+right but `charts` is actually an array...
+does mobx let you do stuff like this?
+
+can you index an array with strings?
+i don't think so...
+
+i suppose it would be powerful ... to be
+able to design the object, to specify it ...
+
+ok, what about this:
+
+```js
+let $ = auto({
+    charts: ($) => {
+
+        let charts = [];
+        $.something.forEach(key => {
+
+            let chart = {};
+            chart.dataset = /* ... */;
+            chart.points = /* ... */;
+            chart.values = /* ... */;
+            charts.push(chart);
+        })
+
+        return chart;
+    }
+})
+```
+
+this is actually how i was going to do it.
+the problem is efficiency: what if a value
+changes that only causes one to have to
+update `values` ... we would have to rebuild
+everything. in my case this would be a real
+problem... i can't build out the whole thing.
+is there a way to have auto figure out
+what needs doing?
+
+i could just build the flat structures separately
+and then reference them inside of `charts`
+
+```js
+let $ = auto({
+    chart_datasets: ($) => /* return array  */,
+    chart_values: ($) => /* return array */,
+    chart_points: ($) => /* return array */,
+    charts: ($) => {
+        let charts = [];
+        $.something.forEach( (key, i) => charts.push({
+            dataset: chart_datasets[i],
+            values: chart_values[i],
+            points: chart_points[i]
+        })
+        return charts;
+    }
+})
+```
+
+so we just build up an array of objects for `charts`
+each of which just have a reference to the arrays.
+that way we can update just one of the arrays
+and the others won't have to be rebuilt.
+
+is this optimal?
+
+hmmm...
+
+```js
+let $ = auto({
+    // ...
+    main_points: ($) => {
+        let points = [];
+        main_datasets.forEach(d => points.push(getPoints(d)));
+        return points;
+    },
+    // ...
+},
+```
+
+that really should be one line. i can see now why **rxjs**
+makes sense - i have a list i want to convert to another
+list with one function ... though that's a map, right?
+
+```js
+let $ = auto({
+    // ...
+    main_points: ($) => main_datasets.map(d => getPoints(d)),
+    // ...
+})
+```
+
+in fact, it should all be written like this...
+
+```js
+let $ = auto({
+    // ...
+    charts: ($) => $.something.map( (d,i) => ({
+        dataset: $.datasets[i],
+        points: $.points[i],
+        values: $.values[i]
+    })),
+    // ...
+})
+```
+
+## having logic and access at the same time
+
+i have two variables, `start` and `end`,
+that i need to be able to set manually
+but that i also want to have logic for:
+if their values are weird for any reason
+i need to be able to reset them / give them
+defaults. i also want to be able to enforce
+criteria on them. for example:
+
+> i have two sliders that control `start` and `end`
+> however, i don't want the slider values to
+> set them directly but rather to find the
+> closest values that line up with my window
+> (the beginning / end of my view port)
+
+so ... how do i do this? well, you have a
+_suggested_ value which one can access
+from the outside, which the logic then uses
+to decide if it likes (and if it doesn't it
+does whatever it wants)
+
+```js
+let $ = auto({
+    // ...
+    suggested_start: null, // no function. can directly set
+    suggested_end: null, // same
+    start: ($) => suggested_start ? /* ... */ : /* ... */,
+    end ($) => suggested_end ? /* ... */ : /* ... */
+    // ...
+})
+```
+
+what have we just done? we now have two variables
+for the same value - one which we can control
+and the other which is a function. and the function
+is the decider: it can over-ride our value. however,
+in all of our logic we use the function value, not
+the direct access one. that way our function acts
+as a filter, removing any bad inputs / making changes
+if needs be.
+
+> of course **suggested_start** is long-winded.
+> a convention would be good here. i'm thinking
+> *_start* and *_end* ...
+
+> should be noted that even though outside code can
+> set these suggested values ... wrap functions still
+> can't. which i still feel good about. though i
+> need to find a clearer explanation for why...
+> tracing? self-reference? one-way flow?
