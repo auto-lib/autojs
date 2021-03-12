@@ -3885,3 +3885,78 @@ else if (name[0]!='#') // any function that starts with '#' is a function that d
 
 i'm quite happy with this now. i should add a test, though, to confirm my understanding
 that things are still lazy except for subscriptions.
+
+## tests/020_check_only_subs_update.js
+
+to confirm how things should work, if you update
+a value then the subscriptions should run
+on any of the dependents, but not on other dependents
+that aren't subscriptions .... :|
+
+```js
+module.exports = {
+    obj: {
+        data: null,
+        count: ($) => $.data ? $.data.length : 0,
+        is_data_set: ($) => $.data == null
+    },
+    fn: ($, global) => {
+        $['#'].count.subscribe( v => global.msg = "count is "+v );
+        $.data = [1,2,3];
+    },
+    _: {
+        fn: [ 'count', 'is_data_set' ],
+        deps: { count: ['data'], is_data_set: ['data'] },
+        subs: { count: ['000'] },
+        value: { data: [1,2,3], count: 3 },
+        fatal: {}
+    },
+    global: {
+        msg: "count is 3"
+    }
+}
+```
+
+so i added another function-value `is_data_set`
+which is also just dependent on `data`.
+however when we `data` with `$.data = [1,2,3];`
+only `count` is calculated (hence our `value`
+check not having a value for `is_data_set`).
+which is what we want - so we can say that
+**auto** is a lazy evaluator except, of course,
+for any values that are subscribed to...
+though another thing i want to make sure of
+is that subscriptions run even if they are
+at the end of a dependency chain...
+
+## tests/021_check_subs_on_dependency_chain.js
+
+```js
+module.exports = {
+    obj: {
+        data: null,
+        count: ($) => $.data ? $.data.length : 0,
+        twice_count: ($) => 2 * $.count
+    },
+    fn: ($, global) => {
+        $['#'].twice_count.subscribe( v => global.msg = "twice_count is "+v );
+        $.data = [1,2,3];
+    },
+    _: {
+        fn: [ 'count', 'twice_count' ],
+        deps: { count: ['data'], twice_count: ['count'] },
+        subs: { twice_count: ['000'] },
+        value: { data: [1,2,3], count: 3, twice_count: 6 },
+        fatal: {}
+    },
+    global: {
+        msg: "twice_count is 6"
+    }
+}
+```
+
+works great. we subscribe to a value `twice_count`
+which depends on `count` which depends on `data`.
+and when we set `data` then the subscription
+runs correctly (which we confirm with the global
+state variable having `msg: "twice_count is 6"`).
