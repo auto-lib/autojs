@@ -55,12 +55,17 @@ let assert_global_same = (name, should_be, actual) => {
 }
 
 let assert_internals_same = (name, should_be, actual) => {
-	let keys = ['subs', 'fn', 'stack', 'deps', 'value', 'fatal'];
+	
 	let diff = [];
 
+	let missing_fn = false;
 	let fns = [];
-	Object.keys(actual.fn).forEach(name => fns.push(name));
-	actual.fn = fns; // replace with an array of names (can't really check the actual function definitions)
+	Object.keys(actual.fn).forEach(name => {
+		if (should_be.fn.indexOf(name) === -1) missing_fn = true;
+		fns.push(name);
+	})
+	actual.fn = fns; // flat list for display
+	if (missing_fn) diff.push('fn');
 
 	// subs looks like
 	// {
@@ -89,6 +94,8 @@ let assert_internals_same = (name, should_be, actual) => {
 		subs[name] = arr;
 	});
 	actual.subs = subs; // replace with an array of names (can't really check the actual function definitions)
+
+	let keys = ['subs', 'stack', 'deps', 'value', 'fatal'];
 
 	keys.forEach(key => { if (!isEqual(should_be[key], actual[key])) diff.push(key); })
 

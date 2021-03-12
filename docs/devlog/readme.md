@@ -3960,3 +3960,85 @@ which depends on `count` which depends on `data`.
 and when we set `data` then the subscription
 runs correctly (which we confirm with the global
 state variable having `msg: "twice_count is 6"`).
+
+## using the stack to track running
+
+so `running` is a global variable that says "this is the currently
+running function". which is what we use in `getter`. we say
+"if `running` is set, then we just ran a get inside of said
+function ... so add a dependency"
+
+> hmmm we should probably use the stack for deps... since
+> surely everything in the stack is a dependency when we get?
+
+ok, but the issue is we lose the _last_ value of running
+whenever we set it, which we do at the top of `update`
+
+```js
+let update = (name) => {   // update a function
+
+    if (fatal.msg) return; // do nothing if a fatal error has occurred
+
+    deps[name] = [];       // reset dependencies for this function
+    running = name;        // globally set that we are running
+    stack.push(name);
+    
+    /// ...
+```
+
+but note how we push onto the stack... so now at the end of
+`update` i put
+
+```js
+    stack.pop()
+    running = stack[stack.length-1];
+}
+```
+
+which pulls it from the top of the stack (and will be
+`undefined` if the stack is empty.
+
+this makes sense. still trying to figure out
+how to test this ... i got this in production
+but strangely not in my nested functions...
+
+hmmm ok it seems to happen based on the order of functions
+defined (`023_nested_conditional_deps.js`)
+
+```js
+module.exports = {
+    obj: {
+        data1: null,
+        func2: ($) => $.func1 ? $.func1.length : ($.data2 ? $.data2.length : 0),
+        func1: ($) => $.data1 ? $.data1.length : null,
+        data2: null,
+    },
+    fn: ($) => {
+    },
+    _: {
+        fn: [ 'func1', 'func2' ],
+        subs: [],
+        deps: { func1: ['data1'], func2: ['func1','data2'] },
+        value: { data1: null, data2: null, func1: null, func2: 0 },
+        fatal: {}
+    }
+}
+```
+
+so i defined `func2` first but now i'm getting
+
+```
+023_nested_conditional_deps: not same
+fn should be [ 'func1', 'func2' ]
+fn actual    [ 'func2', 'func1' ]
+deps should be { func1: [ 'data1' ], func2: [ 'func1', 'data2' ] }
+deps actual    { func2: [ 'func1' ], func1: [ 'data1' ] }
+```
+
+> i'll fix the array check - order shouldn't matter
+
+ok so it doesn't pick up the second conditional when `func2` is defined
+first. i suppose that's because `func1` isn't defined initially?
+but ... i only go and run through the functions at the end...
+
+the line `running = stack[stack.length-1];` fixes the issue, though...

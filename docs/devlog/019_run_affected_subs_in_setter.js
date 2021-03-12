@@ -45,7 +45,7 @@ let auto = (obj) => {
         }
 
         stack.pop()
-        running = undefined;
+        running = stack[stack.length-1];
     }
 
     let getter = (name) => {
