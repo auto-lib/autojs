@@ -7,7 +7,7 @@ let auto = (obj) => {
     let value = {};  // current actual values
     let stack = [];  // call stack
     let fatal = {};  // only set if fatal error occurs (and everything stops if this is set)
-    let subs = {};   // functions to run each time a value changes
+    let subs = {};   // special functions (ones which don't connect to a value) to run each time a value changes
 
     const res = {                             // return object
         _: { subs, fn, deps, value, fatal },  // so we can see from the outside what's going on
@@ -21,7 +21,7 @@ let auto = (obj) => {
         fatal.msg = msg;
         fatal.stack = _stack;
         
-        if (fn['#fatal']) fn['#fatal'](res); // special function to react to fatal errors
+        if (fn['#fatal']) fn['#fatal'](res); // special function to react to fatal errors (so you can log to console / write to file / etc. on error)
     }
 
     let run_subs = (name) => {

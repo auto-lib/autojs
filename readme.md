@@ -3,12 +3,12 @@
 
 reactivity has immense potential but it is currently broken.
 
-> see [what i mean by reactivity](docs/discussion/what-i-mean-by-reactivity.md),
-> [why reactivity is a game changer](docs/discussion/why-reactivity-is-a-game-changer.md) and 
-> [why reactivity is broken right now](docs/discussion/why-reactivity-is-broken-right-now.md).
+> [what is reactivity](docs/discussion/what-is-reactivity.md),
+> [reactivity is a game changer](docs/discussion/reactivity-is-a-game-changer.md), 
+> [reactivity is broken](docs/discussion/reactivity-is-broken.md).
 
-the solution to this is [reactivity with no side effects](docs/discussion/reactivity-with-no-side-effects.md)
-and **auto** provides this as a javascript library.
+the solution is [reactivity without side effects](docs/discussion/reactivity-without-side-effects.md)
+and **auto** is a javascript library for just that.
 
 > check out the next section for what this looks like in practice.
 
@@ -58,7 +58,7 @@ _really good idea_.
 ## features
 
 besides no side affects what makes **auto** great is that it's
-design is _really simple_, it is _really robust_, and you can _debug it_.
+design is _really simple_, it is _really robust_, and _you can debug it_.
 
 ### really simple design
 
@@ -76,7 +76,7 @@ also worth reading is the devlog
 ### really robust
 
 **auto**'s internals are checked precisely by the tests. take a look at
-some of them in [tests/](tests/) and you'll see they each perform an exact match
+the [tests/](tests/) which perform an exact match
 on the state including the call stack, function dependencies and fatal errors.
 
 ### you can debug it
@@ -101,9 +101,11 @@ will print something like
 ```
 
 it's worth looking at the tests in [tests/](tests/)
-to see what different states are produced by which
+to see what different states are produced in various
 situations and also [tutorial/explainability.md](docs/tutorial/explainability.md)
 for a walkthrough of what these mean.
+
+> a lot of these documents have overlapping information which i should sort out
 
 ## environments
 
