@@ -1,7 +1,7 @@
 {
   "name": "@autolib/auto",
-  "version": "0.1.0",
-  "description": "simple, robust, explainable reactivity",
+  "version": "1.18.11",
+  "description": "reactivity without side effects",
   "main": "auto-commonjs.js",
   "repository": {
     "type": "git",
