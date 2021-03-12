@@ -3589,3 +3589,299 @@ it's weird that when you run `set` the right values aren't calculated...
 is it weird? maybe we should, i dunno, calculate the values on
 set? i dunno, that seems like ... well i think that will bring
 up the ordering issue again.
+
+## back to subscriptions
+
+so i just implemented a test to ensure that subscriptions fire
+(before i was just checking that they were defined ...)
+and it turns out they _don't_ fire when you sort of want them to:
+
+```js
+module.exports = {
+    obj: {
+        data: null,
+        count: ($) => $.data ? $.data.length : 0
+    },
+    fn: ($, global) => {
+        $['#'].count.subscribe( v => { console.log('setting global'); global.msg = "count is "+v} );
+        $.data = [1,2,3];
+    },
+    _: {
+        fn: [ 'count' ],
+        deps: { count: ['data'] },
+        subs: { count: ['000'] },
+        value: { data: [1,2,3] },
+        fatal: {}
+    },
+    global: {
+        msg: "count is 3"
+    }
+}
+```
+
+i'm getting `msg: "count is 0"` for the global (see
+the todo doc for a rundown on this new check) which
+means the subscription only fires once, on boot.
+which, really, is part of the design - to only
+evaluate things when you get them. settting
+things, i.e. `$.data = [1,2,3]` just invalidates
+the values (just removes them...). i'm amazed
+this all worked in my app ...
+
+what to do? of course, if you subscribe to something
+you expect the function to fire if and when the value
+has changed. not just if someone happened else happens
+to ask for it triggering an update. so... do i just
+say we have to update everything on set? is that
+going to be a problem? should we just go through and
+try to only update values with a subscription?
+
+back to basics: the idea behind auto is to replace
+computed values with functions. and these values
+use other computed values, meaning you don't have
+to worry about doing things in the right order.
+they will all evaluate correctly.
+
+one simple fix really is just to do what i was doing
+before - with every set we invalidate what we need ...
+and then run through every function and execute them
+all?
+
+maybe instead i just change `run_subs` to ... recursively go
+through any and all values that have changed ...
+good lord. i don't like it when things are complicated.
+why am i a coder?
+
+ok - let's try instead of saying `run_subs(name)`
+in `setter` we just say `run_subs()`
+
+```js
+let setter = (name, val) => {
+
+    if (fatal.msg) return; // do nothing if a fatal error occured
+
+    if (running) fail("function "+running+" is trying to change value "+name)
+    else {
+        if (value[name] !== val)
+        {
+            value[name] = val;
+            delete_deps(name);
+            run_subs();
+        }
+    }
+}
+```
+
+and then let's change `run_subs` to just run the things
+that need running.
+
+## 019_run_affected_subs_in_setter.js
+
+```js
+let run_subs = () => {
+    // .... ???
+}
+```
+
+ok what does `subs` look like?
+
+```
+subs: { count: ['000'] },
+```
+
+so we have keys for each variable ... erm ...
+
+so basically we want to go through each sub,
+and if that variable has changed, update the variable
+and then run the subsequent subs. doesn't seem to bad, actually.
+
+```js
+let run_subs = () => {
+    Object.keys(subs).forEach(name => {
+
+        if (!(name in value))
+        {
+            update(name);
+            // ...
+        }
+    });
+}
+```
+
+hmmm problem is `run_subs` is inside of `update` ...
+
+one thing i could do is just run all updates for values
+that aren't set, i.e. move the updates into `setter`.
+any value that is affected gets updated. no longer
+lazy... i really don't want to get stuck into different
+_ways_ this library can be. it should be as solid as
+possible. it should do what one expects, including
+only doing the work needed (if you are using it in
+ways that aren't specified, like using the internals
+yourself ... by that i mean expecting the `value`
+field to be up-to-date all the time... then you
+didn't read the manual).
+
+i'm putting the updates into `getter` because that's
+when you need those values. and of course updates
+need to be in `setter` for subscriptions...
+
+ok, the simplest thing (and it's nice because it
+simplifies `update` greatly) is to take out
+the subscriptions run in `update`
+
+```js
+let update = (name) => {   // update a function
+
+    if (fatal.msg) return; // do nothing if a fatal error has occurred
+
+    deps[name] = [];       // reset dependencies for this function
+    running = name;        // globally set that we are running
+    stack.push(name);
+
+    if (stack.length>1 && stack[0] == stack[stack.length-1]) fail('circular dependency');
+    else if (!fatal.msg && name[0]!='#') // any function that starts with '#' is a function that doesn't save a corresponding value
+        value[name] = fn[name]();
+    
+    stack.pop()
+    running = undefined;
+}
+```
+
+wow so much cleaner.
+
+then we put the check inside of the getter to see if something changed
+and only then run the subscriptions
+
+```js
+let getter = (name) => {
+
+    if (fatal.msg) return; // do nothing if a fatal error occured
+    if (running && deps[running].indexOf(name) === -1) deps[running].push(name);
+
+    if (!(name in value))
+    {
+        let val = value[name]; // save old value
+        update(name);
+        if (val != value[name]) run_subs(name);
+    }
+
+    return value[name];
+}
+```
+
+overall better. it's worth noting that nothing happens at all
+if there is a `value` set for the variable - `getter` doesn't
+check if things need updating. that is done by the value deleting 
+sweep in `setter`.
+
+## undefined
+
+so the side effect test is working now but a bunch of others
+are now failing
+
+```
+C:\Users\karlp\auto\tests>node runall.js
+
+latest file is ../docs/devlog/019_run_affected_subs_in_setter.js
+copying to auto.js files
+
+001_empty: passed
+002_just_one_value: passed
+003_just_one_function: passed
+004_just_value_and_function: passed
+005_dependent_function: passed
+006_value_set: passed
+007_value_set_with_dependent_function: passed
+008_value_set_with_get: passed
+009_nested_deps: passed
+010_circle_detection: not same
+value should be {}
+value actual    { tock: undefined, tick: undefined }
+011_nested_circle: not same
+value should be { a: null }
+value actual    { a: null, c: undefined, b: undefined }
+012_actual_nested_circle: not same
+value should be {}
+value actual    { c: undefined, b: undefined, a: undefined }
+013_conditional_circle_boot: passed
+014_conditional_circle_triggered: not same
+value should be { data: true }
+value actual    { data: true, c: undefined, b: undefined, a: undefined }
+015_subscribe: passed
+016_unsubscribe: passed
+017_unsubscribe_gaps: passed
+018_no_side_affects: not same
+value should be { data: null }
+value actual    { data: null, count: undefined }
+019_check_subscribe_effects: passed
+
+latest file has changed. bumping minor version to 5
+```
+
+i'm actually quite happy with this: what's happening is
+before when something failed i wouldn't set the
+value. but now they are being set. so here
+is `010_circle_detection.js` for example
+
+```js
+module.exports = {
+    obj: {
+        tick: ($) => $.tock,
+        tock: ($) => $.tick
+    },
+    fn: ($) => {},
+    _: {
+        fn: ['tick','tock'],
+        subs: [],
+        deps: { tick: [], tock: ['tick'] },
+        value: {},
+        fatal: {
+            msg: 'circular dependency',
+            stack: [ 'tick', 'tock', 'tick' ]
+        }
+    }
+}
+```
+
+the functions do run: we run all of them at the end
+of the wrap:
+
+```js
+Object.keys(fn).forEach(name => update(name)); // boot process: update all functions, setting initial values and dependencies
+```
+
+i think it's more correct to say they have an undefined value.
+previously, though, i was getting a bizarre value for `018_no_side_affects.js`
+
+```
+018_no_side_affects: not same
+value should be { data: null }
+value actual    { data: null, count: 10 }
+```
+
+that's because inside of `update` i was saving out
+whatever got returned back:
+
+```js
+if (stack.length>1 && stack[0] == stack[stack.length-1]) fail('circular dependency');
+else if (!fatal.msg && name[0]!='#') // any function that starts with '#' is a function that doesn't save a corresponding value
+    value[name] = val;
+```
+
+but i should be checking if something failed after running the function and it did set the value to undefined
+
+```js
+if (stack.length>1 && stack[0] == stack[stack.length-1]) fail('circular dependency');
+else if (name[0]!='#') // any function that starts with '#' is a function that doesn't save a corresponding value
+{
+    let val = fn[name]();
+    if (!fatal.msg) value[name] = val;
+    else value[name] = undefined;
+}
+```
+
+> side note: why do functions that start with `#` get inside of `update`? why would they ever end up here?
+
+i'm quite happy with this now. i should add a test, though, to confirm my understanding
+that things are still lazy except for subscriptions.

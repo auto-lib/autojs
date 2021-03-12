@@ -1,5 +1,5 @@
 
-// 018_optimized_subs.js
+// 019_run_affected_subs_in_setter.js
 
 let auto = (obj) => {
 
@@ -9,7 +9,7 @@ let auto = (obj) => {
     let value = {};  // current actual values
     let stack = [];  // call stack
     let fatal = {};  // only set if fatal error occurs (and everything stops if this is set)
-    let subs = {};   // functions to run each time a value changes
+    let subs = {};   // special functions (ones which don't connect to a value) to run each time a value changes
 
     const res = {                             // return object
         _: { subs, fn, deps, value, fatal },  // so we can see from the outside what's going on
@@ -23,35 +23,29 @@ let auto = (obj) => {
         fatal.msg = msg;
         fatal.stack = _stack;
         
-        if (fn['#fatal']) fn['#fatal'](res); // special function to react to fatal errors
+        if (fn['#fatal']) fn['#fatal'](res); // special function to react to fatal errors (so you can log to console / write to file / etc. on error)
     }
 
     let run_subs = (name) => {
-        if (subs[name]) Object.key(subs[name]).forEach( tag => subs[name][tag](value[name]) )
+        if (subs[name]) Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]) )
     }
 
     let update = (name) => {   // update a function
 
         if (fatal.msg) return; // do nothing if a fatal error has occurred
-
+    
         deps[name] = [];       // reset dependencies for this function
         running = name;        // globally set that we are running
         stack.push(name);
-
+    
         if (stack.length>1 && stack[0] == stack[stack.length-1]) fail('circular dependency');
-        else
+        else if (name[0]!='#') // any function that starts with '#' is a function that doesn't save a corresponding value
         {
-            let val = fn[name]();           // run the function
-            if (!fatal.msg && name[0]!='#') // any function that starts with '#' is a function that doesn't save a corresponding value
-            {
-                if (val !== value[name])    // don't react if the value didn't change
-                {
-                    value[name] = val;
-                    run_subs(name);         // we only want to run these if the value has actually changed
-                }
-            }  
+            let val = fn[name]();
+            if (!fatal.msg) value[name] = val;
+            else value[name] = undefined;
         }
-        
+
         stack.pop()
         running = undefined;
     }
@@ -59,13 +53,19 @@ let auto = (obj) => {
     let getter = (name) => {
 
         if (fatal.msg) return; // do nothing if a fatal error occured
-
         if (running && deps[running].indexOf(name) === -1) deps[running].push(name);
-        if (!(name in value)) update(name);
+
+        if (!(name in value)) // value is stale
+        {
+            let val = value[name]; // save old value
+            update(name);
+            if (val != value[name]) run_subs(name); // value changed. run subscriptions
+        }
+    
         return value[name];
     }
 
-    let delete_deps = (name) => {
+    let delete_dep_values = (name) => {
 
         Object.keys(deps).forEach( key => {
     
@@ -74,7 +74,7 @@ let auto = (obj) => {
                 if (name == sub)
                 {
                     delete(value[key]);
-                    delete_deps(key);
+                    delete_dep_values(key);
                 }
             })
         })
@@ -89,8 +89,19 @@ let auto = (obj) => {
             if (value[name] !== val)
             {
                 value[name] = val;
-                delete_deps(name);
-                run_subs(name);
+                delete_dep_values(name); // recursively delete values
+                Object.keys(subs).forEach(sub => {
+                    if (!(sub in value)) // a value that is subscribed to has changed
+                    {
+                        let keys = Object.keys(subs[sub]);
+                        if (keys.length>0) // no need to run subs if there are no functions for it
+                        {
+                            //let val = value[sub]; // save old value
+                            update(sub);
+                            run_subs(sub); // value changed. run subscriptions
+                        }
+                    }
+                })
             }
         }
     }

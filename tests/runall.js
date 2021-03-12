@@ -20,8 +20,13 @@ var MD5 = function (d) { var r = M(V(Y(X(d), 8 * d.length))); return r.toLowerCa
 // https://javascript.plainenglish.io/4-ways-to-compare-objects-in-javascript-97fe9b2a949c
 function isEqual(obj1, obj2) {
 
+	//console.log("obj1 = ",obj1);
+	//console.log("obj2 = ",obj2);
+
 	if (typeof (obj1) != typeof (obj2)) return false;
 	if (obj1 == null && obj2 == null) return true;
+	if (obj1 == null && obj2 != null) return false
+	if (obj1 != null && obj2 == null) return false;
 	if (typeof obj1 === 'number' && isNaN(obj1) && isNaN(obj2)) return true; // NaN!
 
 	if (typeof (obj1) === 'object') {
@@ -36,13 +41,26 @@ function isEqual(obj1, obj2) {
 	else return obj1 == obj2;
 }
 
-let assert_same = (name, a, b) => {
+let assert_global_same = (name, should_be, actual) => {
+
+	// arg generic object check
+	if (!isEqual(should_be,actual))
+	{
+		console.log(name+": not equal");
+		console.log("global should be:",should_be);
+		console.log("global actual:   ",actual);
+		return false;
+	}
+	return true;
+}
+
+let assert_internals_same = (name, should_be, actual) => {
 	let keys = ['subs', 'fn', 'stack', 'deps', 'value', 'fatal'];
 	let diff = [];
 
 	let fns = [];
-	Object.keys(b.fn).forEach(name => fns.push(name));
-	b.fn = fns; // replace with an array of names (can't really check the actual function definitions)
+	Object.keys(actual.fn).forEach(name => fns.push(name));
+	actual.fn = fns; // replace with an array of names (can't really check the actual function definitions)
 
 	// subs looks like
 	// {
@@ -63,22 +81,22 @@ let assert_same = (name, a, b) => {
 	// (why don't i make it look like that? '000' could refer to a function in fn...)
 
 	let subs = {};
-	Object.keys(b.subs).forEach(name => {
+	Object.keys(actual.subs).forEach(name => {
 		let arr = [];
-		Object.keys(b.subs[name]).forEach(tag => {
+		Object.keys(actual.subs[name]).forEach(tag => {
 			arr.push(tag);
 		});
 		subs[name] = arr;
 	});
-	b.subs = subs; // replace with an array of names (can't really check the actual function definitions)
+	actual.subs = subs; // replace with an array of names (can't really check the actual function definitions)
 
-	keys.forEach(key => { if (!isEqual(a[key], b[key])) diff.push(key); })
+	keys.forEach(key => { if (!isEqual(should_be[key], actual[key])) diff.push(key); })
 
 	if (diff.length > 0) {
 		console.log(name + ": not same");
 		diff.forEach(key => {
-			console.log("a." + key + " =", a[key]);
-			console.log("b." + key + " =", b[key]);
+			console.log(key + " should be", should_be[key]);
+			console.log(key + " actual   ", actual[key]);
 		})
 		return false
 	}
@@ -87,8 +105,11 @@ let assert_same = (name, a, b) => {
 
 let check = (auto, name, test) => {
 	let $ = auto(test.obj);
-	test.fn($);
-	if (assert_same(name, test._, $._)) console.log(name + ": passed")
+	let global = {};
+	test.fn($, global);
+	let same = assert_internals_same(name, test._, $._); // start with the state object
+	if (test.global) same = same && assert_global_same(name, test.global, global); // also check global object if set (to ensure subscriptions run)
+	if (same) console.log(name + ": passed")
 }
 
 let get_latest_path = () => {

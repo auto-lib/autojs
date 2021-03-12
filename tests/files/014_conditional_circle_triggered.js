@@ -13,7 +13,7 @@ module.exports = {
         fn: ['a','b','c'],
         subs: [],
         deps: { a: [], b: ['c'], c: ['data', 'a'] },
-        value: { data: true },
+        value: { data: true, a: undefined, b: undefined, c: undefined },
         fatal: {
             msg: 'circular dependency',
             stack: [ 'a', 'b', 'c', 'a' ]

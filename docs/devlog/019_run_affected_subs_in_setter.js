@@ -1,6 +1,4 @@
 
-// 019_run_affected_subs_in_setter.js
-
 let auto = (obj) => {
 
     let running;     // what function is currently running
@@ -154,6 +152,3 @@ let auto = (obj) => {
 
     return res;
 }
-
-
-module.exports = auto;
