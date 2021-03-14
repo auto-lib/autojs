@@ -1,5 +1,5 @@
 
-// 019_run_affected_subs_in_setter.js
+// 020_nested_functions.js
 
 let auto = (obj) => {
 
@@ -10,11 +10,6 @@ let auto = (obj) => {
     let stack = [];  // call stack
     let fatal = {};  // only set if fatal error occurs (and everything stops if this is set)
     let subs = {};   // special functions (ones which don't connect to a value) to run each time a value changes
-
-    const res = {                             // return object
-        _: { subs, fn, deps, value, fatal },  // so we can see from the outside what's going on
-        '#': {}                               // subscribe methods for each member
-    };
 
     let fail = (msg) => { 
         
@@ -115,41 +110,72 @@ let auto = (obj) => {
         return tag();
     }
 
-    // this whole section is run once
-    Object.keys(obj).forEach(name => {
+    /* nested loop search for any function defined */
+    let is_object_with_function_member = (obj) => {
 
-        let prop;
-    
-        if (typeof obj[name] == 'function')
+        if (obj !== null && typeof obj === 'object')
         {
-            fn[name] = () => obj[name](res); // save function
-            prop = { get() { return getter(name) }}             // what props to set on return object i.e. a getter
-        }    
-        else
-        {
-            value[name] = obj[name];
-            prop = { get() { return getter(name) }, set(v) { setter(name, v) } }  // just set the return props i.e. getter + setter
+            let found_fn = false;
+            Object.keys(obj).forEach( key => {
+
+                if (typeof obj[key] == 'function') found_fn = true;
+                else found_fn = found_fn ||  is_object_with_function_member(obj[key]);
+            })
+            return found_fn;
         }
+        else return false;
+    }
 
-        Object.defineProperty(res, name, prop);
+    let wrap = (root, res, hash, obj, prelum) => {
 
-        res['#'][name] = {}
-        res['#'][name].get = () => getter(name);
-        res['#'][name].set = (v) => setter(name, v);
-        res['#'][name].subscribe = (f) => {
-    
-            let subtag = get_subtag(name);
+        Object.keys(obj).forEach(name => {
+
+            let tag = prelum ? prelum + '.' + name : name;
+            let prop;
         
-            if (!subs[name]) subs[name] = {}; // added this
-            subs[name][subtag] = (v) => f(v); // now inside [name]
+            if (is_object_with_function_member(obj[name])) { 
+                res[name] = {}; 
+                wrap(res, res[name], res['#'], obj[name], name);
+                return;
+            }
+
+            if (typeof obj[name] == 'function')
+            {
+                fn[tag] = () => obj[name](root); // save function
+                prop = { get() { return getter(tag) }}             // what props to set on return object i.e. a getter
+            }    
+            else
+            {
+                value[tag] = obj[name];
+                prop = { get() { return getter(tag) }, set(v) { setter(tag, v) } }  // just set the return props i.e. getter + setter
+            }
+
+            Object.defineProperty(res, name, prop);
+
+            hash[tag] = {}
+            hash[tag].get = () => getter(tag);
+            hash[tag].set = (v) => setter(tag, v);
+            hash[tag].subscribe = (f) => {
+        
+                let subtag = get_subtag(tag);
             
-            f(value[name]);
-        
-            // return unsubscribe method
-            return () => { delete(subs[name][subtag]); } // now inside [name]
-        };
-    });
+                if (!subs[tag]) subs[tag] = {}; // added this
+                subs[tag][subtag] = (v) => f(v); // now inside [name]
+                
+                f(value[tag]);
+            
+                // return unsubscribe method
+                return () => { delete(subs[tag][subtag]); } // now inside [name]
+            };
+        });
+    }
 
+    const res = {                             // return object
+        _: { subs, fn, deps, value, fatal },  // so we can see from the outside what's going on
+        '#': {}                               // subscribe methods for each member
+    };
+
+    wrap(res, res, res['#'], obj);
     Object.keys(fn).forEach(name => update(name)); // boot process: update all functions, setting initial values and dependencies
 
     return res;

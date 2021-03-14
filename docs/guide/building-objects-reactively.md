@@ -181,3 +181,6 @@ is this a generic tool ... or just a
 one-shot? could we develop a variable
 name convension which goes as deep
 as you want?
+
+this is really gonna screw up my
+"look how tiny this library is" thing...

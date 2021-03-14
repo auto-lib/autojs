@@ -4319,3 +4319,333 @@ if needs be.
 > can't. which i still feel good about. though i
 > need to find a clearer explanation for why...
 > tracing? self-reference? one-way flow?
+
+## 020_nested_functions.js
+
+ok so now i have a use-case for nested functions.
+this is what i want to work:
+
+```js
+let $ = auto({
+    obj: ($) => ({
+        var1: [1,2,3],
+        var2: ($) => $.obj.var1.map( v => var2_func(v) ),
+        var3: ($) => $.obj.var2.map( v => var3_func(v) )
+    })
+})
+```
+
+ok here is a first shot at what a test for this might
+look like (which informs well what the implementation
+would need):
+
+```js
+let var2_func = (v) => v + 1;
+let var3_func = (v) => {
+    if (v==1) return 'one';
+    else if (v==2) return 'two';
+    else if (v==3) return 'three';
+    else if (v==4) return 'four';
+    else return 'unknown';
+}
+
+module.exports = {
+    obj: {
+        tst: ($) => ({
+            var1: [1,2,3],
+            var2: ($) => $.tst.var1.map( v => var2_func(v) ),
+            var3: ($) => $.tst.var2.map( v => var3_func(v) )
+        })
+    },
+    fn: ($) => {
+    },
+    _: {
+        fn: {
+            tst: [ 'var2', 'var3' ]
+        },
+        subs: [],
+        deps: { 
+            tst: {
+                var2: [ 'obj.var1' ],
+                var3: [ 'obj.var2' ]
+            },
+        },
+        value: { 
+            tst: {
+                var1: [1,2,3],
+                var2: [2,3,4],
+                var3: ['two','three','four']
+            },
+        },
+        fatal: {}
+    }
+}
+```
+
+hmmm ok well the wrap might look clean but all
+of a sudden the state doesn't. it is worth it?
+i guess when you look at the state it's ok ...
+it does make sense when you look at it. how else?
+convert everything to flat lists?
+
+```js
+fn: [ 'tst.var2', 'tst.var3' ]
+subs: [],
+deps: { 
+    tst.var2: [ 'obj.var1' ], 
+    tst.var3: [ 'obj.var2' ] },
+value: { 
+    tst.var1: [1,2,3],
+    tst.var2: [2,3,4],
+    tst.var3: ['two','three','four']
+},
+fatal: {}
+```
+
+hmmm that might actually be better... in fact
+this might not only be easier to debug (cause
+it's cleaner ... i think) but then implementation
+on update, get/set, deps won't have to change -
+just the wrap will build out these separate
+variables / functions.
+
+> i've just noticed that `fn` in our tests is
+> probably redundant - `deps` encodes dependencies
+> for all functions ... so it's keys should be
+> the same as what is in `fn` ...
+> though perhaps it's clearer to have an `fn` list
+> explicitly ...
+
+ok let's for interest's sake see what happens when
+we run our test `025_nested_functions.js`
+
+> note i had to wrap the variable names in quotes
+
+```
+025_nested_functions: not same
+fn should be [ 'tst.var2', 'tst.var3' ]
+fn actual    [ 'tst' ]
+deps should be { 'tst.var2': [ 'obj.var1' ], 'tst.var3': [ 'obj.var2' ] }
+deps actual    { tst: [] }
+value should be {
+  'tst.var1': [ 1, 2, 3 ],
+  'tst.var2': [ 2, 3, 4 ],
+  'tst.var3': [ 'two', 'three', 'four' ]
+}
+value actual    {
+  tst: { var1: [ 1, 2, 3 ], var2: [Function: var2], var3: [Function: var3] }
+}
+```
+
+one thing is surprising: we get an object back for `tst` ...
+which might actually be problem.
+
+so what do we need to do? well during wrap we check if
+we have a function. and if so we ... hmmm wait ...
+
+yes, we return an object, not a function, for things
+we want to nest:
+
+```js
+let $ = auto({
+    tst: {
+        var1: [1,2,3],
+        var2: ($) => $.tst.var1.map( v => var2_func(v) ),
+        var3: ($) => $.tst.var2.map( v => var3_func(v) )
+    }
+})
+```
+
+and then during wrap we check if we have an object
+and if so create sub-values for everything... which actually
+doesn't seem so hard.
+
+## dev/020_nested_functions.js
+
+ok so we want a `wrap` function now so that we can
+call it recursively ... and all it does is take
+a prepend value to add to the start ...
+
+```js
+let wrap = (obj, prelum) => {
+
+    // ...
+}
+```
+
+and then the first thing we do is check if the return
+value is an object ... in fact, even if it's an
+array it should work! we'll get variables and functions
+called things like `myarray[0]` and `myarray[1]`
+
+```js
+let wrap = (obj, prelum) => {
+
+    Object.keys(obj).forEach(name => {
+
+        let tag = prelum ? prelum + '.' + name : name;
+        let prop;
+    
+        if (typeof obj[name] == 'object')
+        {
+            wrap(obj[name],name);
+            return;
+        }
+
+        // ...
+```
+
+so if we encounter an object, recurse but
+pass the parent object in. then we have
+a tag that looks like `tst.var1` which
+is what we use to store the dependencies / 
+variable names, etc. so for example the
+function code now looks like
+
+```js
+if (typeof obj[name] == 'function')
+{
+    fn[tag] = () => obj[name](res); // save function
+    prop = { get() { return getter(name) }}             // what props to set on return object i.e. a getter
+}    
+```
+
+then after the function we call it once on
+the main object passed into `auto` at the top:
+
+```js
+wrap(obj);
+Object.keys(fn).forEach(name => update(name)); // boot process: update all functions, setting initial values and dependencies
+```
+
+hmm ok this worked:
+
+```js
+let $ = auto({
+    obj: {
+        tst: {
+            var1: [1,2,3],
+            var2: ($) => $['tst.var1'].map( v => var2_func(v) ),
+            var3: ($) => $['tst.var2'].map( v => var3_func(v) )
+        }
+    }
+})
+```
+
+i had to reference the variable names with a string...
+which isn't ideal. but it works!
+
+ok ... i have the original working now:
+
+```js
+let var2_func = (v) => v + 1;
+let var3_func = (v) => {
+    if (v==1) return 'one';
+    else if (v==2) return 'two';
+    else if (v==3) return 'three';
+    else if (v==4) return 'four';
+    else return 'unknown';
+}
+
+module.exports = {
+    obj: {
+        tst: {
+            var1: [1,2,3],
+            var2: ($) => $.tst.var1.map( v => var2_func(v) ),
+            var3: ($) => $.tst.var2.map( v => var3_func(v) )
+        }
+    },
+    fn: ($) => {
+    },
+    _: {
+        fn: [ 'tst.var2', 'tst.var3' ],
+        subs: [],
+        deps: { 
+            'tst.var2': [ 'tst.var1' ], 
+            'tst.var3': [ 'tst.var2' ] },
+        value: { 
+            'tst.var1': [1,2,3],
+            'tst.var2': [2,3,4],
+            'tst.var3': ['two','three','four']
+        },
+        fatal: {}
+    }
+}
+```
+
+so the internal vars haven't changed - everything is still
+a flat list of functions, dependencies and values.
+however, there is no `tst` value in `value` which means
+getting or setting `tst` in `$` won't do anything... or
+it will but it won't work properly.
+
+perhaps the right way to do things is to create a function
+called `tst` which depends on `var1`, `var2` and `var3`
+and which returns an object of all it's sub-values ...
+that would make it consistent with the rest of the
+framework...
+
+here are the use cases:
+
+ - `$.tst` should return the value of the entire object, however
+ - `$.tst.var2` should run the function ...
+
+is this possible? surely the first `$.tst` will have to run
+the function ...
+
+right, so `$.tst` is a function and it does have a value, but
+it's just cached. ok that makes sense. but when you run `$.tst`
+what is returned? it has to be an object with functions inside ...
+that is very confusing. so if we go
+
+```js
+console.log($.tst);
+```
+
+right now we get an empty object ... but the sub-object
+access still works!
+
+> `020_nested_functions.js` should be called `020_sub-object_functions.js`
+
+maybe i can still return the proper object? which prints
+put correctly ... but which very confusingly will not
+use the value you are looking at if you access one of
+the members but will instead call the get method...
+
+ok so in `tests/025_nested_functions.js` i change the function section to
+
+```js
+fn: ($, global) => {
+    global.tst = $.tst;
+},
+```
+
+so we set the global object. and then put that into the test
+results
+
+```js
+global: {
+    tst: {
+        var1: [1,2,3],
+        var2: [2,3,4],
+        var3: ['two','three','four']
+    }
+}
+```
+
+hmmm no i don't get how this makes any sense at all... i suppose
+we could return an object with the functions shown:
+
+
+```js
+{
+    var1: [1,2,3],
+    var2: [Function],
+    var3: [Function]
+}
+```
+
+which perhaps will at least show people what is happening...
+
+hmmm but you can't actually get the whole state just by
+printing out `$` either ...
