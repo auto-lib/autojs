@@ -1,5 +1,5 @@
 
-// 020_nested_functions.js
+// 021_array_of_objects.js
 
 let auto = (obj) => {
 
@@ -23,6 +23,50 @@ let auto = (obj) => {
 
     let run_subs = (name) => {
         if (subs[name]) Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]) )
+    }
+
+    let wrap = (root, res, hash, obj, prelum) => {
+
+        Object.keys(obj).forEach(name => {
+
+            let tag = prelum ? prelum + '.' + name : name;
+            let prop;
+        
+            if (is_object_with_function_member(obj[name])) { 
+                res[name] = {}; 
+                wrap(res, res[name], res['#'], obj[name], name);
+                return;
+            }
+
+            if (typeof obj[name] == 'function')
+            {
+                fn[tag] = () => obj[name](root); // save function
+                prop = { get() { return getter(tag) }}             // what props to set on return object i.e. a getter
+            }    
+            else
+            {
+                value[tag] = obj[name];
+                prop = { get() { return getter(tag) }, set(v) { setter(tag, v) } }  // just set the return props i.e. getter + setter
+            }
+
+            Object.defineProperty(res, name, prop);
+
+            hash[tag] = {}
+            hash[tag].get = () => getter(tag);
+            hash[tag].set = (v) => setter(tag, v);
+            hash[tag].subscribe = (f) => {
+        
+                let subtag = get_subtag(tag);
+            
+                if (!subs[tag]) subs[tag] = {}; // added this
+                subs[tag][subtag] = (v) => f(v); // now inside [name]
+                
+                f(value[tag]);
+            
+                // return unsubscribe method
+                return () => { delete(subs[tag][subtag]); } // now inside [name]
+            };
+        });
     }
 
     let update = (name) => {   // update a function
@@ -124,50 +168,6 @@ let auto = (obj) => {
             return found_fn;
         }
         else return false;
-    }
-
-    let wrap = (root, res, hash, obj, prelum) => {
-
-        Object.keys(obj).forEach(name => {
-
-            let tag = prelum ? prelum + '.' + name : name;
-            let prop;
-        
-            if (is_object_with_function_member(obj[name])) { 
-                res[name] = {}; 
-                wrap(res, res[name], res['#'], obj[name], name);
-                return;
-            }
-
-            if (typeof obj[name] == 'function')
-            {
-                fn[tag] = () => obj[name](root); // save function
-                prop = { get() { return getter(tag) }}             // what props to set on return object i.e. a getter
-            }    
-            else
-            {
-                value[tag] = obj[name];
-                prop = { get() { return getter(tag) }, set(v) { setter(tag, v) } }  // just set the return props i.e. getter + setter
-            }
-
-            Object.defineProperty(res, name, prop);
-
-            hash[tag] = {}
-            hash[tag].get = () => getter(tag);
-            hash[tag].set = (v) => setter(tag, v);
-            hash[tag].subscribe = (f) => {
-        
-                let subtag = get_subtag(tag);
-            
-                if (!subs[tag]) subs[tag] = {}; // added this
-                subs[tag][subtag] = (v) => f(v); // now inside [name]
-                
-                f(value[tag]);
-            
-                // return unsubscribe method
-                return () => { delete(subs[tag][subtag]); } // now inside [name]
-            };
-        });
     }
 
     const res = {                             // return object

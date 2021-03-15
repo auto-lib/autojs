@@ -4649,3 +4649,87 @@ which perhaps will at least show people what is happening...
 
 hmmm but you can't actually get the whole state just by
 printing out `$` either ...
+
+## dev/021_array_of_objects.js
+
+what if i want to construct an array of objects
+
+```js
+let $ = auto({
+    data: null,
+    tst: ($) => data.map(d => ({
+        val: d,
+        plus: ($) => d + 1,
+        name: ($) => get_name(d)
+    }))
+})
+```
+
+that's just pure insanity.
+
+ok, so the first time we run through we get `data`
+which is just a plain value and then we get `tst`
+which is a function. right. so we run the function
+and get back an array. what now? well... should we
+save the array? or should we go deeper in and see
+if anything inside the array is a function...?
+
+ok, here is the kicker - we only run when it's stale.
+
+```js
+let getter = (name) => {
+
+    if (fatal.msg) return; // do nothing if a fatal error occured
+    if (running && deps[running].indexOf(name) === -1) deps[running].push(name);
+
+    if (!(name in value)) // value is stale
+    {
+        let val = value[name]; // save old value
+        update(name);
+        if (val != value[name]) run_subs(name); // value changed. run subscriptions
+    }
+
+    return value[name];
+}
+```
+
+this is all about functions. if you pass in a plain
+object to auto it will just save the value out, the
+whole thing... (?). however it's all about what happens
+when it encounters a function. and when it does it
+starts by checking if there is a value for it.
+if there is, great. if there isn't ...
+
+and another thing to remember - nearly everything will
+work if we take out the setter functionality. which means
+we don't need to dependencies either. all that stuff
+can disappear. because with getter all the getter
+cares about is - is there a value, and if not get
+the value and save it. if we take away fatal checks,
+dependency tracking and subscriptions this is all we have:
+
+```js
+let getter = (name) => {
+
+    if (!(name in value)) update(name);
+    return value[name];
+}
+```
+
+not sure a simple key will work? or maybe it will look like
+`charts.0.points` ... which isn't bad...
+
+or ... we could have each layer of each object have it's
+own dependency list... so it's not global. harder to debug
+maybe but it might make the code more elegant.
+
+how would we get a flat list? i suppose the getter ... would
+have to tag all the values ...
+
+but of course the wrap now has to happen inside of update...
+and it would be recursive. so ... in a way update would ...
+take in the original object? to boot everything you just
+run `update` on the passed in object ... and the first thing
+it does is check if it's an object ... what the prelum values
+are ... this is going to break all my previous tests. i should
+build this up from scratch...

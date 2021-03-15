@@ -1,6 +1,4 @@
 
-// 021_array_of_objects.js
-
 let auto = (obj) => {
 
     let running;     // what function is currently running
