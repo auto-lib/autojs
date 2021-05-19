@@ -1,6 +1,4 @@
 
-// 022_single_sub.js
-
 let auto = (obj) => {
 
     let running;     // what function is currently running

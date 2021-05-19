@@ -4733,3 +4733,21 @@ run `update` on the passed in object ... and the first thing
 it does is check if it's an object ... what the prelum values
 are ... this is going to break all my previous tests. i should
 build this up from scratch...
+
+## 022_single_subs.js
+
+this should actually be called 'value subs' or some such.
+
+not sure how i missed this. if you subscribe to a value,
+i.e. not a function, nothing happens - the function
+doesn't run. that's because i guess i assumed we were
+subscribing to a function and thus to react to any
+variables that change that would affect the function.
+has been a while, need to go over all this again.
+
+which again makes me feel as though the code could be
+clearer. i don't like that since i've been away for a
+few months i couldn't immediately tell what was going
+on. how do you know if you've gotten something as
+simple as possible? what is the essense of the code
+so far?

@@ -1,5 +1,5 @@
 
-// 021_array_of_objects.js
+// 022_single_sub.js
 
 let auto = (obj) => {
 
@@ -128,6 +128,7 @@ let auto = (obj) => {
             if (value[name] !== val)
             {
                 value[name] = val;
+                run_subs(name);
                 delete_dep_values(name); // recursively delete values
                 Object.keys(subs).forEach(sub => {
                     if (!(sub in value)) // a value that is subscribed to has changed
