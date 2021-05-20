@@ -3,6 +3,7 @@
   "version": "1.22.3",
   "description": "reactivity without side effects",
   "main": "auto-commonjs.js",
+  "module": "auto-es6.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kewp/auto.git"
