@@ -1,3 +1,4 @@
+Note: the documentation is all over the place. See [docs/](docs/) for all the (still to be fleshed out and organised) notes and diatribes.
 
 ## manifesto
 
