@@ -3,7 +3,7 @@ let fs = require('fs');
 
 let fail = (msg) => { console.trace(msg); process.exit(1); }
 
-let devlog_path = "../docs/devlog"
+let devlog_path = "../docs/devlog/src"
 	
 /* this code bums me out. wish it was cleaner. man i don't like node... */
 /* it's weird - auto's code is good. why is this different? */

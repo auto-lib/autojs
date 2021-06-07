@@ -1,6 +1,4 @@
 
-// 023_update_on_sub.js
-
 let auto = (obj) => {
 
     let running;     // what function is currently running
@@ -182,6 +180,3 @@ let auto = (obj) => {
 
     return res;
 }
-
-
-module.exports = auto;

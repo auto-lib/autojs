@@ -1,5 +1,5 @@
 
-// 022_single_sub.js
+// 023_update_on_sub.js
 
 let auto = (obj) => {
 
@@ -61,6 +61,7 @@ let auto = (obj) => {
                 if (!subs[tag]) subs[tag] = {}; // added this
                 subs[tag][subtag] = (v) => f(v); // now inside [name]
                 
+                if (tag in fn && !(tag in value)) update(tag); // make sure it's up to date
                 f(value[tag]);
             
                 // return unsubscribe method
