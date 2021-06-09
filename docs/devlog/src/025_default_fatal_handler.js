@@ -1,6 +1,4 @@
 
-// 025_default_fatal_handler.js
-
 let auto = (obj) => {
 
     let running;     // what function is currently running
@@ -192,6 +190,3 @@ let auto = (obj) => {
 
     return res;
 }
-
-
-export default auto;

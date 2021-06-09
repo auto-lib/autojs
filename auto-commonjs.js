@@ -1,5 +1,5 @@
 
-// 024_inner_loop_detection.js
+// 025_default_fatal_handler.js
 
 let auto = (obj) => {
 
@@ -27,6 +27,14 @@ let auto = (obj) => {
     }
 
     let wrap = (root, res, hash, obj, prelum) => {
+
+        // default fatal error handler
+        if (!obj['#fatal']) obj['#fatal'] = (_) => { 
+            console.log('FATAL',_._.fatal.msg);
+            console.log(' stack',_._.fatal.stack);
+            console.log(' _',_);
+            console.log(' (there might be an error below too if your function failed as well)');
+        }
 
         Object.keys(obj).forEach(name => {
 
@@ -180,7 +188,7 @@ let auto = (obj) => {
     };
 
     wrap(res, res, res['#'], obj);
-    Object.keys(fn).forEach(name => update(name)); // boot process: update all functions, setting initial values and dependencies
+    Object.keys(fn).forEach(name => { if (name[0] != '#') update(name) }); // boot process: update all functions, setting initial values and dependencies
 
     return res;
 }

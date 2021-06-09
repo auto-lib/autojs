@@ -61,7 +61,7 @@ let assert_internals_same = (name, should_be, actual) => {
 	let missing_fn = false;
 	let fns = [];
 	Object.keys(actual.fn).forEach(name => {
-		if (should_be.fn.indexOf(name) === -1) missing_fn = true;
+		if (should_be.fn.indexOf(name) === -1 && name != '#fatal') missing_fn = true;
 		fns.push(name);
 	})
 	actual.fn = fns; // flat list for display
@@ -110,13 +110,23 @@ let assert_internals_same = (name, should_be, actual) => {
 	else return true;
 }
 
+let ignored = {
+	'025_nested_functions': 'pausing inner object functionality',
+	'026_array_of_objects': 'pausing inner object functionality'
+}
+
 let check = (auto, name, test) => {
-	let $ = auto(test.obj);
-	let global = {};
-	test.fn($, global);
-	let same = assert_internals_same(name, test._, $._); // start with the state object
-	if (test.global) same = same && assert_global_same(name, test.global, global); // also check global object if set (to ensure subscriptions run)
-	if (same) console.log(name + ": passed")
+	if (ignored[name]) console.log(name + ": ignored ("+ignored[name]+")")
+	else
+	{
+		test.obj['#fatal'] = () => {}; // zero out default fatal behaviour
+		let $ = auto(test.obj);
+		let global = {};
+		test.fn($, global);
+		let same = assert_internals_same(name, test._, $._); // start with the state object
+		if (test.global) same = same && assert_global_same(name, test.global, global); // also check global object if set (to ensure subscriptions run)
+		if (same) console.log(name + ": passed")
+	}
 }
 
 let get_latest_path = () => {
