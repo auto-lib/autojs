@@ -1,6 +1,4 @@
 
-// 024_inner_loop_detection.js
-
 let auto = (obj) => {
 
     let running;     // what function is currently running
@@ -184,6 +182,3 @@ let auto = (obj) => {
 
     return res;
 }
-
-
-module.exports = auto;

@@ -1,5 +1,5 @@
 
-// 023_update_on_sub.js
+// 024_inner_loop_detection.js
 
 let auto = (obj) => {
 
@@ -7,7 +7,8 @@ let auto = (obj) => {
     let deps = {};   // list of dependencies for each function
     let fn = {};     // list of functions (runnable)
     let value = {};  // current actual values
-    let stack = [];  // call stack
+    let stack = [];
+    let called = {};  // which functions have been called (for loop detection)
     let fatal = {};  // only set if fatal error occurs (and everything stops if this is set)
     let subs = {};   // special functions (ones which don't connect to a value) to run each time a value changes
 
@@ -77,13 +78,14 @@ let auto = (obj) => {
         deps[name] = [];       // reset dependencies for this function
         running = name;        // globally set that we are running
         stack.push(name);
-    
-        if (stack.length>1 && stack[0] == stack[stack.length-1]) fail('circular dependency');
+        if (called[name]) fail('circular dependency');
         else if (name[0]!='#') // any function that starts with '#' is a function that doesn't save a corresponding value
         {
+            called[name] = true;
             let val = fn[name]();
             if (!fatal.msg) value[name] = val;
             else value[name] = undefined;
+            delete(called[name]);
         }
 
         stack.pop()
