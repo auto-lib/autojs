@@ -232,3 +232,174 @@ module.exports = {
 works perfectly (i decreased the times as well so the tests are instant again).
 
 woohoo!
+
+## short
+
+i really am amazed at how short everything is now:
+
+```js
+let getter = (name, parent) => {
+
+    if (parent) deps[parent][name] = true;
+
+    return value[name];
+}
+
+let setter = (name, val) => {
+
+    value[name] = val; run_subs(name);
+
+    Object.keys(deps).forEach( parent => {
+        if (name in deps[parent]) update(parent);
+    });
+}
+```
+
+`update` is longer.
+
+```js
+let update = (name) => {   // update a function
+
+    stack.push(name);
+    if (called[name]) { fail('circular dependency'); return; }
+
+    deps[name] = {};
+    called[name] = true;
+    value[name] = fn[name]();
+    
+    Object.keys(deps).forEach( parent => {
+        if (name in deps[parent]) update(parent);
+    });
+
+    run_subs(name);
+
+    delete(called[name]);
+    stack.pop();
+}
+```
+
+most of it is checking for circular dependencies
+(and being able to print out the stack for this).
+if we could somehow avoid this or make it shorter...
+the rest is just four statements, really;
+
+```js
+deps[name] = {};
+value[name] = fn[name]();
+
+Object.keys(deps).forEach( parent => {
+    if (name in deps[parent]) update(parent);
+});
+
+run_subs(name);
+```
+
+the only other part which is the wrap,
+and that is now the most complicated, primarily
+for functions:
+
+```js
+if (typeof obj[name] == 'function')
+{
+    let _ = {};
+    Object.keys(obj).forEach(child => Object.defineProperty(_, child, {
+        // this is the get/set _inside_ a function
+        get() { return getter(child, name); },
+        set(v) { fail('function '+name+' is trying to change value '+child); }
+    }));
+
+    fn[name] = () => obj[name](_, (v) => setter(name, v) );
+
+    // this is getting the function itself (outside, kind-of)
+    prop = { get() { return getter(name) } }
+}
+```
+
+and this is largely because we build up a modified version of
+our root object to indicate the parent ... which is what has
+simplified everything as well. (i wonder if we could use this
+for other means, like simplifying the circle detection, or
+making the tracing code more plugabble...).
+
+it's definitely a new avenue - i'm actually surprised it worked
+so easily. i struggle to follow which scope is where ...
+
+i suppose looking at it now the function wrap isn't so bad.
+you just need to break it down, i guess:
+
+- the whole point here is two-fold: (1) create `fn[name]` where
+`name` is the function name you gave in the object, and (2) put
+in a getter for the object property ... this part is confusing
+because we can now get inside and outside, bizarrely...
+
+in fact, i might even remove the outter get completely. it sounds
+strange but i actually can't see a use for it - if you really
+want to know why not just inspect the `values` thingy - the only
+reason for using the actual `getter` function is to track dependencies,
+and it won't be used at all if you call it from the outside.
+
+again, it's weird cause surely you want to use this thing like
+a black box, but really no - it's made to be used in the front-end
+and for that it's all subscriptions...
+
+we do need to assign `setter` ... for the static values ...
+might as well leave in that one line.
+
+and lastly, it's subscribe - lots of code there.
+
+```js
+hash[name] = {}
+hash[name].get = () => getter(name);
+hash[name].set = (v) => setter(name, v);
+hash[name].subscribe = (f) => {
+
+    let subtag = get_subtag(name);
+
+    if (!subs[name]) subs[name] = {}; // added this
+    subs[name][subtag] = (v) => f(v); // now inside [name]
+    
+    f(value[name]);
+
+    // return unsubscribe method
+    return () => { delete(subs[name][subtag]); } // now inside [name]
+};
+```
+
+this one is tricky because we have to make it delete
+the correct one and fill up correctly with subtags ...
+
+## wrap cleanup
+
+ok so now wrap looks like this:
+
+```js
+let wrap = (res, hash, obj) => {
+
+    if (!obj['#fatal']) obj['#fatal'] = default_fatal;
+
+    Object.keys(obj).forEach(name => {
+
+        if (typeof obj[name] == 'function') setup_dynamic (obj, name, res);
+        else setup_statuc (name, res);
+
+        setup_sub(hash, name);
+    });
+}
+```
+
+i suppose it's clearer what's happening...
+though now there's three more functions
+floating around which sucks. and it's now
+not clear that those functions all are
+just run once during setup... i mean, when
+you're just scrolling through the code.
+
+i've put all the setup functions at the
+bottom and put comments in to break these
+two sections apart and explain ...
+
+still not happy with it, though. code
+doesn't look super clear.
+
+added lots of comments ... not sure it makes
+things any clearer.
