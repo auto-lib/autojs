@@ -11,7 +11,7 @@ module.exports = {
     _: {
         fn: ['b','c'],
         subs: [],
-        deps: { b: ['a'], c:['b'] },
+        deps: { b: { a: true }, c: { b: true } },
         value: { a: 5, b: 15, c: 35 },
         fatal: {}
     }

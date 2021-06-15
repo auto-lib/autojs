@@ -10,7 +10,7 @@ module.exports = {
     },
     _: {
         fn: [ 'count', 'twice_count' ],
-        deps: { count: ['data'], twice_count: ['count'] },
+        deps: { count: { data: true }, twice_count: { count: true } },
         subs: { twice_count: ['000'] },
         value: { data: [1,2,3], count: 3, twice_count: 6 },
         fatal: {}

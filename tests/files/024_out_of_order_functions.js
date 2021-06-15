@@ -11,7 +11,7 @@ module.exports = {
     _: {
         fn: [ 'func1', 'func2' ],
         subs: [],
-        deps: { func1: ['data1'], func2: ['func1','data2'] },
+        deps: { func2: { func1: true, data2: true }, func1: { data1: true } },
         value: { data1: null, data2: null, func1: null, func2: 0 },
         fatal: {}
     }

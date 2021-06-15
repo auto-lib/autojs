@@ -1,9 +1,10 @@
 
-// 025_default_fatal_handler.js
+// 026_asynchronous_functions.js
+
+let debug = false;
 
 let auto = (obj) => {
 
-    let running;     // what function is currently running
     let deps = {};   // list of dependencies for each function
     let fn = {};     // list of functions (runnable)
     let value = {};  // current actual values
@@ -11,6 +12,7 @@ let auto = (obj) => {
     let called = {};  // which functions have been called (for loop detection)
     let fatal = {};  // only set if fatal error occurs (and everything stops if this is set)
     let subs = {};   // special functions (ones which don't connect to a value) to run each time a value changes
+    let set = {};    // set functions for async
 
     let fail = (msg) => { 
         
@@ -23,10 +25,23 @@ let auto = (obj) => {
     }
 
     let run_subs = (name) => {
-        if (subs[name]) Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]) )
+        if (debug)
+        {
+            console.log(spacing+'RUN_SUBS',name,'(',subs[name],')');
+            spacing += '-';
+        }
+
+        if (subs[name]) Object.keys(subs[name]).forEach( tag => {
+                //update(name);
+                if (debug) console.log(spacing+'running sub',name,' ',tag,'with value',value[name]);
+                subs[name][tag](value[name])
+            }
+        )
+
+        if (debug) spacing = spacing.slice(0,-1);
     }
 
-    let wrap = (root, res, hash, obj, prelum) => {
+    let wrap = (res, hash, obj) => {
 
         // default fatal error handler
         if (!obj['#fatal']) obj['#fatal'] = (_) => { 
@@ -38,123 +53,116 @@ let auto = (obj) => {
 
         Object.keys(obj).forEach(name => {
 
-            let tag = prelum ? prelum + '.' + name : name;
             let prop;
         
-            if (is_object_with_function_member(obj[name])) { 
-                res[name] = {}; 
-                wrap(res, res[name], res['#'], obj[name], name);
-                return;
-            }
-
             if (typeof obj[name] == 'function')
             {
-                fn[tag] = () => obj[name](root); // save function
-                prop = { get() { return getter(tag) }}             // what props to set on return object i.e. a getter
+                let _ = {};
+                Object.keys(obj).forEach(child => Object.defineProperty(_, child, {
+
+                    // this is the get _inside_ a function
+                    get() { return getter(child, name); },
+                    set(v) {
+                        fail('function '+name+' is trying to change value '+child);
+                    }
+                }));
+
+                fn[name] = () => { return obj[name](_, (v) => {
+                    setter(name, v);
+                }); }
+
+                // this is getting the function itself (outside, kind-of)
+                prop = { get() { return getter(name) } }
             }    
             else
             {
-                value[tag] = obj[name];
-                prop = { get() { return getter(tag) }, set(v) { setter(tag, v) } }  // just set the return props i.e. getter + setter
+                value[name] = obj[name];
+                prop = { get() { return getter(name) }, set(v) { setter(name, v) } }  // just set the return props i.e. getter + setter
             }
 
             Object.defineProperty(res, name, prop);
 
-            hash[tag] = {}
-            hash[tag].get = () => getter(tag);
-            hash[tag].set = (v) => setter(tag, v);
-            hash[tag].subscribe = (f) => {
+            hash[name] = {}
+            hash[name].get = () => getter(name);
+            hash[name].set = (v) => setter(name, v);
+            hash[name].subscribe = (f) => {
         
-                let subtag = get_subtag(tag);
+                let subtag = get_subtag(name);
             
-                if (!subs[tag]) subs[tag] = {}; // added this
-                subs[tag][subtag] = (v) => f(v); // now inside [name]
+                if (!subs[name]) subs[name] = {}; // added this
+                subs[name][subtag] = (v) => f(v); // now inside [name]
                 
-                if (tag in fn && !(tag in value)) update(tag); // make sure it's up to date
-                f(value[tag]);
+                if (name in fn && !(name in value)) update(name); // make sure it's up to date
+                f(value[name]);
             
                 // return unsubscribe method
-                return () => { delete(subs[tag][subtag]); } // now inside [name]
+                return () => { delete(subs[name][subtag]); } // now inside [name]
             };
         });
     }
 
+    let spacing = '';
+
     let update = (name) => {   // update a function
 
+        if (debug) {
+            console.log(spacing+'UPDATE',name);
+            spacing += '-';
+        }
+
         if (fatal.msg) return; // do nothing if a fatal error has occurred
-    
-        deps[name] = [];       // reset dependencies for this function
-        running = name;        // globally set that we are running
+
         stack.push(name);
         if (called[name]) fail('circular dependency');
-        else if (name[0]!='#') // any function that starts with '#' is a function that doesn't save a corresponding value
-        {
-            called[name] = true;
-            let val = fn[name]();
-            if (!fatal.msg) value[name] = val;
-            else value[name] = undefined;
-            delete(called[name]);
-        }
 
-        stack.pop()
-        running = stack[stack.length-1];
+        deps[name] = {};
+        called[name] = true;
+        value[name] = fn[name]();
+        
+        Object.keys(deps).forEach( parent => {
+            if (name in deps[parent]) update(parent);
+        });
+
+        run_subs(name);
+
+        delete(called[name]);
+        stack.pop();
+
+        if (debug) {
+            console.log(spacing+'result from update',name,':',value[name]);
+            spacing = spacing.slice(0,-1);
+        }
     }
 
-    let getter = (name) => {
+    let getter = (name, parent) => {
+
+        if (debug) console.log(spacing+'GETTER',name,' ',parent);
 
         if (fatal.msg) return; // do nothing if a fatal error occured
-        if (running && deps[running].indexOf(name) === -1) deps[running].push(name);
 
-        if (!(name in value)) // value is stale
-        {
-            let val = value[name]; // save old value
-            update(name);
-            if (val != value[name]) run_subs(name); // value changed. run subscriptions
-        }
-    
+        if (parent) deps[parent][name] = true;
+
+        if (debug) console.log(spacing+'got ',value[name]);
+
         return value[name];
-    }
-
-    let delete_dep_values = (name) => {
-
-        Object.keys(deps).forEach( key => {
-    
-            deps[key].forEach( sub => {
-
-                if (name == sub)
-                {
-                    delete(value[key]);
-                    delete_dep_values(key);
-                }
-            })
-        })
     }
 
     let setter = (name, val) => {
 
+        if (debug) {
+            console.log(spacing+'SETTER',name,' ',val);
+            spacing += '-';
+        }
+
         if (fatal.msg) return; // do nothing if a fatal error occured
 
-        if (running) fail("function "+running+" is trying to change value "+name)
-        else {
-            if (value[name] !== val)
-            {
-                value[name] = val;
-                run_subs(name);
-                delete_dep_values(name); // recursively delete values
-                Object.keys(subs).forEach(sub => {
-                    if (!(sub in value)) // a value that is subscribed to has changed
-                    {
-                        let keys = Object.keys(subs[sub]);
-                        if (keys.length>0) // no need to run subs if there are no functions for it
-                        {
-                            //let val = value[sub]; // save old value
-                            update(sub);
-                            run_subs(sub); // value changed. run subscriptions
-                        }
-                    }
-                })
-            }
-        }
+        value[name] = val;
+        run_subs(name);
+        Object.keys(deps).forEach( parent => {
+            if (name in deps[parent]) update(parent);
+        });
+
+        if (debug) spacing.slice(0,-1);
     }
 
     // get an available name for subscription
@@ -166,28 +174,12 @@ let auto = (obj) => {
         return tag();
     }
 
-    /* nested loop search for any function defined */
-    let is_object_with_function_member = (obj) => {
-
-        if (obj !== null && typeof obj === 'object')
-        {
-            let found_fn = false;
-            Object.keys(obj).forEach( key => {
-
-                if (typeof obj[key] == 'function') found_fn = true;
-                else found_fn = found_fn ||  is_object_with_function_member(obj[key]);
-            })
-            return found_fn;
-        }
-        else return false;
-    }
-
     const res = {                             // return object
         _: { subs, fn, deps, value, fatal },  // so we can see from the outside what's going on
         '#': {}                               // subscribe methods for each member
     };
 
-    wrap(res, res, res['#'], obj);
+    wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => { if (name[0] != '#') update(name) }); // boot process: update all functions, setting initial values and dependencies
 
     return res;

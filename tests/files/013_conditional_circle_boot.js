@@ -9,7 +9,7 @@ module.exports = {
     _: {
         fn: ['a','b','c'],
         subs: [],
-        deps: { a: ['b'], b: ['c'], c: ['data'] },
+        deps: { a: { b: true }, b: { c: true }, c: { data: true } },
         value: { data: null, a: 0, b: 0, c: 0 },
         fatal: {}
     }

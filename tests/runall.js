@@ -1,4 +1,7 @@
 
+let script;
+if (process.argv.length>2) script = process.argv[2]; // just run one script (easier with lots of debug info)
+
 let fs = require('fs');
 
 let fail = (msg) => { console.trace(msg); process.exit(1); }
@@ -115,6 +118,13 @@ let ignored = {
 	'026_array_of_objects': 'pausing inner object functionality'
 }
 
+let confirm = (name, test, $, global) =>
+{
+	let same = assert_internals_same(name, test._, $._); // start with the state object
+	if (test.global) same = same && assert_global_same(name, test.global, global); // also check global object if set (to ensure subscriptions run)
+	if (same) console.log(name + ": passed")
+}
+
 let check = (auto, name, test) => {
 	if (ignored[name]) console.log(name + ": ignored ("+ignored[name]+")")
 	else
@@ -123,9 +133,8 @@ let check = (auto, name, test) => {
 		let $ = auto(test.obj);
 		let global = {};
 		test.fn($, global);
-		let same = assert_internals_same(name, test._, $._); // start with the state object
-		if (test.global) same = same && assert_global_same(name, test.global, global); // also check global object if set (to ensure subscriptions run)
-		if (same) console.log(name + ": passed")
+		if (test.timeout) setTimeout( () => confirm(name, test, $, global), test.timeout);
+		else confirm(name, test, $, global);
 	}
 }
 
@@ -158,9 +167,12 @@ let run_tests = () => {
 
 	require('fs').readdirSync("./files").forEach(name => {
 		if (parseInt(name.substring(0, 3)) > 0) {
-			const test = require("./files/" + name);
-			name = name.replace('.js', '');
-			check(auto, name, test);
+			if (!script || name == script)
+			{
+				const test = require("./files/" + name);
+				name = name.replace('.js', '');
+				check(auto, name, test);
+			}
 		}
 	})
 }

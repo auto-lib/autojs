@@ -1,6 +1,4 @@
 
-// 026_asynchronous_functions.js
-
 let debug = false;
 
 let auto = (obj) => {

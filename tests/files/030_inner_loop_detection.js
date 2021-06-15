@@ -13,12 +13,15 @@ module.exports = {
     fn: ($, global) => {},
     _: {
         fn: [ 'initial', 'loop_a', 'loop_b' ],
-        deps: { initial: ['data','loop_a'], loop_a: [], loop_b: ['loop_a']},
+        deps: { 
+            initial: { data: true, loop_a: true },
+            loop_a: { loop_b: true },
+            loop_b: {} },
         subs: { },
-        value: { data: [1,2,3], initial: undefined, loop_a: undefined, loop_b: undefined },
+        value: { data: [1,2,3], initial: NaN, loop_a: undefined, loop_b: undefined },
         fatal: {
             msg: 'circular dependency',
-            stack: [ 'initial', 'loop_a', 'loop_b', 'loop_a' ]
+            stack: [ 'loop_b', 'loop_a', 'loop_b' ]
         }
     }
 }

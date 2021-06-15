@@ -14,7 +14,7 @@ module.exports = {
     },
     _: {
         fn: [ 'derived' ],
-        deps: { derived: ['data']},
+        deps: { derived: { data: true } },
         subs: { derived: ['000'] },
         value: { data: [1,2,3], derived: 3 },
         fatal: {}
