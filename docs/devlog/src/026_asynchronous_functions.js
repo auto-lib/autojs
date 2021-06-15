@@ -1,5 +1,9 @@
 
-let debug = false;
+let debug = false; // set this to true to show all steps nicely indented
+let spacer = '';
+let trace =     !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); } 
+let trace_in =  !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); spacer += '-'; }
+let trace_out = !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); spacer = spacer.slice(0,-1); }
 
 let auto = (obj) => {
 
@@ -10,7 +14,6 @@ let auto = (obj) => {
     let called = {};  // which functions have been called (for loop detection)
     let fatal = {};  // only set if fatal error occurs (and everything stops if this is set)
     let subs = {};   // special functions (ones which don't connect to a value) to run each time a value changes
-    let set = {};    // set functions for async
 
     let fail = (msg) => { 
         
@@ -23,22 +26,27 @@ let auto = (obj) => {
     }
 
     let run_subs = (name) => {
-        if (debug)
-        {
-            console.log(spacing+'RUN_SUBS',name,'(',subs[name],')');
-            spacing += '-';
-        }
+        
+        trace_in('run_subs(',name,') [',subs[name],']');
 
         if (subs[name]) Object.keys(subs[name]).forEach( tag => {
-                //update(name);
-                if (debug) console.log(spacing+'running sub',name,' ',tag,'with value',value[name]);
+                trace('running sub',name,' ',tag,'with value',value[name]);
                 subs[name][tag](value[name])
             }
         )
 
-        if (debug) spacing = spacing.slice(0,-1);
+        trace_out();
     }
 
+    // get an available name for subscription
+    let get_subtag = (name) => {
+
+        let val = 0;
+        let tag = () => val.toString().padStart(3, "0"); // e.g. #012
+        while( subs[name] && tag() in subs[name] ) val += 1; // increment until not found
+        return tag();
+    }
+    
     let wrap = (res, hash, obj) => {
 
         // default fatal error handler
@@ -57,17 +65,12 @@ let auto = (obj) => {
             {
                 let _ = {};
                 Object.keys(obj).forEach(child => Object.defineProperty(_, child, {
-
-                    // this is the get _inside_ a function
+                    // this is the get/set _inside_ a function
                     get() { return getter(child, name); },
-                    set(v) {
-                        fail('function '+name+' is trying to change value '+child);
-                    }
+                    set(v) { fail('function '+name+' is trying to change value '+child); }
                 }));
 
-                fn[name] = () => { return obj[name](_, (v) => {
-                    setter(name, v);
-                }); }
+                fn[name] = () => obj[name](_, (v) => setter(name, v) );
 
                 // this is getting the function itself (outside, kind-of)
                 prop = { get() { return getter(name) } }
@@ -99,14 +102,9 @@ let auto = (obj) => {
         });
     }
 
-    let spacing = '';
-
     let update = (name) => {   // update a function
 
-        if (debug) {
-            console.log(spacing+'UPDATE',name);
-            spacing += '-';
-        }
+        trace_in('update('+name+')');
 
         if (fatal.msg) return; // do nothing if a fatal error has occurred
 
@@ -126,50 +124,35 @@ let auto = (obj) => {
         delete(called[name]);
         stack.pop();
 
-        if (debug) {
-            console.log(spacing+'result from update',name,':',value[name]);
-            spacing = spacing.slice(0,-1);
-        }
+        trace_out('result from update '+name+': '+value[name]);
     }
 
     let getter = (name, parent) => {
 
-        if (debug) console.log(spacing+'GETTER',name,' ',parent);
+        trace('GETTER '+name+' '+parent);
 
         if (fatal.msg) return; // do nothing if a fatal error occured
 
         if (parent) deps[parent][name] = true;
 
-        if (debug) console.log(spacing+'got ',value[name]);
+        trace('got '+value[name]);
 
         return value[name];
     }
 
     let setter = (name, val) => {
 
-        if (debug) {
-            console.log(spacing+'SETTER',name,' ',val);
-            spacing += '-';
-        }
+        trace_in('SETTER'+name+' '+val);
 
         if (fatal.msg) return; // do nothing if a fatal error occured
 
-        value[name] = val;
-        run_subs(name);
+        value[name] = val; run_subs(name);
+
         Object.keys(deps).forEach( parent => {
             if (name in deps[parent]) update(parent);
         });
 
-        if (debug) spacing.slice(0,-1);
-    }
-
-    // get an available name for subscription
-    let get_subtag = (name) => {
-
-        let val = 0;
-        let tag = () => val.toString().padStart(3, "0"); // e.g. #012
-        while( subs[name] && tag() in subs[name] ) val += 1; // increment until not found
-        return tag();
+        trace_out();
     }
 
     const res = {                             // return object
