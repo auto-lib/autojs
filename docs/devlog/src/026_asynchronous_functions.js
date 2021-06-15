@@ -40,64 +40,71 @@ let auto = (obj) => {
     // (and everything after the break is just setup code)
     // ------------------------------------------------------
     
-    // something went wrong
-    // save the message/stack and run any subscriptions to this (TODO on subscriptions)
+    // == something went wrong ==
+    // == save the message/stack and run any subscriptions to this (TODO on subscriptions) ==
 
     let fail = (msg) => { 
         
-        let _stack = []; stack.forEach(s => _stack.push(s));
+        let _stack = []; stack.forEach(s => _stack.push(s)); // copy out the call stack
+
+        // save out to global object
+        // so we can access it from outside for debugging
+        // and also update uses this to stop looping during a circle
 
         fatal.msg = msg;
         fatal.stack = _stack;
         
-        if (fn['#fatal']) fn['#fatal'](res); // special function to react to fatal errors (so you can log to console / write to file / etc. on error)
+        if (fn['#fatal']) fn['#fatal'](res); // run the function #fatal which is meant for reactions to errors. this should be a subscription so we can have multiple...
     }
 
-    // run any subscriptions to a value
-    // static or dynamic
+    // == run any subscriptions to a value ==
+    // == static or dynamic ==
 
     let run_subs = (name) => {
         
         //trace_in('run_subs(',name,') [',subs[name],']');
 
-        if (subs[name]) 
+        if (subs[name]) // not all values have subscriptions
             Object.keys(subs[name]).forEach( tag => {
                 //trace('running sub',name,' ',tag,'with value',value[name]);
-                subs[name][tag](value[name])
+                subs[name][tag](value[name]) // run the function given to us
             }
         )
 
         //trace_out();
     }
     
-    // update a dynamic value
-    // never static
+    // == update a dynamic value ==
+    // == never static ==
 
     let update = (name) => {   
 
         //trace_in('update('+name+')');
 
-        stack.push(name);
-        if (called[name]) { fail('circular dependency'); return; }
+        stack.push(name); // save call stack (for debug messages)
+        if (called[name]) { fail('circular dependency'); return; } // this value has been updated higher up the chain i.e. by a parent, so we are in a circle
 
-        deps[name] = {};
-        called[name] = true;
-        value[name] = fn[name]();
+        deps[name] = {}; // clear dependencies for this value
+        called[name] = true; // to make sure we're not in a circular dependency
+        value[name] = fn[name](); // run the dynamic value's function and save the output
         
+        // make sure any dynamic values dependent on this one are updated too
         Object.keys(deps).forEach( parent => {
             if (name in deps[parent]) update(parent);
         });
 
+        // run any subscriptions to this value
         run_subs(name);
 
+        // clear from called and call stack
         delete(called[name]);
         stack.pop();
 
         //trace_out('result from update '+name+': '+value[name]);
     }
 
-    // get a value
-    // static or dynamic
+    // == get a value ==
+    // == can be for static or dynamic values ==
 
     let getter = (name, parent) => {
 
@@ -110,15 +117,18 @@ let auto = (obj) => {
         return value[name];
     }
 
-    // set a static value
-    // should never be dynamic
+    // == set a static value ==
+    // == should never be a dynamic value ==
 
     let setter = (name, val) => {
 
         //trace_in('SETTER'+name+' '+val);
 
-        value[name] = val; run_subs(name);
+        value[name] = val; // save
+        run_subs(name);    // run subscriptions to this value
 
+        // make sure any dynamic values dependent on this one
+        // are updated
         Object.keys(deps).forEach( parent => {
             if (name in deps[parent]) update(parent);
         });
@@ -146,20 +156,25 @@ let auto = (obj) => {
 
     let setup_sub = (hash, name) => {
 
+        // we access this with something like _['#'].data.subscribe( (v) => console.log('data:',v); )
         hash[name] = {}
         hash[name].get = () => getter(name);
         hash[name].set = (v) => setter(name, v);
         hash[name].subscribe = (f) => {
-    
-            let subtag = get_subtag(name);
-        
-            if (!subs[name]) subs[name] = {}; // added this
-            subs[name][subtag] = (v) => f(v); // now inside [name]
             
+            // run the function immediately on latest value
             f(value[name]);
         
+            // you can subscribe multiple times
+            // so we need to get a unique code for each one
+            let subtag = get_subtag(name);
+        
+            // save sub function
+            if (!subs[name]) subs[name] = {};
+            subs[name][subtag] = (v) => f(v);
+            
             // return unsubscribe method
-            return () => { delete(subs[name][subtag]); } // now inside [name]
+            return () => { delete(subs[name][subtag]); }
         };
     }
 
@@ -170,13 +185,21 @@ let auto = (obj) => {
 
         let _ = {};
 
-        Object.keys(obj).forEach(child => 
-            Object.defineProperty(_, child, {
+        // this is kind of magic
+        // each function gets it's own special global object
+        // which called getter with it's own name as the parent parameter
+
+        Object.keys(obj).forEach(
+            child => Object.defineProperty(_, child, {
+
                 // this is the get/set _inside_ a function
                 get() { return getter(child, name); },
-                set(v) { fail('function '+name+' is trying to change value '+child); 
-            }
-        }));
+                set(v) { fail('function '+name+' is trying to change value '+child);  }
+
+            }));
+
+        // here we pass in the specially modified global object to the function
+        // and also throw in the set parameter for async functions
 
         fn[name] = () => obj[name](_, (v) => setter(name, v) );
 
@@ -191,7 +214,10 @@ let auto = (obj) => {
 
     let setup_statuc = (name, res) => {
 
+        // save whatever was defined originally
         value[name] = obj[name];
+
+        // use our functions for get/set
         Object.defineProperty(res, name, { 
             get() { return getter(name) }, 
             set(v) { setter(name, v) } 
@@ -202,13 +228,17 @@ let auto = (obj) => {
     
     let wrap = (res, hash, obj) => {
 
+        // add handler that prints out to console for convenience in browser
         if (!obj['#fatal']) obj['#fatal'] = default_fatal;
 
+        // loop through each key
         Object.keys(obj).forEach(name => {
 
+            // setup dynamic/static
             if (typeof obj[name] == 'function') setup_dynamic (obj, name, res);
             else setup_statuc (name, res);
 
+            // create subscribable object
             setup_sub(hash, name);
         });
     }
@@ -222,7 +252,8 @@ let auto = (obj) => {
         '#': {}                               // subscribe methods for each member
     };
 
-    // do everything: run wrap and run update on all dynamic values
+    // do everything
+    // run wrap, and run update on all dynamic values
 
     wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => { if (name[0] != '#') update(name) }); // TODO need to look into this hash thing...
