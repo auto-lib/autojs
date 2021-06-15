@@ -16,7 +16,7 @@ module.exports = {
         deps: { 
             initial: { data: true, loop_a: true },
             loop_a: { loop_b: true },
-            loop_b: {} },
+            loop_b: { loop_a: true } },
         subs: { },
         value: { data: [1,2,3], initial: NaN, loop_a: undefined, loop_b: undefined },
         fatal: {

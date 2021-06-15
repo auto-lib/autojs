@@ -108,10 +108,8 @@ let auto = (obj) => {
 
         trace_in('update('+name+')');
 
-        if (fatal.msg) return; // do nothing if a fatal error has occurred
-
         stack.push(name);
-        if (called[name]) fail('circular dependency');
+        if (called[name]) { fail('circular dependency'); return; }
 
         deps[name] = {};
         called[name] = true;
@@ -133,8 +131,6 @@ let auto = (obj) => {
 
         trace('GETTER '+name+' '+parent);
 
-        if (fatal.msg) return; // do nothing if a fatal error occured
-
         if (parent) deps[parent][name] = true;
 
         trace('got '+value[name]);
@@ -145,8 +141,6 @@ let auto = (obj) => {
     let setter = (name, val) => {
 
         trace_in('SETTER'+name+' '+val);
-
-        if (fatal.msg) return; // do nothing if a fatal error occured
 
         value[name] = val; run_subs(name);
 
