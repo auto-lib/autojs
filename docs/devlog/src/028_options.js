@@ -3,7 +3,7 @@
 // exactly what is happening in the tests.
 // still want to make this cleaner ... all these extra lines in the code ...
 
-let debug = false; // set this to true to show all steps nicely indented
+let debug = true; // set this to true to show all steps nicely indented
 let spacer = '';
 let logger = (args) => { if (args.length>0) { if(spacer.length>0) args.unshift(spacer); console.log.apply(console,args); }}
 let trace_flat = !debug ? () => {} : (...args) => { logger(args); } 
@@ -25,13 +25,22 @@ let auto = (obj,opt) => {
     let subs = {};   // functions to run each time a value changes (static and dynamic)
     let trace = opt && opt.trace ? opt.trace : {};
 
-    let show_vars = (name) => {
-        let o = {};
-        Object.keys(deps[name]).forEach(dep => {
-            o[dep] = value[dep];
+    let get_vars = (name) => {
+        let o = { deps: {}, value: value[name] };
+        if (name in deps) Object.keys(deps[name]).forEach(dep => {
+            if (!deps[dep]) o.deps[dep] = value[dep];
+            else
+            {
+                o.deps[dep] = {
+                    value: value[dep],
+                    deps: {}
+                };
+                Object.keys(deps[dep]).forEach(inner => o.deps[dep].deps[inner] = get_vars(inner));
+            }
         })
-        console.log('exception in '+name+'. deps:',o);
+        return o;
     }
+    let show_vars = (name) => console.log('exception in '+name,get_vars(name).deps);
 
     // ------------------------------------------------------
     // the following five functions are what run continuously
@@ -215,7 +224,7 @@ let auto = (obj,opt) => {
             try {
                 v = obj[name](_, (v) => setter(name, v) );
             }
-            catch(e) { show_vars(name); fail('exception'); console.trace(e); }
+            catch(e) { show_vars(name); fail('exception'); console.log(e); }
             if (name in trace) trace_out();
             return v;
         }
