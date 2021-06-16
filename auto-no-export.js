@@ -1,10 +1,4 @@
-let spacer = '';
-let logger = (args) => { if (args.length>0) { if(spacer.length>0) args.unshift(spacer); console.log.apply(console,args); }}
-let trace_flat = (...args) => { logger(args); }
-let trace_in =   (...args) => { logger(args); spacer += '-'; }
-let trace_out =  (...args) => { logger(args); spacer = spacer.slice(0,-1); }
 let auto = (obj,opt) => {
-    let core = {};
     let deps = {};
     let fn = {};
     let value = {};
@@ -12,12 +6,7 @@ let auto = (obj,opt) => {
     let called = {};
     let fatal = {};
     let subs = {};
-    let trace = opt && opt.trace ? opt.trace : {};
     let watch = opt && opt.watch ? opt.watch : {};
-    let trace_wrap = (func, name) => {
-        if (name in trace) trace_in(func+' ('+name+')');
-        core[func](name);
-        if (name in trace) trace_out(); }
     let get_vars = (name) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps) Object.keys(deps[name]).forEach(dep => {
@@ -35,14 +24,12 @@ let auto = (obj,opt) => {
         fatal.msg = msg;
         fatal.stack = _stack;
     }
-    core.run_subs = (name) => {
+    let run_subs = (name) => {
         if (subs[name])
-            Object.keys(subs[name]).forEach( tag => {
-                subs[name][tag](value[name])
-            }
+            Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name])
         )
     }
-    core.update = (name) => {
+    let update = (name) => {
         if (fatal.msg) return;
         stack.push(name);
         if (called[name]) { fail('circular dependency'); return; }
@@ -51,9 +38,9 @@ let auto = (obj,opt) => {
         value[name] = fn[name]();
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
         Object.keys(deps).forEach( parent => {
-            if (name in deps[parent]) trace_wrap('update',parent);
+            if (name in deps[parent]) update(parent);
         });
-        trace_wrap('run_subs',name);
+        run_subs(name);
         delete(called[name]);
         stack.pop();
     }
@@ -66,9 +53,9 @@ let auto = (obj,opt) => {
         if (fatal.msg) return;
         value[name] = val;
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
-        trace_wrap('run_subs',name);
+        run_subs(name);
         Object.keys(deps).forEach( parent => {
-            if (name in deps[parent]) trace_wrap('update',parent);
+            if (name in deps[parent]) update(parent);
         });
     }
     let get_subtag = (name) => {
@@ -130,10 +117,9 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.28.57'
+        v: '1.29.0'
     };
-    core.boot = (name) => trace_wrap('update',name);
     wrap(res, res['#'], obj);
-    Object.keys(fn).forEach(name => { if (name[0] != '#') trace_wrap('boot',name) ; });
+    Object.keys(fn).forEach(name => { if (name[0] != '#') update(name); });
     return res;
 }
