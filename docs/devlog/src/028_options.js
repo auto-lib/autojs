@@ -3,12 +3,11 @@
 // exactly what is happening in the tests.
 // still want to make this cleaner ... all these extra lines in the code ...
 
-let debug = true; // set this to true to show all steps nicely indented
 let spacer = '';
 let logger = (args) => { if (args.length>0) { if(spacer.length>0) args.unshift(spacer); console.log.apply(console,args); }}
-let trace_flat = !debug ? () => {} : (...args) => { logger(args); } 
-let trace_in =   !debug ? () => {} : (...args) => { logger(args); spacer += '-'; }
-let trace_out =  !debug ? () => {} : (...args) => { logger(args); spacer = spacer.slice(0,-1); }
+let trace_flat = (...args) => { logger(args); } 
+let trace_in =   (...args) => { logger(args); spacer += '-'; }
+let trace_out =  (...args) => { logger(args); spacer = spacer.slice(0,-1); }
 
 // the biggest thing to understand is the distinction between static and
 // dynamic values. static values can only be changed from the outside
@@ -16,6 +15,7 @@ let trace_out =  !debug ? () => {} : (...args) => { logger(args); spacer = space
 
 let auto = (obj,opt) => {
 
+    let core = {};   // core functions (we put them here to refer to them by string in the code)
     let deps = {};   // list of dependencies (dynamic)
     let fn = {};     // list of functions (dynamic)
     let value = {};  // current values (static and dynamic)
@@ -23,18 +23,37 @@ let auto = (obj,opt) => {
     let called = {};  // which functions have been called (for loop detection)
     let fatal = {};  // only set if fatal error occurs (and everything stops if this is set)
     let subs = {};   // functions to run each time a value changes (static and dynamic)
+
+    // if you pass in something like { one: true, two: true }
+    // then any time anything happens with either 'one' or 'two'
+    // (static or dynamic variables) you will get a log message.
+    // this includes update, getter, setter, as well as run_subs
+    // and others
+
     let trace = opt && opt.trace ? opt.trace : {};
+
+    // we wrap pretty much everything in this.
+    // then when we turn debug on and pass the
+    // variables we're interested in to the
+    // options object we can see a detailed
+    // log of how they change and why
+
+    let trace_wrap = (func, name) => { 
+        if (name in trace) trace_in(func+' ('+name+')'); 
+        core[func](name); 
+        if (name in trace) trace_out(); }
+
+    // used when a function (of a dynamic variable) causes an exception / has an error
+    // we print out all the values of the dependent variables of the function
+    // as well as the dependents of those variables, recursively, so you can
+    // see the entire state tree that led to all the values
 
     let get_vars = (name) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps) Object.keys(deps[name]).forEach(dep => {
             if (!deps[dep]) o.deps[dep] = value[dep];
-            else
-            {
-                o.deps[dep] = {
-                    value: value[dep],
-                    deps: {}
-                };
+            else {
+                o.deps[dep] = { value: value[dep], deps: {} };
                 Object.keys(deps[dep]).forEach(inner => o.deps[dep].deps[inner] = get_vars(inner));
             }
         })
@@ -67,28 +86,26 @@ let auto = (obj,opt) => {
     // == run any subscriptions to a value ==
     // == static or dynamic ==
 
-    let run_subs = (name) => {
+    core.run_subs = (name) => {
         
-        if (name in trace) trace_in('run_subs('+name+') ['+subs[name]+']');
+        // if (name in trace) trace_in('run_subs('+name+') ['+subs[name]+']');
 
         if (subs[name]) // not all values have subscriptions
             Object.keys(subs[name]).forEach( tag => {
-                if (name in trace) trace_flat('running sub',name,tag,'with value',value[name]);
+                // if (name in trace) trace_flat('running sub',name,tag,'with value',value[name]);
                 subs[name][tag](value[name]) // run the function given to us
             }
         )
 
-        if (name in trace) trace_out();
+        // if (name in trace) trace_out();
     }
     
     // == update a dynamic value ==
     // == never static ==
 
-    let update = (name) => {   
+    core.update = (name) => {   
 
         if (fatal.msg) return;
-
-        if (name in trace) trace_in('update('+name+')');
 
         stack.push(name); // save call stack (for debug messages)
         if (called[name]) { fail('circular dependency'); return; } // this value has been updated higher up the chain i.e. by a parent, so we are in a circle
@@ -97,21 +114,17 @@ let auto = (obj,opt) => {
         called[name] = true; // to make sure we're not in a circular dependency
         value[name] = fn[name](); // run the dynamic value's function and save the output
         
-        //if (name in trace) trace_flat('return from function:',value[name]);
-
         // make sure any dynamic values dependent on this one are updated too
         Object.keys(deps).forEach( parent => {
-            if (name in deps[parent]) update(parent);
+            if (name in deps[parent]) trace_wrap('update',parent);
         });
 
         // run any subscriptions to this value
-        run_subs(name);
+        trace_wrap('run_subs',name);
 
         // clear from called and call stack
         delete(called[name]);
         stack.pop();
-
-        if (name in trace) trace_out('result from update '+name+':',value[name]);
     }
 
     // == get a value ==
@@ -120,8 +133,6 @@ let auto = (obj,opt) => {
     let getter = (name, parent) => {
 
         if (fatal.msg) return;
-
-        if (name in trace || parent in trace) trace_flat('getter ('+name+','+parent+') is',value[name]);
 
         if (parent) deps[parent][name] = true;
 
@@ -135,18 +146,14 @@ let auto = (obj,opt) => {
 
         if (fatal.msg) return;
 
-        if (name in trace) trace_in('setter('+name+',',val,')');
-
         value[name] = val; // save
-        run_subs(name);    // run subscriptions to this value
+        trace_wrap('run_subs',name);    // run subscriptions to this value
 
         // make sure any dynamic values dependent on this one
         // are updated
         Object.keys(deps).forEach( parent => {
-            if (name in deps[parent]) update(parent);
+            if (name in deps[parent]) trace_wrap('update',parent);
         });
-
-        if (name in trace) trace_out();
     }
 
     // --------------------------------------------
@@ -184,11 +191,8 @@ let auto = (obj,opt) => {
         
             // save sub function
             if (!subs[name]) subs[name] = {};
-            subs[name][subtag] = (v) => {
-                if (name in trace) trace_in('running sub for '+name+' tag '+tag);
-                f(v);
-                if (name in trace) trace_out();
-            }
+            subs[name][subtag] = (v) => f(v);
+            
             // return unsubscribe method
             return () => { delete(subs[name][subtag]); }
         };
@@ -219,13 +223,14 @@ let auto = (obj,opt) => {
 
         fn[name] = () => {
             if (fatal.msg) return;
-            if (name in trace) trace_in('fn['+name+']');
-            let v;
-            try {
-                v = obj[name](_, (v) => setter(name, v) );
-            }
+
+            // run the function and catch any error,
+            // printing out all the dependent variables if
+            // it does
+
+            let v; try { v = obj[name](_, (v) => setter(name, v) ); }
             catch(e) { show_vars(name); fail('exception'); console.log(e); }
-            if (name in trace) trace_out();
+            
             return v;
         }
         // this is getting the function itself (outside, kind-of)
@@ -294,13 +299,7 @@ let auto = (obj,opt) => {
     // run wrap, and run update on all dynamic values
 
     wrap(res, res['#'], obj);
-    Object.keys(fn).forEach(name => { 
-        if (name[0] != '#') {
-            if (name in trace) trace_in('boot of ['+name+']')
-            update(name) ;
-            if (name in trace) trace_out();
-        }
-    }); // TODO need to look into this hash thing...
+    Object.keys(fn).forEach(name => { if (name[0] != '#') trace_wrap('update',name) ; }); // TODO need to look into this hash thing...
 
     return res;
 }

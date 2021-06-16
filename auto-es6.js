@@ -1,10 +1,10 @@
-let debug = true;
 let spacer = '';
 let logger = (args) => { if (args.length>0) { if(spacer.length>0) args.unshift(spacer); console.log.apply(console,args); }}
-let trace_flat = !debug ? () => {} : (...args) => { logger(args); }
-let trace_in =   !debug ? () => {} : (...args) => { logger(args); spacer += '-'; }
-let trace_out =  !debug ? () => {} : (...args) => { logger(args); spacer = spacer.slice(0,-1); }
+let trace_flat = (...args) => { logger(args); }
+let trace_in =   (...args) => { logger(args); spacer += '-'; }
+let trace_out =  (...args) => { logger(args); spacer = spacer.slice(0,-1); }
 let auto = (obj,opt) => {
+    let core = {};
     let deps = {};
     let fn = {};
     let value = {};
@@ -13,16 +13,16 @@ let auto = (obj,opt) => {
     let fatal = {};
     let subs = {};
     let trace = opt && opt.trace ? opt.trace : {};
+    let trace_wrap = (func, name) => {
+        if (name in trace) trace_in(func+' ('+name+')');
+        core[func](name);
+        if (name in trace) trace_out(); }
     let get_vars = (name) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps) Object.keys(deps[name]).forEach(dep => {
             if (!deps[dep]) o.deps[dep] = value[dep];
-            else
-            {
-                o.deps[dep] = {
-                    value: value[dep],
-                    deps: {}
-                };
+            else {
+                o.deps[dep] = { value: value[dep], deps: {} };
                 Object.keys(deps[dep]).forEach(inner => o.deps[dep].deps[inner] = get_vars(inner));
             }
         })
@@ -34,47 +34,39 @@ let auto = (obj,opt) => {
         fatal.msg = msg;
         fatal.stack = _stack;
     }
-    let run_subs = (name) => {
-        if (name in trace) trace_in('run_subs('+name+') ['+subs[name]+']');
+    core.run_subs = (name) => {
         if (subs[name])
             Object.keys(subs[name]).forEach( tag => {
-                if (name in trace) trace_flat('running sub',name,tag,'with value',value[name]);
                 subs[name][tag](value[name])
             }
         )
-        if (name in trace) trace_out();
     }
-    let update = (name) => {
+    core.update = (name) => {
         if (fatal.msg) return;
-        if (name in trace) trace_in('update('+name+')');
         stack.push(name);
         if (called[name]) { fail('circular dependency'); return; }
         deps[name] = {};
         called[name] = true;
         value[name] = fn[name]();
         Object.keys(deps).forEach( parent => {
-            if (name in deps[parent]) update(parent);
+            if (name in deps[parent]) trace_wrap('update',parent);
         });
-        run_subs(name);
+        trace_wrap('run_subs',name);
         delete(called[name]);
         stack.pop();
-        if (name in trace) trace_out('result from update '+name+':',value[name]);
     }
     let getter = (name, parent) => {
         if (fatal.msg) return;
-        if (name in trace || parent in trace) trace_flat('getter ('+name+','+parent+') is',value[name]);
         if (parent) deps[parent][name] = true;
         return value[name];
     }
     let setter = (name, val) => {
         if (fatal.msg) return;
-        if (name in trace) trace_in('setter('+name+',',val,')');
         value[name] = val;
-        run_subs(name);
+        trace_wrap('run_subs',name);
         Object.keys(deps).forEach( parent => {
-            if (name in deps[parent]) update(parent);
+            if (name in deps[parent]) trace_wrap('update',parent);
         });
-        if (name in trace) trace_out();
     }
     let get_subtag = (name) => {
         let val = 0;
@@ -90,11 +82,7 @@ let auto = (obj,opt) => {
             f(value[name]);
             let subtag = get_subtag(name);
             if (!subs[name]) subs[name] = {};
-            subs[name][subtag] = (v) => {
-                if (name in trace) trace_in('running sub for '+name+' tag '+tag);
-                f(v);
-                if (name in trace) trace_out();
-            }
+            subs[name][subtag] = (v) => f(v);
             return () => { delete(subs[name][subtag]); }
         };
     }
@@ -107,13 +95,8 @@ let auto = (obj,opt) => {
             }));
         fn[name] = () => {
             if (fatal.msg) return;
-            if (name in trace) trace_in('fn['+name+']');
-            let v;
-            try {
-                v = obj[name](_, (v) => setter(name, v) );
-            }
+            let v; try { v = obj[name](_, (v) => setter(name, v) ); }
             catch(e) { show_vars(name); fail('exception'); console.log(e); }
-            if (name in trace) trace_out();
             return v;
         }
         Object.defineProperty(res, name, {
@@ -144,16 +127,10 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.28.35'
+        v: '1.28.53'
     };
     wrap(res, res['#'], obj);
-    Object.keys(fn).forEach(name => {
-        if (name[0] != '#') {
-            if (name in trace) trace_in('boot of ['+name+']')
-            update(name) ;
-            if (name in trace) trace_out();
-        }
-    });
+    Object.keys(fn).forEach(name => { if (name[0] != '#') trace_wrap('update',name) ; });
     return res;
 }
 
