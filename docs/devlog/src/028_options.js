@@ -3,7 +3,7 @@
 // exactly what is happening in the tests.
 // still want to make this cleaner ... all these extra lines in the code ...
 
-let debug = true; // set this to true to show all steps nicely indented
+let debug = false; // set this to true to show all steps nicely indented
 let spacer = '';
 let logger = (args) => { if (args.length>0) { if(spacer.length>0) args.unshift(spacer); console.log.apply(console,args); }}
 let trace_flat = !debug ? () => {} : (...args) => { logger(args); } 
@@ -25,6 +25,14 @@ let auto = (obj,opt) => {
     let subs = {};   // functions to run each time a value changes (static and dynamic)
     let trace = opt && opt.trace ? opt.trace : {};
 
+    let show_vars = (name) => {
+        let o = {};
+        Object.keys(deps[name]).forEach(dep => {
+            o[dep] = value[dep];
+        })
+        console.log('exception in '+name+'. deps:',o);
+    }
+
     // ------------------------------------------------------
     // the following five functions are what run continuously
     // (and everything after the break is just setup code)
@@ -44,7 +52,7 @@ let auto = (obj,opt) => {
         fatal.msg = msg;
         fatal.stack = _stack;
         
-        if (fn['#fatal']) fn['#fatal'](res); // run the function #fatal which is meant for reactions to errors. this should be a subscription so we can have multiple...
+        //if (fn['#fatal']) fn['#fatal'](res); // run the function #fatal which is meant for reactions to errors. this should be a subscription so we can have multiple...
     }
 
     // == run any subscriptions to a value ==
@@ -68,6 +76,8 @@ let auto = (obj,opt) => {
     // == never static ==
 
     let update = (name) => {   
+
+        if (fatal.msg) return;
 
         if (name in trace) trace_in('update('+name+')');
 
@@ -100,6 +110,8 @@ let auto = (obj,opt) => {
 
     let getter = (name, parent) => {
 
+        if (fatal.msg) return;
+
         if (name in trace || parent in trace) trace_flat('getter ('+name+','+parent+') is',value[name]);
 
         if (parent) deps[parent][name] = true;
@@ -111,6 +123,8 @@ let auto = (obj,opt) => {
     // == should never be a dynamic value ==
 
     let setter = (name, val) => {
+
+        if (fatal.msg) return;
 
         if (name in trace) trace_in('setter('+name+',',val,')');
 
@@ -195,8 +209,13 @@ let auto = (obj,opt) => {
         // and also throw in the set parameter for async functions
 
         fn[name] = () => {
+            if (fatal.msg) return;
             if (name in trace) trace_in('fn['+name+']');
-            let v = obj[name](_, (v) => setter(name, v) );
+            let v;
+            try {
+                v = obj[name](_, (v) => setter(name, v) );
+            }
+            catch(e) { show_vars(name); fail('exception'); console.trace(e); }
             if (name in trace) trace_out();
             return v;
         }

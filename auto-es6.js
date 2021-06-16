@@ -1,4 +1,4 @@
-let debug = true;
+let debug = false;
 let spacer = '';
 let logger = (args) => { if (args.length>0) { if(spacer.length>0) args.unshift(spacer); console.log.apply(console,args); }}
 let trace_flat = !debug ? () => {} : (...args) => { logger(args); }
@@ -13,11 +13,17 @@ let auto = (obj,opt) => {
     let fatal = {};
     let subs = {};
     let trace = opt && opt.trace ? opt.trace : {};
+    let show_vars = (name) => {
+        let o = {};
+        Object.keys(deps[name]).forEach(dep => {
+            o[dep] = value[dep];
+        })
+        console.log('exception in '+name+'. deps:',o);
+    }
     let fail = (msg) => {
         let _stack = []; stack.forEach(s => _stack.push(s));
         fatal.msg = msg;
         fatal.stack = _stack;
-        if (fn['#fatal']) fn['#fatal'](res);
     }
     let run_subs = (name) => {
         if (name in trace) trace_in('run_subs('+name+') ['+subs[name]+']');
@@ -30,6 +36,7 @@ let auto = (obj,opt) => {
         if (name in trace) trace_out();
     }
     let update = (name) => {
+        if (fatal.msg) return;
         if (name in trace) trace_in('update('+name+')');
         stack.push(name);
         if (called[name]) { fail('circular dependency'); return; }
@@ -45,11 +52,13 @@ let auto = (obj,opt) => {
         if (name in trace) trace_out('result from update '+name+':',value[name]);
     }
     let getter = (name, parent) => {
+        if (fatal.msg) return;
         if (name in trace || parent in trace) trace_flat('getter ('+name+','+parent+') is',value[name]);
         if (parent) deps[parent][name] = true;
         return value[name];
     }
     let setter = (name, val) => {
+        if (fatal.msg) return;
         if (name in trace) trace_in('setter('+name+',',val,')');
         value[name] = val;
         run_subs(name);
@@ -88,8 +97,13 @@ let auto = (obj,opt) => {
                 set(v) { fail('function '+name+' is trying to change value '+child);  }
             }));
         fn[name] = () => {
+            if (fatal.msg) return;
             if (name in trace) trace_in('fn['+name+']');
-            let v = obj[name](_, (v) => setter(name, v) );
+            let v;
+            try {
+                v = obj[name](_, (v) => setter(name, v) );
+            }
+            catch(e) { show_vars(name); fail('exception'); console.trace(e); }
             if (name in trace) trace_out();
             return v;
         }
@@ -121,7 +135,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.28.13'
+        v: '1.28.23'
     };
     wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => {
