@@ -3,11 +3,11 @@
 // exactly what is happening in the tests.
 // still want to make this cleaner ... all these extra lines in the code ...
 
-let debug = false; // set this to true to show all steps nicely indented
-let spacer = '';
-let trace =     !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); } 
-let trace_in =  !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); spacer += '-'; }
-let trace_out = !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); spacer = spacer.slice(0,-1); }
+// let debug = false; // set this to true to show all steps nicely indented
+// let spacer = '';
+// let trace =     !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); } 
+// let trace_in =  !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); spacer += '-'; }
+// let trace_out = !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); spacer = spacer.slice(0,-1); }
 
 // nothing happens when a fatal error occurs really so the
 // tests are cleaner but also it's pluggable so you can

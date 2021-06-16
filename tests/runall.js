@@ -153,12 +153,24 @@ let copy_latest_lib = () => {
 	let latest_path = get_latest_path(devlog_path);
 
 	console.log("\nlatest file is " + devlog_path + "/" + latest_path + "\ncopying to auto.js files\n")
-
+	
 	let latest = "\n// " + latest_path + "\n" + require('fs').readFileSync(devlog_path + "/" + latest_path).toString();
 
-	require('fs').writeFileSync("../auto-no-export.js", latest);
-	require('fs').writeFileSync("../auto-commonjs.js", latest + "\n\nmodule.exports = auto;");
-	require('fs').writeFileSync("../auto-es6.js", latest + "\n\nexport default auto;");
+	// remove comments
+	let lines = [];
+	let prev_empty = false; // don't have more than one empty line
+	latest.split('\n').forEach( (line,i) => {
+		let was_empty = line.trim().length==0;
+		if (!was_empty) line = line.replace(/\/\/.*$/gm,'').trimEnd();
+		if (line.trim().length>0 || (was_empty && !prev_empty && latest[i+1].trim().length>1)) lines.push(line);
+		prev_empty = was_empty ? true : (line.trim().length == 0 ? true : false);
+	});
+
+	let cleaned = lines.join('\n');
+
+	require('fs').writeFileSync("../auto-no-export.js", cleaned);
+	require('fs').writeFileSync("../auto-commonjs.js", cleaned + "\n\nmodule.exports = auto;");
+	require('fs').writeFileSync("../auto-es6.js", cleaned + "\n\nexport default auto;");
 }
 
 let run_tests = () => {
