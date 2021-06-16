@@ -31,6 +31,7 @@ let auto = (obj,opt) => {
     // and others
 
     let trace = opt && opt.trace ? opt.trace : {};
+    let watch = opt && opt.watch ? opt.watch : {}; // same as trace but just print out value when updated
 
     // we wrap pretty much everything in this.
     // then when we turn debug on and pass the
@@ -113,7 +114,8 @@ let auto = (obj,opt) => {
         deps[name] = {}; // clear dependencies for this value
         called[name] = true; // to make sure we're not in a circular dependency
         value[name] = fn[name](); // run the dynamic value's function and save the output
-        
+        if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
+
         // make sure any dynamic values dependent on this one are updated too
         Object.keys(deps).forEach( parent => {
             if (name in deps[parent]) trace_wrap('update',parent);
@@ -147,6 +149,8 @@ let auto = (obj,opt) => {
         if (fatal.msg) return;
 
         value[name] = val; // save
+        if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
+
         trace_wrap('run_subs',name);    // run subscriptions to this value
 
         // make sure any dynamic values dependent on this one
@@ -298,8 +302,10 @@ let auto = (obj,opt) => {
     // do everything
     // run wrap, and run update on all dynamic values
 
+    core.boot = (name) => trace_wrap('update',name); // just so we get 'boot' in trace and see where things started
+
     wrap(res, res['#'], obj);
-    Object.keys(fn).forEach(name => { if (name[0] != '#') trace_wrap('update',name) ; }); // TODO need to look into this hash thing...
+    Object.keys(fn).forEach(name => { if (name[0] != '#') trace_wrap('boot',name) ; }); // TODO need to look into this hash thing...
 
     return res;
 }

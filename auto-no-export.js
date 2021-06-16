@@ -13,6 +13,7 @@ let auto = (obj,opt) => {
     let fatal = {};
     let subs = {};
     let trace = opt && opt.trace ? opt.trace : {};
+    let watch = opt && opt.watch ? opt.watch : {};
     let trace_wrap = (func, name) => {
         if (name in trace) trace_in(func+' ('+name+')');
         core[func](name);
@@ -48,6 +49,7 @@ let auto = (obj,opt) => {
         deps[name] = {};
         called[name] = true;
         value[name] = fn[name]();
+        if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
         Object.keys(deps).forEach( parent => {
             if (name in deps[parent]) trace_wrap('update',parent);
         });
@@ -63,6 +65,7 @@ let auto = (obj,opt) => {
     let setter = (name, val) => {
         if (fatal.msg) return;
         value[name] = val;
+        if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
         trace_wrap('run_subs',name);
         Object.keys(deps).forEach( parent => {
             if (name in deps[parent]) trace_wrap('update',parent);
@@ -127,9 +130,10 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.28.53'
+        v: '1.28.57'
     };
+    core.boot = (name) => trace_wrap('update',name);
     wrap(res, res['#'], obj);
-    Object.keys(fn).forEach(name => { if (name[0] != '#') trace_wrap('update',name) ; });
+    Object.keys(fn).forEach(name => { if (name[0] != '#') trace_wrap('boot',name) ; });
     return res;
 }
