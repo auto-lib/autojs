@@ -1,3 +1,8 @@
+let debug = false;
+let spacer = '';
+let trace =     !debug ? () => {} : (...args) => { if (args.length>0) console.log(spacer,args); }
+let trace_in =  !debug ? () => {} : (...args) => { if (args.length>0) console.log(spacer,args); spacer += '-'; }
+let trace_out = !debug ? () => {} : (...args) => { if (args.length>0) console.log(spacer,args); spacer = spacer.slice(0,-1); }
 let auto = (obj) => {
     let deps = {};
     let fn = {};
@@ -13,27 +18,35 @@ let auto = (obj) => {
         if (fn['#fatal']) fn['#fatal'](res);
     }
     let run_subs = (name) => {
+        trace_in('run_subs('+name+') ['+subs[name]+']');
         if (subs[name])
             Object.keys(subs[name]).forEach( tag => {
+                trace('running sub'+name+' '+tag+'with value'+value[name]);
                 subs[name][tag](value[name])
             }
         )
+        trace_out();
     }
     let update = (name) => {
+        trace_in('update('+name+')');
         stack.push(name);
         if (called[name]) { fail('circular dependency'); return; }
         deps[name] = {};
         called[name] = true;
         value[name] = fn[name]();
+        trace('return from function:',value[name]);
         Object.keys(deps).forEach( parent => {
             if (name in deps[parent]) update(parent);
         });
         run_subs(name);
         delete(called[name]);
         stack.pop();
+        trace_out('result from update '+name+':',value[name]);
     }
     let getter = (name, parent) => {
+        trace('GETTER '+name+' (parent '+parent+')');
         if (parent) deps[parent][name] = true;
+        trace('got',value[name]);
         return value[name];
     }
     let setter = (name, val) => {
@@ -73,7 +86,7 @@ let auto = (obj) => {
             get() { return getter(name) }
         } )
     }
-    let setup_statuc = (name, res) => {
+    let setup_static = (name, res) => {
         value[name] = obj[name];
         Object.defineProperty(res, name, {
             get() { return getter(name) },
@@ -90,14 +103,14 @@ let auto = (obj) => {
         if (!obj['#fatal']) obj['#fatal'] = default_fatal;
         Object.keys(obj).forEach(name => {
             if (typeof obj[name] == 'function') setup_dynamic (obj, name, res);
-            else setup_statuc (name, res);
+            else setup_static (name, res);
             setup_sub(hash, name);
         });
     }
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.27.2'
+        v: '1.27.13'
     };
     wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => { if (name[0] != '#') update(name) });

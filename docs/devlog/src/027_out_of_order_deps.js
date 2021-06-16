@@ -3,11 +3,11 @@
 // exactly what is happening in the tests.
 // still want to make this cleaner ... all these extra lines in the code ...
 
-// let debug = false; // set this to true to show all steps nicely indented
-// let spacer = '';
-// let trace =     !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); } 
-// let trace_in =  !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); spacer += '-'; }
-// let trace_out = !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); spacer = spacer.slice(0,-1); }
+let debug = false; // set this to true to show all steps nicely indented
+let spacer = '';
+let trace =     !debug ? () => {} : (...args) => { if (args.length>0) console.log(spacer,args); } 
+let trace_in =  !debug ? () => {} : (...args) => { if (args.length>0) console.log(spacer,args); spacer += '-'; }
+let trace_out = !debug ? () => {} : (...args) => { if (args.length>0) console.log(spacer,args); spacer = spacer.slice(0,-1); }
 
 // the biggest thing to understand is the distinction between static and
 // dynamic values. static values can only be changed from the outside
@@ -50,16 +50,16 @@ let auto = (obj) => {
 
     let run_subs = (name) => {
         
-        //trace_in('run_subs(',name,') [',subs[name],']');
+        trace_in('run_subs('+name+') ['+subs[name]+']');
 
         if (subs[name]) // not all values have subscriptions
             Object.keys(subs[name]).forEach( tag => {
-                //trace('running sub',name,' ',tag,'with value',value[name]);
+                trace('running sub'+name+' '+tag+'with value'+value[name]);
                 subs[name][tag](value[name]) // run the function given to us
             }
         )
 
-        //trace_out();
+        trace_out();
     }
     
     // == update a dynamic value ==
@@ -67,7 +67,7 @@ let auto = (obj) => {
 
     let update = (name) => {   
 
-        //trace_in('update('+name+')');
+        trace_in('update('+name+')');
 
         stack.push(name); // save call stack (for debug messages)
         if (called[name]) { fail('circular dependency'); return; } // this value has been updated higher up the chain i.e. by a parent, so we are in a circle
@@ -76,6 +76,8 @@ let auto = (obj) => {
         called[name] = true; // to make sure we're not in a circular dependency
         value[name] = fn[name](); // run the dynamic value's function and save the output
         
+        trace('return from function:',value[name]);
+
         // make sure any dynamic values dependent on this one are updated too
         Object.keys(deps).forEach( parent => {
             if (name in deps[parent]) update(parent);
@@ -88,7 +90,7 @@ let auto = (obj) => {
         delete(called[name]);
         stack.pop();
 
-        //trace_out('result from update '+name+': '+value[name]);
+        trace_out('result from update '+name+':',value[name]);
     }
 
     // == get a value ==
@@ -96,11 +98,11 @@ let auto = (obj) => {
 
     let getter = (name, parent) => {
 
-        //trace('GETTER '+name+' '+parent);
+        trace('GETTER '+name+' (parent '+parent+')');
 
         if (parent) deps[parent][name] = true;
 
-        //trace('got '+value[name]);
+        trace('got',value[name]);
 
         return value[name];
     }
@@ -200,7 +202,7 @@ let auto = (obj) => {
     // setup a static value
     // called from wrap() below
 
-    let setup_statuc = (name, res) => {
+    let setup_static = (name, res) => {
 
         // save whatever was defined originally
         value[name] = obj[name];
@@ -236,7 +238,7 @@ let auto = (obj) => {
 
             // setup dynamic/static
             if (typeof obj[name] == 'function') setup_dynamic (obj, name, res);
-            else setup_statuc (name, res);
+            else setup_static (name, res);
 
             // create subscribable object
             setup_sub(hash, name);
