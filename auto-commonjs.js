@@ -1,9 +1,3 @@
-let default_fatal = (_) => {
-    console.log('FATAL',_._.fatal.msg);
-    console.log(' stack',_._.fatal.stack);
-    console.log(' _',_);
-    console.log(' (there might be an error below too if your function failed as well)');
-}
 let auto = (obj) => {
     let deps = {};
     let fn = {};
@@ -85,6 +79,12 @@ let auto = (obj) => {
             get() { return getter(name) },
             set(v) { setter(name, v) }
         })
+    }
+    let default_fatal = (_) => {
+        console.log('FATAL',_._.fatal.msg);
+        console.log(' stack',_._.fatal.stack);
+        console.log(' _',_);
+        console.log(' (there might be an error below too if your function failed as well)');
     }
     let wrap = (res, hash, obj) => {
         if (!obj['#fatal']) obj['#fatal'] = default_fatal;

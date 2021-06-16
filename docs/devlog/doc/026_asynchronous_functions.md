@@ -403,3 +403,9 @@ doesn't look super clear.
 
 added lots of comments ... not sure it makes
 things any clearer.
+
+## (test) 032_async_dependency.js
+
+let's check if we can have one async function
+depend on another.
+

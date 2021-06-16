@@ -9,18 +9,6 @@
 // let trace_in =  !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); spacer += '-'; }
 // let trace_out = !debug ? () => {} : (msg) => { if (msg) console.log(spacer+msg); spacer = spacer.slice(0,-1); }
 
-// nothing happens when a fatal error occurs really so the
-// tests are cleaner but also it's pluggable so you can
-// respond however you want. this is set by default for the browser
-
-let default_fatal = (_) => {
-
-    console.log('FATAL',_._.fatal.msg);
-    console.log(' stack',_._.fatal.stack);
-    console.log(' _',_);
-    console.log(' (there might be an error below too if your function failed as well)');
-}
-
 // the biggest thing to understand is the distinction between static and
 // dynamic values. static values can only be changed from the outside
 // where-as dynamic values can only change from the inside, basically
@@ -224,6 +212,18 @@ let auto = (obj) => {
         })
     }
 
+    // nothing happens when a fatal error occurs really so the
+    // tests are cleaner but also it's pluggable so you can
+    // respond however you want. this is set by default for the browser
+
+    let default_fatal = (_) => {
+
+        console.log('FATAL',_._.fatal.msg);
+        console.log(' stack',_._.fatal.stack);
+        console.log(' _',_);
+        console.log(' (there might be an error below too if your function failed as well)');
+    }
+    
     // called once on the root object
     
     let wrap = (res, hash, obj) => {
