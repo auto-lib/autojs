@@ -148,7 +148,7 @@ let get_latest_path = () => {
 	return latest_path;
 }
 
-let copy_latest_lib = () => {
+let copy_latest_lib = (version) => {
 
 	let latest_path = get_latest_path(devlog_path);
 
@@ -167,6 +167,8 @@ let copy_latest_lib = () => {
 	});
 
 	let cleaned = lines.join('\n');
+
+	cleaned = cleaned.replace('v: undefined', "v: '1."+version.major+"."+version.minor+"'"); // save file name to lib
 
 	require('fs').writeFileSync("../auto-no-export.js", cleaned);
 	require('fs').writeFileSync("../auto-commonjs.js", cleaned + "\n\nmodule.exports = auto;");
@@ -259,16 +261,16 @@ let get_contents_empty_if_not_there = (path) => {
 	else return fs.readFileSync(path).toString();
 }
 
-let update_package_version = () => {
+let update_package_version = (save) => {
 
-	clear_old_md5s(); // anything that doesn't match latest
+	if (save) clear_old_md5s(); // anything that doesn't match latest
 
 	let version = get_package_version();
 	let major = get_latest_version(); // 'latest' means 'the latest file in devlog' e.g. 016_go_away_karl.js
 
 	if (major != version.major)
 	{
-		console.log("updating major version from "+version.major+" to "+major);
+		if (save) console.log("updating major version from "+version.major+" to "+major);
 		version.major = major;
 		version.minor = 0;
 	}
@@ -284,23 +286,27 @@ let update_package_version = () => {
 		if (latest_md5 != last_md5)
 		{
 			version.minor += 1;
-			console.log("\nlatest file has changed. bumping minor version to "+version.minor);
-			fs.writeFileSync(latest_name+".md5", latest_md5);
+			if (save) {
+				console.log("\nlatest file has changed. bumping minor version to "+version.minor);
+				fs.writeFileSync(latest_name+".md5", latest_md5);
+			}
 		}
 		else
 		{
-			console.log("\nno changes to package version needed");
+			if (save) console.log("\nno changes to package version needed");
 		}
 	}
 
-	write_package_version(version);
+	if (save) write_package_version(version);
+	return version;
 }
 
 let main = () => {
 
-	copy_latest_lib();
+	let version = update_package_version(false); // get version but don't write out / send messages
+	copy_latest_lib(version);
 	run_tests();
-	update_package_version();
+	update_package_version(true); // again but save this time (if tests fail won't get here)
 }
 
 

@@ -96,7 +96,8 @@ let auto = (obj) => {
     }
     const res = {
         _: { subs, fn, deps, value, fatal },
-        '#': {}
+        '#': {},
+        v: '1.27.2'
     };
     wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => { if (name[0] != '#') update(name) });
