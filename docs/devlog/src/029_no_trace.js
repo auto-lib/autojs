@@ -9,7 +9,6 @@ let auto = (obj,opt) => {
     let fn = {};     // list of functions (dynamic)
     let value = {};  // current values (static and dynamic)
     let stack = [];  // list of call stack
-    let called = {};  // which functions have been called (for loop detection)
     let fatal = {};  // only set if fatal error occurs (and everything stops if this is set)
     let subs = {};   // functions to run each time a value changes (static and dynamic)
 
@@ -26,16 +25,17 @@ let auto = (obj,opt) => {
 
     let get_vars = (name) => {
         let o = { deps: {}, value: value[name] };
-        if (name in deps) Object.keys(deps[name]).forEach(dep => {
-            if (!deps[dep]) o.deps[dep] = value[dep];
-            else {
-                o.deps[dep] = { value: value[dep], deps: {} };
-                Object.keys(deps[dep]).forEach(inner => o.deps[dep].deps[inner] = get_vars(inner));
-            }
-        })
+        if (name in deps) 
+            Object.keys(deps[name]).forEach(dep => {
+                if (!deps[dep]) 
+                    o.deps[dep] = value[dep];
+                else {
+                    o.deps[dep] = { value: value[dep], deps: {} };
+                    Object.keys(deps[dep]).forEach(inner => o.deps[dep].deps[inner] = get_vars(inner)); }
+            })
         return o;
     }
-    let show_vars = (name) => console.log('exception in '+name,get_vars(name).deps);
+    let show_vars = (name) => console.log('EXCEPTION in '+name,get_vars(name).deps);
 
     // ------------------------------------------------------
     // the following five functions are what run continuously
@@ -45,28 +45,24 @@ let auto = (obj,opt) => {
     // == something went wrong ==
     // == save the message/stack and run any subscriptions to this (TODO on subscriptions) ==
 
-    let fail = (msg) => { 
+    let fail = (msg,stop) => { 
         
-        let _stack = []; stack.forEach(s => _stack.push(s)); // copy out the call stack
-
         // save out to global object
         // so we can access it from outside for debugging
         // and also update uses this to stop looping during a circle
 
         fatal.msg = msg;
-        fatal.stack = _stack;
+        fatal.stack = stack.map(s => s); // copy out the call stack
         
-        //if (fn['#fatal']) fn['#fatal'](res); // run the function #fatal which is meant for reactions to errors. this should be a subscription so we can have multiple...
+        if (!stop && fn['#fatal']) fn['#fatal'](res); // run the function #fatal which is meant for reactions to errors. this should be a subscription so we can have multiple...
     }
 
     // == run any subscriptions to a value ==
     // == static or dynamic ==
 
     let run_subs = (name) => {
-        
         if (subs[name]) // not all values have subscriptions
-            Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]) // run the function given to us
-        )
+            Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]))
     }
     
     // == update a dynamic value ==
@@ -76,11 +72,10 @@ let auto = (obj,opt) => {
 
         if (fatal.msg) return;
 
-        stack.push(name); // save call stack (for debug messages)
-        if (called[name]) { fail('circular dependency'); return; } // this value has been updated higher up the chain i.e. by a parent, so we are in a circle
+        stack.push(name); // save call stack (for debug messages and circle detection)
+        if (stack.indexOf(name)!==stack.length-1) { fail('circular dependency'); return; }
 
         deps[name] = {}; // clear dependencies for this value
-        called[name] = true; // to make sure we're not in a circular dependency
         value[name] = fn[name](); // run the dynamic value's function and save the output
 
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
@@ -93,8 +88,6 @@ let auto = (obj,opt) => {
         // run any subscriptions to this value
         run_subs(name);
 
-        // clear from called and call stack
-        delete(called[name]);
         stack.pop();
     }
 
@@ -202,7 +195,7 @@ let auto = (obj,opt) => {
             // it does
 
             let v; try { v = obj[name](_, (v) => setter(name, v) ); }
-            catch(e) { show_vars(name); fail('exception'); console.log(e); }
+            catch(e) { show_vars(name); fail('exception',true); console.log(e); }
             
             return v;
         }

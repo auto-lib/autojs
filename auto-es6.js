@@ -3,45 +3,42 @@ let auto = (obj,opt) => {
     let fn = {};
     let value = {};
     let stack = [];
-    let called = {};
     let fatal = {};
     let subs = {};
     let watch = opt && opt.watch ? opt.watch : {};
     let get_vars = (name) => {
         let o = { deps: {}, value: value[name] };
-        if (name in deps) Object.keys(deps[name]).forEach(dep => {
-            if (!deps[dep]) o.deps[dep] = value[dep];
-            else {
-                o.deps[dep] = { value: value[dep], deps: {} };
-                Object.keys(deps[dep]).forEach(inner => o.deps[dep].deps[inner] = get_vars(inner));
-            }
-        })
+        if (name in deps)
+            Object.keys(deps[name]).forEach(dep => {
+                if (!deps[dep])
+                    o.deps[dep] = value[dep];
+                else {
+                    o.deps[dep] = { value: value[dep], deps: {} };
+                    Object.keys(deps[dep]).forEach(inner => o.deps[dep].deps[inner] = get_vars(inner)); }
+            })
         return o;
     }
-    let show_vars = (name) => console.log('exception in '+name,get_vars(name).deps);
-    let fail = (msg) => {
-        let _stack = []; stack.forEach(s => _stack.push(s));
+    let show_vars = (name) => console.log('EXCEPTION in '+name,get_vars(name).deps);
+    let fail = (msg,stop) => {
         fatal.msg = msg;
-        fatal.stack = _stack;
+        fatal.stack = stack.map(s => s);
+        if (!stop && fn['#fatal']) fn['#fatal'](res);
     }
     let run_subs = (name) => {
         if (subs[name])
-            Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name])
-        )
+            Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]))
     }
     let update = (name) => {
         if (fatal.msg) return;
         stack.push(name);
-        if (called[name]) { fail('circular dependency'); return; }
+        if (stack.indexOf(name)!==stack.length-1) { fail('circular dependency'); return; }
         deps[name] = {};
-        called[name] = true;
         value[name] = fn[name]();
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
         Object.keys(deps).forEach( parent => {
             if (name in deps[parent]) update(parent);
         });
         run_subs(name);
-        delete(called[name]);
         stack.pop();
     }
     let getter = (name, parent) => {
@@ -86,7 +83,7 @@ let auto = (obj,opt) => {
         fn[name] = () => {
             if (fatal.msg) return;
             let v; try { v = obj[name](_, (v) => setter(name, v) ); }
-            catch(e) { show_vars(name); fail('exception'); console.log(e); }
+            catch(e) { show_vars(name); fail('exception',true); console.log(e); }
             return v;
         }
         Object.defineProperty(res, name, {
@@ -117,7 +114,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.29.0'
+        v: '1.29.10'
     };
     wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => { if (name[0] != '#') update(name); });
