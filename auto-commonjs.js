@@ -8,7 +8,7 @@ let auto = (obj,opt) => {
     let fatal = {};
     let subs = {};
     let watch = opt && opt.watch ? opt.watch : {};
-    let report_lag = opt && opt.report_lag ? opt.report_lag : 1000;
+    let report_lag = opt && opt.report_lag ? opt.report_lag : 100;
     let get_vars = (name) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
@@ -120,7 +120,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.30.2'
+        v: '1.30.3'
     };
     wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => { if (name[0] != '#') update(name); });

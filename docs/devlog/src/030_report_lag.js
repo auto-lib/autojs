@@ -17,7 +17,7 @@ let auto = (obj,opt) => {
     // (static or dynamic variables) you will get a log message.
 
     let watch = opt && opt.watch ? opt.watch : {};
-    let report_lag = opt && opt.report_lag ? opt.report_lag : 1000; // log a message any time a function takes longer than report_lag milliseconds (default 1000)
+    let report_lag = opt && opt.report_lag ? opt.report_lag : 100; // log a message any time a function takes longer than report_lag milliseconds (default 100)
 
     // used when a function (of a dynamic variable) causes an exception / has an error
     // we print out all the values of the dependent variables of the function
