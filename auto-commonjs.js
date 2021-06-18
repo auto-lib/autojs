@@ -7,8 +7,8 @@ let auto = (obj,opt) => {
     let stack = [];
     let fatal = {};
     let subs = {};
-    let watch = opt && opt.watch ? opt.watch : {};
-    let report_lag = opt && opt.report_lag ? opt.report_lag : 100;
+    let watch = opt && 'watch' in opt ? opt.watch : {};
+    let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100;
     let get_vars = (name) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
@@ -39,7 +39,7 @@ let auto = (obj,opt) => {
         let t0 = performance.now();
         value[name] = fn[name]();
         let t1 = performance.now();
-        if (report_lag && t1-t0 > report_lag) console.log(name,'took',t1-t0,'ms to complete');
+        if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(name,'took',t1-t0,'ms to complete');
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
         Object.keys(deps).forEach( parent => {
             if (name in deps[parent]) update(parent);
@@ -120,7 +120,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.30.3'
+        v: '1.30.6'
     };
     wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => { if (name[0] != '#') update(name); });
