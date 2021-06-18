@@ -1,3 +1,5 @@
+const { performance } = require('perf_hooks');
+
 let auto = (obj,opt) => {
     let deps = {};
     let fn = {};
@@ -6,6 +8,7 @@ let auto = (obj,opt) => {
     let fatal = {};
     let subs = {};
     let watch = opt && opt.watch ? opt.watch : {};
+    let report_lag = opt && opt.report_lag ? opt.report_lag : 1000;
     let get_vars = (name) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
@@ -33,7 +36,10 @@ let auto = (obj,opt) => {
         stack.push(name);
         if (stack.indexOf(name)!==stack.length-1) { fail('circular dependency'); return; }
         deps[name] = {};
+        let t0 = performance.now();
         value[name] = fn[name]();
+        let t1 = performance.now();
+        if (report_lag && t1-t0 > report_lag) console.log(name,'took',t1-t0,'ms to complete');
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
         Object.keys(deps).forEach( parent => {
             if (name in deps[parent]) update(parent);
@@ -114,7 +120,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.29.10'
+        v: '1.30.2'
     };
     wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => { if (name[0] != '#') update(name); });
