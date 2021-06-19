@@ -9,6 +9,7 @@ let auto = (obj,opt) => {
     let subs = {};
     let watch = opt && 'watch' in opt ? opt.watch : {};
     let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100;
+    let tests = opt && 'tests' in opt ? opt.tests : {};
     let get_vars = (name) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
@@ -117,13 +118,40 @@ let auto = (obj,opt) => {
             setup_sub(hash, name);
         });
     }
+    let compare = (res0, res1) => {
+        if (JSON.stringify(res0) === JSON.stringify(res1)) {
+            console.log('Objects are equal!');
+        } else {
+            console.log('Objects are not equal.');
+        }
+    }
+    let run_tests = (obj) => {
+        Object.keys(obj).forEach(name => {
+            if (typeof obj[name] == 'function' && name in tests)
+            {
+                try {
+                    let res0 = obj[name](tests[name]._);
+                    let res1 = tests[name].output;
+                    compare(res0,res1);
+                }
+                catch (e) {
+                    console.log('EXCEPTION running test for',name,e);
+                }
+            }
+        })
+    }
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.30.6'
+        v: '1.31.5'
     };
+    run_tests(obj);
     wrap(res, res['#'], obj);
-    Object.keys(fn).forEach(name => { if (name[0] != '#') update(name); });
+    Object.keys(fn).forEach(name => {
+        if (name[0] != '#'){
+            update(name);
+        }
+    });
     return res;
 }
 
