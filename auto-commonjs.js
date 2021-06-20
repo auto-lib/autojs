@@ -50,7 +50,6 @@ let auto = (obj,opt) => {
     }
     let getter = (name, parent) => {
         if (fatal.msg) return;
-        if (!(name in value)) { fail('variable '+name+' not defined'); return; }
         if (parent) deps[parent][name] = true;
         return value[name];
     }
@@ -90,7 +89,10 @@ let auto = (obj,opt) => {
     let setup_dynamic = (obj, name, res) => {
         let _ = new Proxy({}, {
             get(target, prop) {
-                if (!(prop in value)) { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
+                if (!(prop in value)) {
+                    if (prop in fn) update(prop);
+                    else { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
+                }
                 return getter(prop,name);
             },
             set(target, prop, value) {
@@ -100,7 +102,7 @@ let auto = (obj,opt) => {
         fn[name] = () => {
             if (fatal.msg) return;
             let v; try { v = obj[name](_, (v) => setter(name, v) ); }
-            catch(e) { show_vars(name); fail('exception',true); console.log(e); }
+            catch(e) { show_vars(name); if (!fatal.msg) fail('exception',true); console.log(e); }
             return v;
         }
         Object.defineProperty(res, name, {
@@ -150,10 +152,9 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.32.27'
+        v: '1.32.42'
     };
     run_tests(obj);
-    Object.keys(obj).forEach(name => value[name] = undefined);
     wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => {
         if (name[0] != '#'){

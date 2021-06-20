@@ -8,11 +8,11 @@ module.exports = {
     _: {
         fn: ['b','c'],
         subs: [],
-        deps: { b: { a: true, c: true }, c: { a: true, b: true } },
+        deps: { b: { a: true }, c: { a: true} },
         value: { a: null, b: NaN, c: NaN },
         fatal: {
             msg: 'circular dependency',
-            stack: ['c', 'b', 'c']
+            stack: ['b', 'c', 'b']
         }
     }
 }

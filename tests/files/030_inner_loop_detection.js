@@ -14,14 +14,14 @@ module.exports = {
     _: {
         fn: [ 'initial', 'loop_a', 'loop_b' ],
         deps: { 
-            initial: { data: true, loop_a: true },
-            loop_a: { loop_b: true },
-            loop_b: { loop_a: true } },
+            initial: { data: true },
+            loop_a: {  },
+            loop_b: {  } },
         subs: { },
         value: { data: [1,2,3], initial: NaN, loop_a: undefined, loop_b: undefined },
         fatal: {
             msg: 'circular dependency',
-            stack: [ 'loop_b', 'loop_a', 'loop_b' ]
+            stack: [ 'initial', 'loop_a', 'loop_b', 'loop_a' ]
         }
     }
 }

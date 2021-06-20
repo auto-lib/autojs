@@ -73,8 +73,6 @@ let auto = (obj,opt) => {
     let update = (name) => {   
 
         if (fatal.msg) return;
-        // if (!(name in value)) { fail('trying to update unknown variable '+name); return; }
-        // if (!(name in fn)) { fail('trying to update static variable '+name); return; }
 
         stack.push(name); // save call stack (for debug messages and circle detection)
         if (stack.indexOf(name)!==stack.length-1) { fail('circular dependency'); return; }
@@ -104,8 +102,7 @@ let auto = (obj,opt) => {
     let getter = (name, parent) => {
 
         if (fatal.msg) return;
-        if (!(name in value)) { fail('variable '+name+' not defined'); return; }
-        
+
         if (parent) deps[parent][name] = true;
 
         return value[name];
@@ -189,7 +186,10 @@ let auto = (obj,opt) => {
 
         let _ = new Proxy({}, {
             get(target, prop) {
-                if (!(prop in value)) { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
+                if (!(prop in value)) {
+                    if (prop in fn) update(prop);
+                    else { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
+                }
                 return getter(prop,name);
             },
             set(target, prop, value) {
@@ -221,10 +221,11 @@ let auto = (obj,opt) => {
             // it does
 
             let v; try { v = obj[name](_, (v) => setter(name, v) ); }
-            catch(e) { show_vars(name); fail('exception',true); console.log(e); }
+            catch(e) { show_vars(name); if (!fatal.msg) fail('exception',true); console.log(e); }
             
             return v;
         }
+        
         // this is getting the function itself (outside, kind-of)
         Object.defineProperty(res, name, { 
             get() { return getter(name) } 
@@ -315,7 +316,7 @@ let auto = (obj,opt) => {
 
     // this is to detect any bad functions on boot (i.e. functions which refer to a non-existent variable)
     // we set everything to undefined because the check is "name in value"
-    Object.keys(obj).forEach(name => value[name] = undefined);
+    //Object.keys(obj).forEach(name => { if (!(name in fn)) value[name] = undefined; });
 
     wrap(res, res['#'], obj);
     
