@@ -50,11 +50,18 @@ let auto = (obj,opt) => {
     }
     let getter = (name, parent) => {
         if (fatal.msg) return;
+        if (!(name in value)) { fail('variable '+name+' not defined'); return; }
         if (parent) deps[parent][name] = true;
         return value[name];
     }
     let setter = (name, val) => {
         if (fatal.msg) return;
+        if (!(name in value))
+        {
+            console.trace('ERROR trying to set unknown variable '+name);
+            fail('outside code trying to set unknown variable '+name);
+            return;
+        }
         value[name] = val;
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
         run_subs(name);
@@ -81,12 +88,15 @@ let auto = (obj,opt) => {
         };
     }
     let setup_dynamic = (obj, name, res) => {
-        let _ = {};
-        Object.keys(obj).forEach(
-            child => Object.defineProperty(_, child, {
-                get() { return getter(child, name); },
-                set(v) { fail('function '+name+' is trying to change value '+child);  }
-            }));
+        let _ = new Proxy({}, {
+            get(target, prop) {
+                if (!(prop in value)) { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
+                return getter(prop,name);
+            },
+            set(target, prop, value) {
+                fail('function '+name+' is trying to change value '+prop);
+            }
+        });
         fn[name] = () => {
             if (fatal.msg) return;
             let v; try { v = obj[name](_, (v) => setter(name, v) ); }
@@ -118,21 +128,18 @@ let auto = (obj,opt) => {
             setup_sub(hash, name);
         });
     }
-    let compare = (res0, res1) => {
-        if (JSON.stringify(res0) === JSON.stringify(res1)) {
-            console.log('Objects are equal!');
-        } else {
-            console.log('Objects are not equal.');
-        }
-    }
     let run_tests = (obj) => {
         Object.keys(obj).forEach(name => {
             if (typeof obj[name] == 'function' && name in tests)
             {
                 try {
-                    let res0 = obj[name](tests[name]._);
-                    let res1 = tests[name].output;
-                    compare(res0,res1);
+                    let got = obj[name](tests[name]._);
+                    let should = tests[name].output;
+                    if (JSON.stringify(got) !== JSON.stringify(should)) {
+                        console.log('WARNING test failed for',name);
+                        console.log(' should be',should);
+                        console.log(' got',got);
+                    }
                 }
                 catch (e) {
                     console.log('EXCEPTION running test for',name,e);
@@ -143,9 +150,10 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.31.5'
+        v: '1.32.27'
     };
     run_tests(obj);
+    Object.keys(obj).forEach(name => value[name] = undefined);
     wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => {
         if (name[0] != '#'){

@@ -129,7 +129,7 @@ let check = (auto, name, test) => {
 	if (ignored[name]) console.log(name + ": ignored ("+ignored[name]+")")
 	else
 	{
-		test.obj['#fatal'] = () => {}; // zero out default fatal behaviour
+		//test.obj['#fatal'] = () => {}; // zero out default fatal behaviour
 		let $ = auto(test.obj);
 		let global = {};
 		test.fn($, global);

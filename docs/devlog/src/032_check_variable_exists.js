@@ -73,6 +73,8 @@ let auto = (obj,opt) => {
     let update = (name) => {   
 
         if (fatal.msg) return;
+        // if (!(name in value)) { fail('trying to update unknown variable '+name); return; }
+        // if (!(name in fn)) { fail('trying to update static variable '+name); return; }
 
         stack.push(name); // save call stack (for debug messages and circle detection)
         if (stack.indexOf(name)!==stack.length-1) { fail('circular dependency'); return; }
@@ -102,7 +104,8 @@ let auto = (obj,opt) => {
     let getter = (name, parent) => {
 
         if (fatal.msg) return;
-
+        if (!(name in value)) { fail('variable '+name+' not defined'); return; }
+        
         if (parent) deps[parent][name] = true;
 
         return value[name];
@@ -114,6 +117,12 @@ let auto = (obj,opt) => {
     let setter = (name, val) => {
 
         if (fatal.msg) return;
+        if (!(name in value))
+        {
+            console.trace('ERROR trying to set unknown variable '+name);
+            fail('outside code trying to set unknown variable '+name);
+            return;
+        }
 
         value[name] = val; // save
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
@@ -174,20 +183,32 @@ let auto = (obj,opt) => {
 
     let setup_dynamic = (obj, name, res) => {
 
-        let _ = {};
-
         // this is kind of magic
         // each function gets it's own special global object
         // which called getter with it's own name as the parent parameter
 
-        Object.keys(obj).forEach(
-            child => Object.defineProperty(_, child, {
+        let _ = new Proxy({}, {
+            get(target, prop) {
+                if (!(prop in value)) { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
+                return getter(prop,name);
+            },
+            set(target, prop, value) {
+                fail('function '+name+' is trying to change value '+prop); 
+            }
+        });
 
-                // this is the get/set _inside_ a function
-                get() { return getter(child, name); },
-                set(v) { fail('function '+name+' is trying to change value '+child);  }
+        // this is how we would do the above without Proxy.
+        // the reason I used Proxy is you can then detect
+        // accessing non-existent variable names
 
-            }));
+        // Object.keys(obj).forEach(
+        //     child => Object.defineProperty(_, child, {
+
+        //         // this is the get/set _inside_ a function
+        //         get() { return getter(child, name); },
+        //         set(v) { fail('function '+name+' is trying to change value '+child);  }
+
+        //     }));
 
         // here we pass in the specially modified global object to the function
         // and also throw in the set parameter for async functions
@@ -291,11 +312,13 @@ let auto = (obj,opt) => {
 
     // do everything
     // run wrap, and run update on all dynamic values
-    
-    
+
+    // this is to detect any bad functions on boot (i.e. functions which refer to a non-existent variable)
+    // we set everything to undefined because the check is "name in value"
+    Object.keys(obj).forEach(name => value[name] = undefined);
 
     wrap(res, res['#'], obj);
-
+    
     Object.keys(fn).forEach(name => { 
         if (name[0] != '#'){ // TODO need to look into this hash thing... do we use it?
             update(name);
