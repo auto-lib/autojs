@@ -121,7 +121,7 @@ let ignored = {
 let confirm = (name, test, $, global) =>
 {
 	let same = assert_internals_same(name, test._, $._); // start with the state object
-	if (test.global) same = same && assert_global_same(name, test.global, global); // also check global object if set (to ensure subscriptions run)
+	if (test.global) same = assert_global_same(name, test.global, global) && same; // also check global object if set (to ensure subscriptions run)
 	if (same) console.log(name + ": passed")
 }
 
@@ -129,10 +129,17 @@ let check = (auto, name, test) => {
 	if (ignored[name]) console.log(name + ": ignored ("+ignored[name]+")")
 	else
 	{
-		//test.obj['#fatal'] = () => {}; // zero out default fatal behaviour
+		test.obj['#fatal'] = () => {}; // zero out default fatal behaviour
 		let $ = auto(test.obj);
 		let global = {};
-		test.fn($, global);
+		try {
+			test.fn($, global);
+		}
+		catch (e) {
+			console.trace(e);
+			console.log($);
+			process.exit(1);
+		}
 		if (test.timeout) setTimeout( () => confirm(name, test, $, global), test.timeout);
 		else confirm(name, test, $, global);
 	}

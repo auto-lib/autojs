@@ -121,6 +121,7 @@ let auto = (obj,opt) => {
             return;
         }
 
+        console.log('setting',name);
         value[name] = val; // save
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
 

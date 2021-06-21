@@ -33,6 +33,14 @@ let auto = (obj,opt) => {
             Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]))
     }
     let update = (name) => {
+        if (value[name]) return;
+        Object.keys(deps).forEach( child => {
+            if (name in deps[child] && value[child])
+            {
+                console.log('updating',child,'which is a child of',name);
+                update(child);
+            }
+        })
         if (fatal.msg) return;
         stack.push(name);
         if (stack.indexOf(name)!==stack.length-1) { fail('circular dependency'); return; }
@@ -42,9 +50,6 @@ let auto = (obj,opt) => {
         let t1 = performance.now();
         if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(name,'took',t1-t0,'ms to complete');
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
-        Object.keys(deps).forEach( parent => {
-            if (name in deps[parent]) update(parent);
-        });
         run_subs(name);
         stack.pop();
     }
@@ -52,6 +57,17 @@ let auto = (obj,opt) => {
         if (fatal.msg) return;
         if (parent) deps[parent][name] = true;
         return value[name];
+    }
+    let clear = (name) => {
+        Object.keys(deps).forEach( dep =>
+            Object.keys(deps[dep]).forEach(child => {
+                if (child == name && dep in fn)
+                {
+                    delete(value[dep]);
+                    clear(dep);
+                }
+            })
+        )
     }
     let setter = (name, val) => {
         if (fatal.msg) return;
@@ -64,8 +80,9 @@ let auto = (obj,opt) => {
         value[name] = val;
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
         run_subs(name);
-        Object.keys(deps).forEach( parent => {
-            if (name in deps[parent]) update(parent);
+        clear(name);
+        Object.keys(fn).forEach( key => {
+            if (!(key in value) && key[0] != '#') update(key);
         });
     }
     let get_subtag = (name) => {
@@ -123,7 +140,7 @@ let auto = (obj,opt) => {
         console.log(' (there might be an error below too if your function failed as well)');
     }
     let wrap = (res, hash, obj) => {
-        if (!obj['#fatal']) obj['#fatal'] = default_fatal;
+        if (!obj['#fatal']) fn['#fatal'] = default_fatal;
         Object.keys(obj).forEach(name => {
             if (typeof obj[name] == 'function') setup_dynamic (obj, name, res);
             else setup_static (name, res);
@@ -152,7 +169,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.32.42'
+        v: '1.33.30'
     };
     run_tests(obj);
     wrap(res, res['#'], obj);
