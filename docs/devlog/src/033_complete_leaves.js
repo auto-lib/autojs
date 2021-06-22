@@ -74,13 +74,9 @@ let auto = (obj,opt) => {
 
         if (value[name]) return;
 
-        Object.keys(deps).forEach( child => {
-            if (name in deps[child] && value[child])
-            {
-                console.log('updating',child,'which is a child of',name);
-                update(child);
-            }
-        })
+        // Object.keys(deps).forEach( child => {
+        //     if (name in deps[child] && !(child in value)) update(child);
+        // })
 
         if (fatal.msg) return;
 

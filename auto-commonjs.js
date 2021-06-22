@@ -34,13 +34,6 @@ let auto = (obj,opt) => {
     }
     let update = (name) => {
         if (value[name]) return;
-        Object.keys(deps).forEach( child => {
-            if (name in deps[child] && value[child])
-            {
-                console.log('updating',child,'which is a child of',name);
-                update(child);
-            }
-        })
         if (fatal.msg) return;
         stack.push(name);
         if (stack.indexOf(name)!==stack.length-1) { fail('circular dependency'); return; }
@@ -169,7 +162,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.33.30'
+        v: '1.33.36'
     };
     run_tests(obj);
     wrap(res, res['#'], obj);
