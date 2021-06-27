@@ -1,8 +1,11 @@
-`auto` is a small tool for simplifying the logic in your web apps.
+`auto` is a tool for eliminating [orchestration](docs/orchestration.md) in your
+javascript codebase.
 
-## tutorial
+## mini tutorial
 
-you use `auto` like this
+you define all the relationships between your variables
+using functions and let the library ensure everything
+is updated when something changes
 
 ```js
 let _ = auto({
@@ -10,21 +13,34 @@ let _ = auto({
     count: (_) => _.data ? _.data.length : 0,
     msg: (_) => _.data + " has " + _.count + " items"
 })
-```
 
-everything updates according to the relationships defined
-
-```js
 _.data = [1,2,3];
-console.log("msg =",$.msg);
+
+console.log("msg =", _.msg);
 ```
 
 ```
 msg = 1,2,3 has 3 items
 ```
 
-writing logic like this avoids [sequence orchestration](docs/sequences.md)
-which is a major source of software complexity.
+you tie this to your view library using subscriptions
+
+```js
+_['#'].count.subscribe(v => console.log('count is',v));
+```
+
+for asynchronous code you use a second `set` parameter
+for when the data comes back
+
+```js
+let _ = auto({
+    data: (_, set) => 
+        fetch('https://cats.org/yummy.json')
+        .then(res => json.parse(res)
+        .then(dat => set(dat))
+        .catch(err => console.trace('error fetching cats:',err))
+})
+```
 
 ## installation
 
