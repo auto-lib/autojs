@@ -1,8 +1,47 @@
 # orchestration
 
+in this doc i'll talk about what orchestration is,
+how it may be the biggest source of complexity
+in software and try to show that it is unnecessary.
+
+## what is it
+
 orchestration is making sure things happen in the right order.
 
-take a web app that gets data from a server and displays it.
+let's take a web app as an example.
+what separate things might occur?
+
+1. fetch data from a server
+2. update the dom (render ui)
+3. user interaction
+
+of course these are linked:
+
+a. `2.` must be run after `1.`
+b. `3.` triggers `1.` which in turn, then, triggers `2.`
+
+how do we ensure these happen in the right order?
+uptil now we have primarily used the paradigm
+of functions, that is, linear sequences of commands which
+are linked to one another through _calls_.
+
+```js
+let fetch_data = () => {
+    /* ... */
+    update_dom();
+}
+let update_dom = () => {
+    /* ... */
+}
+let user_interact = () => {
+    /* ... */
+    fetch_data();
+}
+```
+
+## ignore the following (old readme)
+
+that gets data from a server and displays it.
 in the simplest case it would involve two parts:
 
 1. fetch data from server
@@ -11,7 +50,7 @@ in the simplest case it would involve two parts:
 that seems simple enough but note how order matters:
 you must do `1.` before `2.`.
 
-## so what
+## details
 
 in a real world scenario one would expect at least two more
 steps:
