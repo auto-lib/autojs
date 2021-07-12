@@ -39,6 +39,79 @@ let user_interact = () => {
 }
 ```
 
+this may seem straight forward but
+there are various complications:
+
+- each stage needs the results of the previous ones
+- nothing stops you from executing the subsequent linking calls at the beginning, end, once or multiple times
+- nothing also stops you from calling other functions too, in whichever order you want
+
+each issue is serious. take the first, of which there
+are two general approaches: one ('state') or many ('globals')
+variables outside:
+
+```js
+data = null;
+fetch_data = () => {
+    /* set data */
+    update_dom();
+}
+update_dom = () => {
+    /* use data */
+}
+```
+
+or by using parameters i.e. variables inside the functions
+
+```js
+fetch_data = () => {
+    data = /* ... */
+    update_dom(data);
+}
+update_dom = (data) => {
+    /* use data */
+}
+```
+
+and with each a litany of potential problems arise,
+again. in the global case:
+
+- one or several other functions could change `data`
+- if you change the structure of `data` you have to change all the functions that touch it
+- `fetch_data` and `update_dom` are tightly linked in practise but loosely linked in implementation (i.e. with function calls)
+
+> arguably the global case is how software started -
+> everything was global with punch cards (i'm assuming)
+> and with assembly. the local (parameter) case was
+> a step up, and with good reason: less chance of
+> screw-ups with all that outside access. strange how
+> we are going back to global access in web apps now.
+
+in the local (parameter) solves a lot of the global issues
+but still has problems such as:
+
+- if multiple functions use `update_dom` then multiple functions must know how to generate `data` correctly
+
+it gets deeper, though: what happens if your user interaction logic needs to know
+something about `data` - where would it get it from?
+
+```js
+fetch_data = () => {
+    data = /* ... */
+    update_dom(data);
+}
+update_dom = (data) => {
+    /* use data */
+}
+user_interact = () => {
+    /* use data - from where ??? */
+    fetch_data();
+}
+```
+
+you have to store the at least part of `data` outside
+the functions.
+
 ## ignore the following (old readme)
 
 that gets data from a server and displays it.
