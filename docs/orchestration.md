@@ -17,8 +17,8 @@ what separate things might occur?
 
 of course these are linked:
 
-a. `2.` must be run after `1.`
-b. `3.` triggers `1.` which in turn, then, triggers `2.`
+ a. `2.` must be run after `1.`
+ b. `3.` triggers `1.` which in turn, then, triggers `2.`
 
 how do we ensure these happen in the right order?
 uptil now we have primarily used the paradigm
