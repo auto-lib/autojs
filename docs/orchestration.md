@@ -1,43 +1,207 @@
 # orchestration
 
-in this doc i'll talk about what orchestration is,
-how it may be the biggest source of complexity
-in software and try to show that it is unnecessary.
+orchestration is ensuring
+each part of your software is connected correctly. it is a major
+part of software complexity and is in many cases,
+as i'll show here, completely automateable.
 
-## what is it
+## three body problem
 
-orchestration is making sure things happen in the right order.
+to illustrate let's design a simple app
+comprising three pieces called
 
-let's take a web app as an example.
-what separate things might occur?
+1. produce data
+2. display data
+3. handle user interaction
 
-1. fetch data from a server
-2. update the dom (render ui)
-3. user interaction
+for now let's say `1.` just does some simple maths.
+as we'll do this in a browser `2.` just modifies the dom.
+and then for `3.` we'll have a drop-down, say, that modifies
+the inputs to `1.` in some way.
 
-of course these are linked:
+let's write these out as functions
 
-* `2.` must be run after `1.`
-* `3.` triggers `1.` which in turn, then, triggers `2.`
-
-how do we ensure these happen in the right order?
-uptil now we have primarily used the paradigm
-of functions, that is, linear sequences of commands which
-are linked to one another through _calls_.
+> i'm using slightly reduced (without `let`) ES6 arrow functions if you
+> haven't seen them before
 
 ```js
-let fetch_data = () => {
-    /* ... */
-    update_dom();
-}
-let update_dom = () => {
-    /* ... */
-}
-let user_interact = () => {
-    /* ... */
-    fetch_data();
-}
+produce_data = () => /* return x times 20 */;
+display_data = () => /* innerHTML = something */;
+handle_inter = () => /* modify x */
 ```
+
+one thing we haven't specified is how these functions will
+connect, that is, a) how will they communicate with one
+another, and b) how do we ensure they execute in the correct
+order.
+
+### communication
+
+let's say `1.` produces something, call it simply `data`,
+`2.` uses this, and `3.` triggers `1.` which in turn
+produces a new, different `data`.
+
+- `1.` produces `data`
+- `2.` consumes `data`
+- `3.` triggers `1.`
+
+as is typical let's encapsulate the parts as
+functions in code
+
+```js
+/* 1 */ produce_data = () => { /* ... */ }
+/* 2 */ display_data = () => { /* ... */ }
+/* 3 */ handle_inter = () => { /* ... */ }
+```
+
+> I'm using simplified ES6 arrow format here
+> just because it's terse
+
+here `user_inter` is a function called by the
+interface when some interaction occurs,
+for example when clicking a button
+
+```html
+<button onclick={user_inter()}>Click me</button>
+```
+
+how do we ensure the rules we chose? for this we
+need to both connect outputs (here `data`)
+and to somehow ensure functions are run in the
+correct sequence.
+
+### 1 of 2 - connecting functions
+
+broadly there are two approaches for this (though
+they can and are very often mixed). i'll call
+them _global_ and _local_.
+
+in the global approach one or many variables outside
+the functions are used as communication waypoints
+
+```js
+data = null;
+fetch_data = () => { data = /* ... */ }
+update_dom = () => { /* use 'data' */ }
+```
+
+in the local functions communicate with each
+other directly forgoing the need for an
+external intermediary
+
+```js
+fetch_data = () => {
+    data = /* ... */
+    update_dom(data)
+}
+update_dom = (data) => { /* use 'data' */ }
+```
+
+each has advantages and disadvantages as we'll see
+
+### 2 of 2 - running correct sequence
+
+the most obvious way to ensure everything happens
+in the right order is just to have them call each
+other at the right time. this looks slightly different
+depending on how we connected them.
+
+for global:
+
+```js
+data = null;
+fetch_data = () => { 
+    data = /* ... */ 
+    update_dom()
+}
+update_dom = () => { /* use 'data' */ }
+user_inter = () => { fetch_data() }
+```
+
+we've done most of it already for local, we just need
+to add the user interaction:
+
+```js
+fetch_data = () => {
+    data = /* ... */
+    update_dom(data)
+}
+update_dom = (data) => { /* use 'data' */ }
+user_inter = () => { fetch_data() }
+```
+
+> presumably different `data` is produced each time
+> you interact with the ui, either in `fetch_data`
+> (maybe it's time based) or perhaps `user_inter`
+> passes something into the fetch as an argument.
+
+the only thing left to have this be realistic is
+to have it boot up correctly. here that just means
+running `fetch_data` once. regardless if you've
+used local or global it looks like
+
+```js
+fetch_data = /* ... */
+update_dom = /* ... */
+user_inter = /* ... */
+fetch_data()
+```
+
+## demo
+
+for clarity i include here a complete working
+example in the form of html. i'm using the
+global approach but it should be trivial to
+change to local.
+
+> to test it, save to a file like `demo.html`
+> and then either open with a browser or
+> serve locally with something like `npx http-server`
+> (`npx` is part of [npm](npmjs.org))
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>orchestration demo</title>
+</head>
+<body>
+  <div id="target"></div>
+  <button onclick={user_inter()}>Click me</button>
+  <script>
+    let data = null;
+    let fetch_data = () => {
+        data = Math.random();
+        update_dom();
+    }
+    let update_dom = () => {
+        document.getElementById('target').innerHTML = `${data}`
+    }
+    let user_inter = () => {
+        fetch_data();
+    }
+    fetch_data();
+  </script>
+</body>
+</html>
+```
+
+> this example is a bit contrived: `fetch_data` doesn't
+> actually fetch data, it just returns a random number.
+> and `user_inter` is essentially pointless since it
+> just calls `fetch_data` (so we could have just called
+> `fetch_data` directly from the button). but in a more
+> complex scenario the user interaction would contain
+> data (like which drop-down was selected), and fetching
+> data would take that in to produce it's result (perhaps
+> calling the server differently)
+
+## issues abound
+
+
+
+## old readme (second preface)
 
 this may seem straight forward but
 there are various complications:
