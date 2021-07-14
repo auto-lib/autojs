@@ -1,4 +1,39 @@
-# orchestration
+# on the proximate cause of complexity in interactive online systems and it's solution
+
+## abstract
+
+software that is both interactive and event
+based such as web and mobile applications
+present a unique challenge in managing
+complexity as ajax calls, interactions, data
+processing and the interface are both tightly
+coupled and subject to rapidly changing
+features and requirements.
+
+this paper asserts this problem stems from a single
+cause that we here dub _orchestration_
+which is the project-specific code
+ensuring distinct parts of an unpredictable
+system run in the correct sequence. we describe
+and motivate this claim with a toy project
+and then show how orchestration can
+be done away with completely using a kind of restricted
+reactivity which uses global state
+and a policy of one update function per variable
+and for which an implemention is presented in a javascript
+library called _auto_.
+
+## background
+
+web and mobile applications have proliferated since the
+advent of the internet. as such there has been a ground
+swell of development around how to they are created.
+
+of approaches to their development.
+they are distinct from their
+desktop forebears in the amount of unpredictable external
+influences they need to respond to in the form of
+server requests and multivariate user interaction.
 
 orchestration is ensuring
 each part of your software is connected correctly. it is a major
@@ -14,8 +49,10 @@ comprising three pieces called
 2. display data
 3. handle user interaction
 
-for now let's say `1.` just does some simple maths.
-as we'll do this in a browser `2.` just modifies the dom.
+for now let's say `1.` just does a simple calculation
+(later on we'll look at asynchronous calls that introduce
+additional complications to be discussed separately).
+as we'll do this in a browser `2.` will simply modify the dom.
 and then for `3.` we'll have a drop-down, say, that modifies
 the inputs to `1.` in some way.
 
@@ -25,14 +62,14 @@ let's write these out as functions
 > haven't seen them before
 
 ```js
-produce_data = () => /* return x times 20 */;
-display_data = () => /* innerHTML = something */;
+produce_data = () => /* return x times 20 */
+display_data = () => /* innerHTML = something */
 handle_inter = () => /* modify x */
 ```
 
-one thing we haven't specified is how these functions will
-connect, that is, a) how will they communicate with one
-another, and b) how do we ensure they execute in the correct
+we need to specify how these connect, that is, a) 
+how will they pass values to each other, and b) 
+how do we ensure they execute in the correct
 order.
 
 ### communication
