@@ -35,6 +35,106 @@ desktop forebears in the amount of unpredictable external
 influences they need to respond to in the form of
 server requests and multivariate user interaction.
 
+## interactivity
+
+it's important to note that the reason interactivity
+causes an issue is because of uncertain timing.
+we have something that could occur at any time
+and so we cannot know the conditions under which it
+will occur. this makes architecting a system
+simply more challenging than if we were writing
+a program that just did processing, as a large
+majority of operating systems, say, do - all most
+of unix does is take some input and produce output.
+the input is unpredictable but comes from one
+source - either up front you can make sure it fits
+your ...
+
+> i'm starting to wonder whether this does in fact
+> apply to more than just 'event systems' or
+> web-based, interactive stuff ... as though this
+> could be ... in the example below, the three
+> body problem, what happens if i take away the
+> interactivity part and replace it with another
+> data processing step. in fact, let's just have
+> three data processing steps. what does using
+> a variable-function relationship achieve?
+
+> perhaps i should call this article 'solving the
+> red and blue problem' even though i feel as
+> though the solution here is more interesting
+> than just that.
+
+> i think maybe i'll just mention the red and
+> blue thing in the abstract. yes - this solves
+> that but it seems to be a spine you can pin
+> all software around.
+
+## the three body problem
+
+imagine a piece of software comprised of three
+components
+
+> i think this is really about 'unpredictability
+> as the proximate cause of software complexity' ...
+
+1. process `a`
+2. process `b`
+3. process `c`
+
+first we encapsulate them as functions
+
+> why functions?
+
+```js
+let process_a = () => { /* ... */ }
+let process_b = () => { /* ... */ }
+let process_c = () => { /* ... */ }
+```
+
+> i'm using es6 arrow function format here
+
+and specify that each only operates on
+some variable which we'll call `data`.
+
+> eventually we will convert this into a basic web
+> application by having `a` be a server request,
+> `b` be a browser ui update and `c` being
+> the handling of user interaction from this ui,
+> but it's illustrative to start with simple data
+> processing
+
+we can think of two broad ways in which these
+processes both handle `data` and connect with one another
+which i'll call _global_ and _local_.
+
+_global_ is just having `data` be a global variable
+and which each function can then read/write to internally
+
+```js
+let data = null;
+let process_a = () => { data = 10; }
+let process_b = () => { data += 1; }
+let process_c = () => { data *= 2; }
+```
+
+_local_ is having the components (functions)
+return values
+
+```js
+let process_a = (data) => 10;
+let process_b = (data) => data += 1;
+let process_c = (data) => data *= 1;
+```
+
+> in es6 `=> expression` without curly
+> brackets evaluates and returns `expression`
+> where-as with curly brackets (e.g. `{ data = 10; }`)
+> nothing is returned without an explicit `return` statement.
+
+
+## preface marker
+
 orchestration is ensuring
 each part of your software is connected correctly. it is a major
 part of software complexity and is in many cases,
