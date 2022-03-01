@@ -1,18 +1,18 @@
 {
-  "name": "@autolib/auto",
-  "version": "1.33.36",
-  "description": "reactivity without side effects",
-  "main": "auto-commonjs.js",
-  "module": "auto-es6.js",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/kewp/auto.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/kewp/auto/issues"
-  },
-  "homepage": "https://github.com/kewp/auto"
+    "name": "@autolib/auto",
+    "version": "1.34.36",
+    "description": "reactivity without side effects",
+    "main": "auto-commonjs.js",
+    "module": "auto-es6.js",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/kewp/auto.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/kewp/auto/issues"
+    },
+    "homepage": "https://github.com/kewp/auto"
 }
