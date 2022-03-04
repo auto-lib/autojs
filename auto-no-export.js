@@ -160,7 +160,15 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.33.36'
+        v: '1.34.2',
+        append: (obj) => {
+            wrap(res, res['#'], obj);
+            Object.keys(fn).forEach(name => {
+                if (name[0] != '#'){
+                    update(name);
+                }
+            });
+        }
     };
     run_tests(obj);
     wrap(res, res['#'], obj);
