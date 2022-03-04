@@ -160,7 +160,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.34.2',
+        v: '1.35.1',
         append: (obj) => {
             wrap(res, res['#'], obj);
             Object.keys(fn).forEach(name => {

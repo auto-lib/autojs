@@ -62,12 +62,30 @@ let assert_internals_same = (name, should_be, actual) => {
 	let diff = [];
 
 	let missing_fn = false;
-	let fns = [];
-	Object.keys(actual.fn).forEach(name => {
-		if (should_be.fn.indexOf(name) === -1 && name != '#fatal') missing_fn = true;
-		fns.push(name);
-	})
-	actual.fn = fns; // flat list for display
+
+	if (Array.isArray(should_be.fn))
+	{
+		let fns = [];
+		Object.keys(actual.fn).forEach(name => {
+			if (should_be.fn.indexOf(name) === -1 && name != '#fatal') missing_fn = true;
+			fns.push(name);
+		})
+		actual.fn = fns; // flat list for display
+	}
+	else
+	{
+		let obj = {}
+		Object.keys(actual.fn).forEach(name => {
+			if (name != '#fatal')
+				obj[name] = true;
+		})
+		if (obj != should_be.fn)
+		{
+			diff.push('fn');
+			actual.fn = obj;
+		}
+	}
+
 	if (missing_fn) diff.push('fn');
 
 	// subs looks like
