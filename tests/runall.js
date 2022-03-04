@@ -178,6 +178,7 @@ let copy_latest_lib = (version) => {
 	cleaned = cleaned.replace('v: undefined', "v: '1."+version.major+"."+version.minor+"'"); // save file name to lib
 
 	require('fs').writeFileSync("../auto-no-export.js", cleaned);
+	require('fs').writeFileSync("../auto-browser.js", cleaned.replace('let auto =','window.auto ='))
 	require('fs').writeFileSync("../auto-commonjs.js", "const { performance } = require('perf_hooks');\n\n" + cleaned + "\n\nmodule.exports = auto;");
 	require('fs').writeFileSync("../auto-es6.js", cleaned + "\n\nexport default auto;");
 }
