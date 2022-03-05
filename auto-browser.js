@@ -8,6 +8,7 @@ window.auto = (obj,opt) => {
     let watch = opt && 'watch' in opt ? opt.watch : {};
     let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100;
     let tests = opt && 'tests' in opt ? opt.tests : {};
+    let parent = opt && 'parent' in opt ? opt.parent : null;
     let get_vars = (name) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
@@ -44,9 +45,9 @@ window.auto = (obj,opt) => {
         run_subs(name);
         stack.pop();
     }
-    let getter = (name, parent) => {
+    let getter = (name, source) => {
         if (fatal.msg) return;
-        if (parent) deps[parent][name] = true;
+        if (source) deps[source][name] = true;
         return value[name];
     }
     let clear = (name) => {
@@ -99,6 +100,11 @@ window.auto = (obj,opt) => {
             get(target, prop) {
                 if (!(prop in value)) {
                     if (prop in fn) update(prop);
+                    else if (parent && prop in parent)
+                        {
+                            console.log('found',prop,'in parent')
+                            return parent[prop];
+                        }
                     else { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
                 }
                 return getter(prop,name);
@@ -117,12 +123,23 @@ window.auto = (obj,opt) => {
             get() { return getter(name) }
         } )
     }
-    let setup_static = (name, res) => {
-        value[name] = obj[name];
-        Object.defineProperty(res, name, {
-            get() { return getter(name) },
-            set(v) { setter(name, v) }
+    let has_function = (obj) => {
+        let found = false;
+        Object.keys(obj).forEach(key => {
+            if (typeof obj[key] == 'function') found = true;
         })
+        return found;
+    }
+    let is_auto_obj = (obj) => typeof obj == 'object' && !Array.isArray(obj) && obj != null && has_function(obj);
+    let setup_static = (name, res) => {
+        if (!is_auto_obj(obj)[name])
+        {
+            value[name] = obj[name];
+            Object.defineProperty(res, name, {
+                get() { return getter(name) },
+                set(v) { setter(name, v) }
+            })
+        }
     }
     let default_fatal = (_) => {
         console.log('FATAL',_._.fatal.msg);
@@ -157,10 +174,18 @@ window.auto = (obj,opt) => {
             }
         })
     }
+    let boot_inner = (res, obj) => {
+        Object.keys(obj).forEach(name => {
+            if (is_auto_obj(obj[name]))
+            {
+                value[name] = auto(obj[name], { parent: res });
+            }
+        })
+    }
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.35.1',
+        v: '1.35.15',
         append: (obj) => {
             wrap(res, res['#'], obj);
             Object.keys(fn).forEach(name => {
@@ -177,5 +202,6 @@ window.auto = (obj,opt) => {
             update(name);
         }
     });
+    boot_inner(res, obj);
     return res;
 }

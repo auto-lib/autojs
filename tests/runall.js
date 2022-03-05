@@ -57,9 +57,33 @@ let assert_global_same = (name, should_be, actual) => {
 	return true;
 }
 
+let isAutoObj = (obj) => obj != null && typeof obj == 'object' && '_' in obj;
+
+/* if any variables inside are auto object
+   (detected via _ member)
+   then fill out fn, deps, value
+   with the inner ones */
+let convert_auto_vars = (obj) => {
+
+	Object.keys(obj.value).forEach(key => {
+
+		if (isAutoObj(obj.value[key]))
+		{
+			console.log(obj.value[key]);
+			console.log('got auto object in',key);
+			obj.fn[key] = obj.value[key]._.fn;
+			obj.deps[key] = obj.value[key]._.deps;
+			obj.value[key] = obj.value[key]._.value;
+		}
+	})
+
+}
+
 let assert_internals_same = (name, should_be, actual) => {
 	
 	let diff = [];
+
+	convert_auto_vars(actual);
 
 	let missing_fn = false;
 

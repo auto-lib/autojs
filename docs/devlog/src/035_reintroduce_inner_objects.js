@@ -19,6 +19,7 @@ let auto = (obj,opt) => {
     let watch = opt && 'watch' in opt ? opt.watch : {};
     let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100; // log a message any time a function takes longer than report_lag milliseconds (default 100)
     let tests = opt && 'tests' in opt ? opt.tests : {}; // before boot run a test
+    let parent = opt && 'parent' in opt ? opt.parent : null; // for search up the scope for variables
 
     // used when a function (of a dynamic variable) causes an exception / has an error
     // we print out all the values of the dependent variables of the function
@@ -101,17 +102,14 @@ let auto = (obj,opt) => {
     // == get a value ==
     // == can be for static or dynamic values ==
 
-    let getter = (name, parent) => {
+    let getter = (name, source) => {
 
         if (fatal.msg) return;
 
-        if (parent) deps[parent][name] = true;
+        if (source) deps[source][name] = true;
 
         return value[name];
     }
-
-    // == set a static value ==
-    // == should never be a dynamic value ==
 
     let clear = (name) => {
 
@@ -125,6 +123,9 @@ let auto = (obj,opt) => {
             })
         )
     }
+
+    // == set a static value ==
+    // == should never be a dynamic value ==
 
     let setter = (name, val) => {
 
@@ -205,6 +206,11 @@ let auto = (obj,opt) => {
             get(target, prop) {
                 if (!(prop in value)) {
                     if (prop in fn) update(prop);
+                    else if (parent && prop in parent)
+                    {
+                        console.log('found',prop,'in parent')
+                        return parent[prop];
+                    }
                     else { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
                 }
                 return getter(prop,name);
@@ -249,19 +255,35 @@ let auto = (obj,opt) => {
         } )
     }
 
+    // detect if there is a function
+    let has_function = (obj) => {
+
+        let found = false;
+        Object.keys(obj).forEach(key => {
+            if (typeof obj[key] == 'function') found = true;
+        })
+        return found;
+    }
+
+    let is_auto_obj = (obj) => typeof obj == 'object' && !Array.isArray(obj) && obj != null && has_function(obj);
+
     // setup a static value
     // called from wrap() below
 
     let setup_static = (name, res) => {
 
         // save whatever was defined originally
-        value[name] = obj[name];
-
-        // use our functions for get/set
-        Object.defineProperty(res, name, { 
-            get() { return getter(name) }, 
-            set(v) { setter(name, v) } 
-        })
+        // (we will deal with inner auto objects after we boot this one)
+        if (!is_auto_obj(obj)[name])
+        {
+            value[name] = obj[name];
+        
+            // use our functions for get/set
+            Object.defineProperty(res, name, { 
+                get() { return getter(name) }, 
+                set(v) { setter(name, v) } 
+            })
+        }
     }
 
     // nothing happens when a fatal error occurs really so the
@@ -315,6 +337,16 @@ let auto = (obj,opt) => {
         })
     }
 
+    let boot_inner = (res, obj) => {
+
+        Object.keys(obj).forEach(name => {
+
+            if (is_auto_obj(obj[name]))
+            {
+                value[name] = auto(obj[name], { parent: res });
+            }
+        })
+    }
     // the object we will access from the outside
     // gives access to the internals via _
     // and subscribable versions of each value via '#'
@@ -349,6 +381,8 @@ let auto = (obj,opt) => {
             update(name);
         }
     }); 
+
+    boot_inner(res, obj);
 
     return res;
 }
