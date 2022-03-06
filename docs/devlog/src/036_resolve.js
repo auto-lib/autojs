@@ -194,6 +194,28 @@ let auto = (obj,opt) => {
         };
     }
 
+    let check_resolve = (func,name) => {
+
+        let i = func.indexOf('.');
+        if (i==-1) return false; // fail
+        
+        let tag = func.substr(0,i) + '.' + name
+
+        if (tag in value) {
+            if (!(func in resolve)) resolve[func] = {}
+            resolve[func][name] = tag;
+            return tag;
+        }
+        if (tag in fn) {
+            if (!(func in resolve)) resolve[func] = {}
+            resolve[func][name] = tag;
+            update(tag);
+            return tag;
+        }
+
+        return check_resolve(func,name);
+    }
+
     // setup a dynamic value
     // called from wrap() below
 
@@ -208,10 +230,16 @@ let auto = (obj,opt) => {
                 
                 // map name to a new name
                 if (name in resolve && prop in resolve[name]) prop = resolve[name][prop];
-
+                
                 if (!(prop in value)) {
                     if (prop in fn) update(prop);
-                    else { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
+                    else { 
+                       
+                        let rprop = check_resolve(name,prop); // see if another name matches
+                        if (!rprop)
+                            { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
+                        prop = rprop;
+                    }
                 }
                 return getter(prop,name);
             },
@@ -321,12 +349,6 @@ let auto = (obj,opt) => {
             if (typeof obj[name] == 'function') setup_dynamic (obj[name], tag, res);
             else if (is_auto(obj[name]))
             {
-                Object.keys(obj[name]).forEach(key => {
-
-                    if (is_fn(obj[name][key])) Object.keys(obj[name]).forEach(inner => {
-                        resolve[tag+'.'+key] = {}
-                    })
-                })
                 wrap(res, res['#'], obj[name], name);
             }
             else setup_static (obj[name], tag, res);

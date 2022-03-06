@@ -46,25 +46,19 @@ function isEqual(obj1, obj2) {
 
 	if (typeof (obj1) === 'object') {
 
-		if (Array.isArray(obj1))
-		{
-			if (obj1.length != obj2.length) return false;
-			let equal = true;
-			obj1.forEach(val => {
-				if (!(obj2.indexOf(val)>-1)) equal = false;
-			})
-			return equal;
-		}
-		else
-		{
+		
 			let keys = Object.keys(obj1);
 			if (keys.length != Object.keys(obj2).length) return false;
 			let equal = true;
 			keys.forEach(key => {
+				// console.log('obj1[',key,']=',obj1[key]);
+				// console.log('obj2[',key,']=',obj2[key]);
+				let eq = isEqual(obj1[key], obj2[key]);
+				// console.log('is equal',eq);
 				equal = equal && isEqual(obj1[key], obj2[key])
 			});
 			return equal;
-		}
+		
 	}
 	else return obj1 == obj2;
 }
@@ -82,35 +76,19 @@ let assert_global_same = (name, should_be, actual) => {
 	return true;
 }
 
-let convert_fn = (obj) => {
+let convert_should_be_fn = (obj) => {
+
+	let fn = {}
+	obj.fn.forEach(key => fn[key] = true);
+
+	obj.fn = fn;
+}
+
+let convert_actual_fn = (obj) => {
 
 	delete obj.fn['#fatal'];
 
-	obj.fn = Object.keys(obj.fn).map(name => name);
-
-	// if (Array.isArray(obj.fn))
-	// {
-	// 	let fns = [];
-	// 	Object.keys(obj.fn).forEach(name => {
-	// 		fns.push(name);
-	// 	})
-	// 	obj.fn = fns; // flat list for display
-	// }
-	// else
-	// {
-	// 	let obj = {}
-	// 	Object.keys(actual.fn).forEach(name => {
-	// 		if (name != '#fatal')
-	// 			obj[name] = true;
-	// 	})
-	// 	if (obj != should_be.fn)
-	// 	{
-	// 		diff.push('fn');
-	// 		actual.fn = obj;
-	// 	}
-	// }
-
-	// if (missing_fn) diff.push('fn');
+	Object.keys(obj.fn).forEach(key => obj.fn[key] = true);
 }
 
 let convert_subs = (obj) => {
@@ -148,7 +126,8 @@ let convert_subs = (obj) => {
 let assert_internals_same = (name, should_be, actual) => {
 
 	convert_subs(actual);
-	convert_fn(actual)
+	convert_should_be_fn(should_be)
+	convert_actual_fn(actual);
 
 	let keys = ['fn', 'subs', 'stack', 'deps', 'value', 'resolve', 'fatal'];
 
@@ -175,10 +154,13 @@ let confirm = (name, test, $, global) =>
 {
 	let same = assert_internals_same(name, test._, $._); // start with the state object
 	if (test.global) same = assert_global_same(name, test.global, global) && same; // also check global object if set (to ensure subscriptions run)
-	if (same) console.log(name + ": passed")
+	if (same) console.log(name + ": passed");
+	return same;
 }
 
 let check = (auto, name, test) => {
+
+	let ok = true;
 	if (ignored[name]) console.log(name + ": ignored ("+ignored[name]+")")
 	else
 	{
@@ -194,8 +176,9 @@ let check = (auto, name, test) => {
 			process.exit(1);
 		}
 		if (test.timeout) setTimeout( () => confirm(name, test, $, global), test.timeout);
-		else confirm(name, test, $, global);
+		else ok = confirm(name, test, $, global);
 	}
+	return ok;
 }
 
 let get_latest_path = () => {
@@ -240,16 +223,18 @@ let run_tests = () => {
 
 	const auto = require('../auto-commonjs.js');
 
+	let ok = true;
 	require('fs').readdirSync("./files").forEach(name => {
 		if (parseInt(name.substring(0, 3)) > 0) {
 			if (!script || name == script)
 			{
 				const test = require("./files/" + name);
 				name = name.replace('.js', '');
-				check(auto, name, test);
+				ok = check(auto, name, test) && ok;
 			}
 		}
 	})
+	return ok;
 }
 
 let get_package_version = () => {
@@ -366,8 +351,9 @@ let main = () => {
 
 	let version = update_package_version(false); // get version but don't write out / send messages
 	copy_latest_lib(version);
-	run_tests();
-	update_package_version(true); // again but save this time (if tests fail won't get here)
+	let ok = run_tests();
+	if (ok) update_package_version(true); // again but save this time (if tests fail won't get here)
+	else console.log('not updating package version - not all tests passed')
 }
 
 

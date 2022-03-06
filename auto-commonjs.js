@@ -98,13 +98,35 @@ let auto = (obj,opt) => {
             return () => { delete(subs[name][subtag]); }
         };
     }
+    let check_resolve = (func,name) => {
+        let i = func.indexOf('.');
+        if (i==-1) return false;
+        let tag = func.substr(0,i) + '.' + name
+        if (tag in value) {
+            if (!(func in resolve)) resolve[func] = {}
+            resolve[func][name] = tag;
+            return tag;
+        }
+        if (tag in fn) {
+            if (!(func in resolve)) resolve[func] = {}
+            resolve[func][name] = tag;
+            update(tag);
+            return tag;
+        }
+        return check_resolve(func,name);
+    }
     let setup_dynamic = (func, name, res) => {
         let _ = new Proxy({}, {
             get(target, prop) {
                 if (name in resolve && prop in resolve[name]) prop = resolve[name][prop];
                 if (!(prop in value)) {
                     if (prop in fn) update(prop);
-                    else { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
+                    else {
+                        let rprop = check_resolve(name,prop);
+                        if (!rprop)
+                            { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
+                        prop = rprop;
+                    }
                 }
                 return getter(prop,name);
             },
@@ -160,11 +182,6 @@ let auto = (obj,opt) => {
             if (typeof obj[name] == 'function') setup_dynamic (obj[name], tag, res);
             else if (is_auto(obj[name]))
             {
-                Object.keys(obj[name]).forEach(key => {
-                    if (is_fn(obj[name][key])) Object.keys(obj[name]).forEach(inner => {
-                        resolve[tag+'.'+key] = {}
-                    })
-                })
                 wrap(res, res['#'], obj[name], name);
             }
             else setup_static (obj[name], tag, res);
@@ -193,7 +210,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, resolve, fatal },
         '#': {},
-        v: '1.36.8',
+        v: '1.36.35',
         append: (obj) => {
             wrap(res, res['#'], obj);
             Object.keys(fn).forEach(name => {
