@@ -5,6 +5,7 @@ window.auto = (obj,opt) => {
     let stack = [];
     let fatal = {};
     let subs = {};
+    let resolve = {};
     let watch = opt && 'watch' in opt ? opt.watch : {};
     let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100;
     let tests = opt && 'tests' in opt ? opt.tests : {};
@@ -95,16 +96,12 @@ window.auto = (obj,opt) => {
             return () => { delete(subs[name][subtag]); }
         };
     }
-    let setup_dynamic = (obj, name, res) => {
+    let setup_dynamic = (func, name, res) => {
         let _ = new Proxy({}, {
             get(target, prop) {
+                if (name in resolve && prop in resolve[name]) prop = resolve[name][prop];
                 if (!(prop in value)) {
                     if (prop in fn) update(prop);
-                    else if (parent && prop in parent)
-                        {
-                            console.log('found',prop,'in parent')
-                            return parent[prop];
-                        }
                     else { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
                 }
                 return getter(prop,name);
@@ -115,7 +112,7 @@ window.auto = (obj,opt) => {
         });
         fn[name] = () => {
             if (fatal.msg) return;
-            let v; try { v = obj[name](_, (v) => setter(name, v) ); }
+            let v; try { v = func(_, (v) => setter(name, v) ); }
             catch(e) { show_vars(name); if (!fatal.msg) fail('exception',true); console.log(e); }
             return v;
         }
@@ -130,16 +127,12 @@ window.auto = (obj,opt) => {
         })
         return found;
     }
-    let is_auto_obj = (obj) => typeof obj == 'object' && !Array.isArray(obj) && obj != null && has_function(obj);
-    let setup_static = (name, res) => {
-        if (!is_auto_obj(obj)[name])
-        {
-            value[name] = obj[name];
-            Object.defineProperty(res, name, {
-                get() { return getter(name) },
-                set(v) { setter(name, v) }
-            })
-        }
+    let setup_static = (val, name, res) => {
+        value[name] = val;
+        Object.defineProperty(res, name, {
+            get() { return getter(name) },
+            set(v) { setter(name, v) }
+        })
     }
     let default_fatal = (_) => {
         console.log('FATAL',_._.fatal.msg);
@@ -147,11 +140,32 @@ window.auto = (obj,opt) => {
         console.log(' _',_);
         console.log(' (there might be an error below too if your function failed as well)');
     }
-    let wrap = (res, hash, obj) => {
+    let is_obj = (obj) => obj != null && typeof obj == 'object' && !Array.isArray(obj);
+    let is_fn = (obj) => typeof obj == 'function';
+    let is_auto = (obj) => {
+        if (!is_obj(obj)) return false;
+        let found_fn = false;
+        Object.keys(obj).forEach(name => {
+            if (is_obj(obj[name])) found_fn = found_fn || is_auto(obj[name]);
+            if (is_fn(obj[name])) found_fn = true;
+        })
+        return found_fn;
+    }
+    let wrap = (res, hash, obj, pre) => {
         if (!obj['#fatal']) fn['#fatal'] = default_fatal;
         Object.keys(obj).forEach(name => {
-            if (typeof obj[name] == 'function') setup_dynamic (obj, name, res);
-            else setup_static (name, res);
+            let tag = pre ? pre + '.' + name : name;
+            if (typeof obj[name] == 'function') setup_dynamic (obj[name], tag, res);
+            else if (is_auto(obj[name]))
+            {
+                Object.keys(obj[name]).forEach(key => {
+                    if (is_fn(obj[name][key])) Object.keys(obj[name]).forEach(inner => {
+                        resolve[tag+'.'+key] = {}
+                    })
+                })
+                wrap(res, res['#'], obj[name], name);
+            }
+            else setup_static (obj[name], tag, res);
             setup_sub(hash, name);
         });
     }
@@ -174,18 +188,10 @@ window.auto = (obj,opt) => {
             }
         })
     }
-    let boot_inner = (res, obj) => {
-        Object.keys(obj).forEach(name => {
-            if (is_auto_obj(obj[name]))
-            {
-                value[name] = auto(obj[name], { parent: res });
-            }
-        })
-    }
     const res = {
-        _: { subs, fn, deps, value, fatal },
+        _: { subs, fn, deps, value, resolve, fatal },
         '#': {},
-        v: '1.35.15',
+        v: '1.36.8',
         append: (obj) => {
             wrap(res, res['#'], obj);
             Object.keys(fn).forEach(name => {
@@ -202,6 +208,5 @@ window.auto = (obj,opt) => {
             update(name);
         }
     });
-    boot_inner(res, obj);
     return res;
 }

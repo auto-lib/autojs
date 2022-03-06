@@ -23,23 +23,47 @@ var MD5 = function (d) { var r = M(V(Y(X(d), 8 * d.length))); return r.toLowerCa
 // https://javascript.plainenglish.io/4-ways-to-compare-objects-in-javascript-97fe9b2a949c
 function isEqual(obj1, obj2) {
 
-	//console.log("obj1 = ",obj1);
-	//console.log("obj2 = ",obj2);
+	// if you don't specify an object in the test,
+	// but it's empty anyway (like resolve) let the test pass
+	// (so that we don't _have_ to specify it in the test...)
+	if (obj1 == undefined && typeof(obj2) == 'object' && obj2 != undefined && Object.keys(obj2).length==0) return true;
+	if (typeof(obj1) == 'object' && obj2 == undefined && obj1 != undefined && Object.keys(obj1).length==0) return true;
 
 	if (typeof (obj1) != typeof (obj2)) return false;
+
+	if (Array.isArray(obj1) && !Array.isArray(obj2))
+	{
+		// if one is {} and the other is [] return true...
+		if (Object.keys(obj1).length==0 && Object.keys(obj2).length==0) return true;
+		return false;
+	}
+
 	if (obj1 == null && obj2 == null) return true;
 	if (obj1 == null && obj2 != null) return false
 	if (obj1 != null && obj2 == null) return false;
+
 	if (typeof obj1 === 'number' && isNaN(obj1) && isNaN(obj2)) return true; // NaN!
 
 	if (typeof (obj1) === 'object') {
-		let keys = Object.keys(obj1);
-		if (keys.length != Object.keys(obj2).length) return false;
-		let equal = true;
-		keys.forEach(key => {
-			equal = equal && isEqual(obj1[key], obj2[key])
-		});
-		return equal;
+
+		if (Array.isArray(obj1))
+		{
+			if (obj1.length != obj2.length) return false;
+			obj1.forEach(val => {
+				if (!(val in obj2)) return false;
+			})
+			return true;
+		}
+		else
+		{
+			let keys = Object.keys(obj1);
+			if (keys.length != Object.keys(obj2).length) return false;
+			let equal = true;
+			keys.forEach(key => {
+				equal = equal && isEqual(obj1[key], obj2[key])
+			});
+			return equal;
+		}
 	}
 	else return obj1 == obj2;
 }
@@ -57,60 +81,38 @@ let assert_global_same = (name, should_be, actual) => {
 	return true;
 }
 
-let isAutoObj = (obj) => obj != null && typeof obj == 'object' && '_' in obj;
+let convert_fn = (obj) => {
 
-/* if any variables inside are auto object
-   (detected via _ member)
-   then fill out fn, deps, value
-   with the inner ones */
-let convert_auto_vars = (obj) => {
+	delete obj.fn['#fatal'];
 
-	Object.keys(obj.value).forEach(key => {
+	obj.fn = Object.keys(obj.fn).map(name => name);
 
-		if (isAutoObj(obj.value[key]))
-		{
-			console.log(obj.value[key]);
-			console.log('got auto object in',key);
-			obj.fn[key] = obj.value[key]._.fn;
-			obj.deps[key] = obj.value[key]._.deps;
-			obj.value[key] = obj.value[key]._.value;
-		}
-	})
+	// if (Array.isArray(obj.fn))
+	// {
+	// 	let fns = [];
+	// 	Object.keys(obj.fn).forEach(name => {
+	// 		fns.push(name);
+	// 	})
+	// 	obj.fn = fns; // flat list for display
+	// }
+	// else
+	// {
+	// 	let obj = {}
+	// 	Object.keys(actual.fn).forEach(name => {
+	// 		if (name != '#fatal')
+	// 			obj[name] = true;
+	// 	})
+	// 	if (obj != should_be.fn)
+	// 	{
+	// 		diff.push('fn');
+	// 		actual.fn = obj;
+	// 	}
+	// }
 
+	// if (missing_fn) diff.push('fn');
 }
 
-let assert_internals_same = (name, should_be, actual) => {
-	
-	let diff = [];
-
-	convert_auto_vars(actual);
-
-	let missing_fn = false;
-
-	if (Array.isArray(should_be.fn))
-	{
-		let fns = [];
-		Object.keys(actual.fn).forEach(name => {
-			if (should_be.fn.indexOf(name) === -1 && name != '#fatal') missing_fn = true;
-			fns.push(name);
-		})
-		actual.fn = fns; // flat list for display
-	}
-	else
-	{
-		let obj = {}
-		Object.keys(actual.fn).forEach(name => {
-			if (name != '#fatal')
-				obj[name] = true;
-		})
-		if (obj != should_be.fn)
-		{
-			diff.push('fn');
-			actual.fn = obj;
-		}
-	}
-
-	if (missing_fn) diff.push('fn');
+let convert_subs = (obj) => {
 
 	// subs looks like
 	// {
@@ -131,17 +133,33 @@ let assert_internals_same = (name, should_be, actual) => {
 	// (why don't i make it look like that? '000' could refer to a function in fn...)
 
 	let subs = {};
-	Object.keys(actual.subs).forEach(name => {
+	Object.keys(obj.subs).forEach(name => {
 		let arr = [];
-		Object.keys(actual.subs[name]).forEach(tag => {
+		Object.keys(obj.subs[name]).forEach(tag => {
 			arr.push(tag);
 		});
 		subs[name] = arr;
 	});
-	actual.subs = subs; // replace with an array of names (can't really check the actual function definitions)
+	obj.subs = subs; // replace with an array of names (can't really check the actual function definitions)
 
-	let keys = ['subs', 'stack', 'deps', 'value', 'fatal'];
+}
 
+let replace = (obj) => {
+	convert_subs(obj);
+	// obj.stack = convert_stack(obj);
+	// obj.deps = convert_deps(obj);
+	// obj.value = convert_value(obj);
+	// obj.fatal = convert_fatal(obj);
+	convert_fn(obj)
+}
+
+let assert_internals_same = (name, should_be, actual) => {
+
+	replace(actual);
+
+	let keys = ['fn', 'subs', 'stack', 'deps', 'value', 'resolve', 'fatal'];
+
+	let diff = [];
 	keys.forEach(key => { if (!isEqual(should_be[key], actual[key])) diff.push(key); })
 
 	if (diff.length > 0) {

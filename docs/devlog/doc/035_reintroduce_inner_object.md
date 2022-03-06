@@ -1177,3 +1177,284 @@ c-box second sub 6
 
 ok so it works.
 
+## next
+
+ok so ... now what?
+
+firstly, what do we have?
+we have ... really, just a value that
+we can subscribe to. and ... one of them
+you set with a value, and the other you
+set by running a function...
+
+incredibly similar. we could just call
+`run` 'set' in the cbox and it would
+be the same.
+
+ok, but the real trick is this context.
+this global object that we pass in.
+and .. what is that object? what does
+it do? why should we care?
+
+ok, so ... this object, this really
+special object ... it ...
+well it has a repository of stuff
+inside of it. it ... it is a connection
+to other boxes. right? and ... and
+it will call you whenever one of
+those boxes changes. so, it will
+setup subscribes for you - it will
+subscribe to any boxes you try to
+access for you, and then re-run you
+if you ... hmmm ...
+
+ok let's just dive in and make
+this special object:
+
+```js
+let x = (b) => {
+
+}
+```
+
+um ... ok so ... so `x` is the
+object we create and ... pass
+in when running ... a cbox
+
+```js
+let cbox = (fn) => {
+
+	let _ = ctx(/*...*/);
+
+	let cache = fn();
+	let fns = [];
+	
+	return {
+		run: () => {
+			cache = fn(_); // NB
+			fns.forEach(fn => fn(cache));
+		},
+		get cache() { return cache; },
+		subscribe: (f) => {
+			fns.push(f);
+			f(cache);
+		}
+	}
+}
+````
+
+ok so we create `_` using this special
+function i've now called `ctx`.
+and ... well there is an issue here -
+what do we pass in? we can't pass in
+anything at first... and we need to
+use it when running the function ...
+hmmm ...
+
+and then we pass this into `fn` inside
+of `run()`. however, we need to ..
+inside of `ctx` must go the whole object.
+
+why? well ... i suppose just to ... call
+`run` ... ? is that all we need? we don't
+need `get`. we don't need `cache` or `fns`
+or `subscribe` ...
+
+but we need `run` because it will save out
+`cache` and run the subscriptions ...
+
+but, bizarrely, `ctx` uses `run` and
+`run` uses `_` which is built from `ctx` ...
+
+maybe ... maybe we don't ... do it like this
+at all ... maybe ... we just leave these
+boxes, and then define the functions ...
+hmmm
+
+right, because we could just
+
+```js
+
+let _ = ctx();
+
+let y = cbox( () => _.x + _.y );
+
+```
+
+right? so ... it really is just an fbox.
+no context. we create the context somewhere
+else ...
+
+however, how does `_` know which function
+to re-run when something changes?
+
+# blerg
+
+we could just ... add the function to ...
+
+```js
+
+let _ = ctx();
+
+let y = cbox( (_) => _.x + _.y );
+
+_.add(y);
+```
+
+but then we still don't know ...
+that _this_ function means _that_
+cbox. we have to associate them
+somehow.
+
+i suppose ... well one thing we could
+do is pass it into something, so
+
+```js
+let _ = ctx([x,y]);
+```
+
+right ? then ... well then we could ...
+i mean, we could get the function out
+and run it and figure out what is
+happening ... but that negates the
+whole ... if we're going to pull
+the function out anyway why have a box
+around it?
+
+it's also kind of weird defining something
+like this:
+
+```js
+let y = cbox( (_) => _.x + _.y );
+```
+
+i mean, what is `_`? maybe ...
+maybe cbox has a method for ...
+setting it's parameter. maybe you
+can, like, say "use this for the first
+parameter" then we could ...
+
+```js
+let y = cbox( (_) => _.x + _.y );
+
+let ctx = {
+	cs: { y }, // cboxes
+	deps: { y: {
+		x: true,
+		y: true	
+	}},
+	// could replace these with proxy ...
+	get x() { return cs.x.cache; },
+	get y() { return cs.y.cache; }
+}
+
+y.parm(ctx);
+```
+
+... this could work ... not sure how clean it
+is ... is this clean? is this better than
+before? can i easily test this?
+
+god, i would have to re-write _all_ the
+tests.
+
+hmmm ... strangely `ctx` is very specific
+to ... right, so this `ctx` is _just_ for
+`y`
+
+```js
+let ctx = (box) => {
+
+	// ...
+
+	return new Proxy{
+		get (target, prop) { /* ... */ },
+	}
+}
+```
+
+hmmm so building what to do ... when we
+`get` ...
+
+well, we need to actually get the value.
+and ... we need to add to a list of ...
+subscribers.
+
+that we can do without the other ...
+i mean, we can figure out what is inside
+of this function, we can see what it is
+trying to call ...
+
+and we can add things later - we can
+add ... we need to wire this to
+something, maybe a global store?
+maybe something called 'scope'?
+
+also - we need to have ... a `pre`
+and `post` hook for each box because ...
+we need to reset the dependencies
+before each run ... except we are going
+to be doing the running ...
+
+```js
+deps = {};
+box.run();
+```
+
+why not pass in the context directly
+here?
+
+```js
+let cbox = (fn) => {
+
+	// ...
+	
+	return {
+		run: (...args) => {
+			cache = fn(args);
+			// ...
+		}
+```
+
+# outer object
+
+let's start from the outside ...
+that is a proxy and ...
+what do we do?
+
+```js
+let auto = (obj, opts) => {
+
+	// ...
+
+	return new Proxy({}, {
+		get(o, name) {}
+		set(o, name) {}
+	});
+}
+```
+
+one approach is to ... as before,
+have a global `values` object that
+stores everything ... so `get` just
+looks at that. and maybe dies if
+the value isn't in there?
+
+and then `set`? well i guess it ...
+has, well ...
+
+what if we literally just get and
+set using a list of boxes?
+
+```js
+let auto = (obj, opts) => {
+
+	let boxes = {};
+
+	return new Proxy({}, {
+		get(o, name) { return boxes[name].value; }
+		set(o, name, value) { boxes[name].set(value); }
+	})
+}
+```
+
