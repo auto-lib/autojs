@@ -31,7 +31,7 @@ function isEqual(obj1, obj2) {
 
 	if (typeof (obj1) != typeof (obj2)) return false;
 
-	if (Array.isArray(obj1) && !Array.isArray(obj2))
+	if (typeof(obj1) == 'object' && typeof(obj2) == 'object' && Array.isArray(obj1) && !Array.isArray(obj2))
 	{
 		// if one is {} and the other is [] return true...
 		if (Object.keys(obj1).length==0 && Object.keys(obj2).length==0) return true;
@@ -49,10 +49,11 @@ function isEqual(obj1, obj2) {
 		if (Array.isArray(obj1))
 		{
 			if (obj1.length != obj2.length) return false;
+			let equal = true;
 			obj1.forEach(val => {
-				if (!(val in obj2)) return false;
+				if (!(obj2.indexOf(val)>-1)) equal = false;
 			})
-			return true;
+			return equal;
 		}
 		else
 		{
@@ -144,18 +145,10 @@ let convert_subs = (obj) => {
 
 }
 
-let replace = (obj) => {
-	convert_subs(obj);
-	// obj.stack = convert_stack(obj);
-	// obj.deps = convert_deps(obj);
-	// obj.value = convert_value(obj);
-	// obj.fatal = convert_fatal(obj);
-	convert_fn(obj)
-}
-
 let assert_internals_same = (name, should_be, actual) => {
 
-	replace(actual);
+	convert_subs(actual);
+	convert_fn(actual)
 
 	let keys = ['fn', 'subs', 'stack', 'deps', 'value', 'resolve', 'fatal'];
 
