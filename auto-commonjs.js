@@ -98,8 +98,14 @@ let auto = (obj,opt) => {
             return () => { delete(subs[name][subtag]); }
         };
     }
+    let right_index = (str,c) => { let i = str.length-1; while (i>0 && str[i] != c) i--; }
+    let right_slice = (str,c) => {
+        let i = right_index(str,c);
+        if (i==-1) return str;
+        else return str.substr(0,i-1);
+    }
     let check_resolve = (func,name) => {
-        let i = func.indexOf('.');
+        let base = right_slice(func, '.');
         if (i==-1) return false;
         let tag = func.substr(0,i) + '.' + name
         if (tag in value) {
@@ -210,7 +216,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, resolve, fatal },
         '#': {},
-        v: '1.36.35',
+        v: '1.36.36',
         append: (obj) => {
             wrap(res, res['#'], obj);
             Object.keys(fn).forEach(name => {

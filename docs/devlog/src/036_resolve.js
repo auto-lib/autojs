@@ -194,9 +194,33 @@ let auto = (obj,opt) => {
         };
     }
 
+    let right_index = (str,c) => { let i = str.length-1; while (i>0 && str[i] != c) i--; }
+    let right_slice = (str,c) => {
+        let i = right_index(str,c);
+        if (i==-1) return str;
+        else return str.substr(0,i-1);
+    }
+
+    // given some call from function named 'func'
+    // for a variable named 'name'
+    // see if we can find another variable
+    // with the same name, using dots
+    // as a way to add scope
+
+    // so let's say the function is called
+    // myobj.name
+    // and the variable it is accessing
+    // is called 'surname'
+
+    // we will check to see if
+    // myobj.surname is a thing
+    // (after having already checked if
+    // there is in fact something called
+    // 'surname')
+    
     let check_resolve = (func,name) => {
 
-        let i = func.indexOf('.');
+        let base = right_slice(func, '.'); // inner.name => inner
         if (i==-1) return false; // fail
         
         let tag = func.substr(0,i) + '.' + name
