@@ -222,11 +222,11 @@ let copy_latest_lib = (version) => {
 let run_tests = () => {
 
 	const auto = require('../auto-commonjs.js');
-
+	
 	let ok = true;
 	require('fs').readdirSync("./files").forEach(name => {
 		if (parseInt(name.substring(0, 3)) > 0) {
-			if (!script || name == script)
+			if (ok && (!script || name == script))
 			{
 				const test = require("./files/" + name);
 				name = name.replace('.js', '');
