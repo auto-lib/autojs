@@ -7,11 +7,11 @@ let update = (boxes,name,cb) => {
     if (!box.fn) return;
 
     let { fn, dirty, cache, pubsub } = box;
-    let { clear_subs, subscribe, publish, connect } = pubsub;
+    let { clear_deps, subscribe, publish, connect } = pubsub;
 
     let set = (v,sc) => {
         if (sc) cache.save(v); // save the value
-        publish(); // set downstream boxes to dirty
+        // publish(); // set downstream boxes to dirty
         box.dirty = false;
         if (cb) cb();
     }
@@ -20,10 +20,10 @@ let update = (boxes,name,cb) => {
     else
     {
         let ctx = (n) => {
-            subscribe(boxes[n]);
+            subscribe(n);
             return boxes[n].cache.get()
         }
-        clear_subs();
+        clear_deps();
         set(fn(ctx,set),true);
     }
 }
@@ -56,27 +56,44 @@ let mem_cache = () => {
 }
 
 let simple_pubsub = () => {
-    let deps = {};
-    let subs = {};
+    let deps = [];
     return {
-
+        getdeps: () => deps,
         publish: () => Object.values(deps).forEach(dep => dep.dirty == true),
-        subscribe: (box) => subs[box.name] = box,
-        clear_subs: () => subs = {}
+        subscribe: (name) => deps.push(name),
+        clear_deps: () => deps = []
     }
 }
 
-let auto = (obj,cache,pubsub) => {
+let make_ = (boxes) => {
+    let _ = {
+        deps: {},
+        value: {},
+        fn: [],
+        subs: {}
+    };
+    Object.keys(boxes).forEach(name => {
+        update(boxes,name);
+        _.deps[name] = boxes[name].pubsub.getdeps();
+        _.value[name] = boxes[name].cache.get();
+        _.fn.push(boxes[name].fn);
+    })
+    return _;
+}
+
+let auto_ = (obj,cache,pubsub) => {
     let boxes = {};
     Object.keys(obj).forEach(name => boxes[name] = box(name,obj[name],cache(),pubsub()));
     Object.keys(obj).forEach(name => update(boxes,name));
-    return boxes;
+    return make_(boxes);
 }
+
+let auto = (obj) => auto_(obj, mem_cache, simple_pubsub);
 
 let _ = auto({
     x: 10,
     y: _ => _('x') * 2
-}, mem_cache, simple_pubsub)
+})
 
-// console.log(_);
-console.log(_.y.cache.get());
+console.log(_);
+// console.log(_.y.cache.get());
