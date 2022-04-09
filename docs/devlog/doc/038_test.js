@@ -1,9 +1,13 @@
 
 
-let update = (box,cb) => {
+let update = (boxes,name,cb) => {
+
+    let box = boxes[name];
+
+    if (!box.fn) return;
 
     let { fn, dirty, cache, pubsub } = box;
-    let { clear_subs, publish } = pubsub;
+    let { clear_subs, subscribe, publish, connect } = pubsub;
 
     let set = (v,sc) => {
         if (sc) cache.save(v); // save the value
@@ -16,8 +20,8 @@ let update = (box,cb) => {
     else
     {
         let ctx = (n) => {
-            subs.add(n);
-            return get(getbox(n), cb);
+            subscribe(boxes[n]);
+            return boxes[n].cache.get()
         }
         clear_subs();
         set(fn(ctx,set),true);
@@ -55,24 +59,24 @@ let simple_pubsub = () => {
     let deps = {};
     let subs = {};
     return {
-        
+
         publish: () => Object.values(deps).forEach(dep => dep.dirty == true),
-        subcribe: (box) => subs[box.name] = box,
+        subscribe: (box) => subs[box.name] = box,
         clear_subs: () => subs = {}
     }
 }
 
 let auto = (obj,cache,pubsub) => {
-    let boxes = [];
-    Object.keys(obj).forEach(name => boxes.push(box(name,obj[name],cache(),pubsub())));
-    boxes.forEach(box => update(box));
+    let boxes = {};
+    Object.keys(obj).forEach(name => boxes[name] = box(name,obj[name],cache(),pubsub()));
+    Object.keys(obj).forEach(name => update(boxes,name));
     return boxes;
 }
 
 let _ = auto({
     x: 10,
-    y: _ => _.x * 2
+    y: _ => _('x') * 2
 }, mem_cache, simple_pubsub)
 
-console.log(_);
-console.log(_[1].cache.get());
+// console.log(_);
+console.log(_.y.cache.get());
