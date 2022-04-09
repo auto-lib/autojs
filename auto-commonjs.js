@@ -8,7 +8,7 @@ let update = (boxes,name,cb) => {
     let set = (v,sc) => {
         if (sc) cache.set(v);
         box.dirty = false;
-        if (cb) cb();
+        if (cb) cb(v);
     }
     if (!fn || !dirty) return cache.get();
     else
@@ -16,6 +16,7 @@ let update = (boxes,name,cb) => {
         let _ = new Proxy({}, {
             get(target, prop) {
                 subscribe(prop);
+                return boxes[prop].cache.get();
             },
             set(target, prop, value) {
                 fail('function '+name+' is trying to change value '+prop);
@@ -27,25 +28,13 @@ let update = (boxes,name,cb) => {
 }
 let box = (name,value,cache,pubsub) => {
     let fn, dirty;
-    if (typeof value === 'function')
-    {
-        fn = value;
-        dirty = true;
-    }
-    else {
-        cache.set(value);
-        dirty = false;
-    }
-    return {
-        name, fn, dirty, cache, pubsub
-    }
+    if (typeof value === 'function') { fn = value; dirty = true; }
+    else { cache.set(value); dirty = false; }
+    return { name, fn, dirty, cache, pubsub }
 }
 let mem_cache = () => {
     let value;
-    return {
-        set: v => value = v,
-        get: _ => value
-    }
+    return { set: v => value = v, get: _ => value }
 }
 let simple_pubsub = () => {
     let deps = {};
@@ -55,6 +44,14 @@ let simple_pubsub = () => {
         subscribe: (name) => deps[name] = true,
         clear_deps: () => deps = {}
     }
+}
+let dirty_deps = (boxes, name) => {
+    Object.keys(boxes).forEach(n => {
+        if (boxes[n].fn && !boxes[n].dirty && name in boxes[n].pubsub.getdeps()) {
+            boxes[n].dirty = true;
+            dirty_deps(boxes,n);
+        }
+    })
 }
 let make_res = (boxes) => {
     let _ = {
@@ -77,10 +74,9 @@ let make_res = (boxes) => {
                 set(v) {
                     boxes[name].cache.set(v);
                     _.value[name] = v;
-                    Object.keys(boxes).forEach(n => {
-                        if (name in boxes[n].pubsub.getdeps()) boxes[n].dirty = true;
-                    })
-                    Object.keys(boxes).forEach(name => update(boxes,name))
+                    dirty_deps(boxes, name);
+                    console.log('dirty',name,boxes);
+                    Object.keys(boxes).forEach(name => update(boxes,name, (v) => _.value[name] = v))
                 }
             })
         }
