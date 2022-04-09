@@ -1,0 +1,5 @@
+
+let auto = (obj,opt) => {
+
+
+}
