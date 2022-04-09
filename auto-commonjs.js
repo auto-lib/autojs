@@ -4,7 +4,7 @@ let update = (boxes,name,cb) => {
     let box = boxes[name];
     if (!box.fn) return;
     let { fn, dirty, cache, pubsub } = box;
-    let { clear_deps, subscribe, publish, connect } = pubsub;
+    let { clear_deps, subscribe } = pubsub;
     let set = (v,sc) => {
         if (sc) cache.set(v);
         box.dirty = false;
@@ -40,7 +40,6 @@ let simple_pubsub = () => {
     let deps = {};
     return {
         getdeps: () => deps,
-        publish: () => Object.values(deps).forEach(dep => dep.dirty == true),
         subscribe: (name) => deps[name] = true,
         clear_deps: () => deps = {}
     }
@@ -53,33 +52,28 @@ let dirty_deps = (boxes, name) => {
         }
     })
 }
+let dynamic = (_, name, boxes) => {
+    _.deps[name] = boxes[name].pubsub.getdeps();
+    _.fn[name] = boxes[name].fn;
+}
+let static = (res, _, name, boxes) => {
+    Object.defineProperty(res, name, {
+        get() { return boxes[name].cache.get() },
+        set(v) {
+            boxes[name].cache.set(v);
+            _.value[name] = v;
+            dirty_deps(boxes, name);
+            Object.keys(boxes).forEach(name => update(boxes,name, (v) => _.value[name] = v))
+        }
+    })
+}
 let make_res = (boxes) => {
-    let _ = {
-        deps: {},
-        value: {},
-        fn: {},
-        subs: {}
-    };
+    let _ = { deps: {}, value: {}, fn: {}, subs: {} };
     let res = {};
     Object.keys(boxes).forEach(name => {
         _.value[name] = boxes[name].cache.get();
-        if (boxes[name].fn) {
-            _.deps[name] = boxes[name].pubsub.getdeps();
-            _.fn[name] = boxes[name].fn;
-        }
-        else
-        {
-            Object.defineProperty(res, name, {
-                get() { return boxes[name].cache.get() },
-                set(v) {
-                    boxes[name].cache.set(v);
-                    _.value[name] = v;
-                    dirty_deps(boxes, name);
-                    console.log('dirty',name,boxes);
-                    Object.keys(boxes).forEach(name => update(boxes,name, (v) => _.value[name] = v))
-                }
-            })
-        }
+        if (boxes[name].fn) dynamic(_, name, boxes);
+        else static(res, _, name, boxes);
     })
     res._ = _;
     return res;

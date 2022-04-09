@@ -7,11 +7,10 @@ let update = (boxes,name,cb) => {
     if (!box.fn) return;
 
     let { fn, dirty, cache, pubsub } = box;
-    let { clear_deps, subscribe, publish, connect } = pubsub;
+    let { clear_deps, subscribe } = pubsub;
 
     let set = (v,sc) => {
-        if (sc) cache.set(v); // save the value
-        // publish(); // set downstream boxes to dirty
+        if (sc) cache.set(v);
         box.dirty = false;
         if (cb) cb(v);
     }
@@ -21,33 +20,13 @@ let update = (boxes,name,cb) => {
     {
         let _ = new Proxy({}, {
             get(target, prop) {
-                
                 subscribe(prop);
-
                 return boxes[prop].cache.get();
-                // // map name to a new name
-                // if (name in resolve && prop in resolve[name]) prop = resolve[name][prop];
-                
-                // if (!(prop in value)) {
-                //     if (prop in fn) update(prop);
-                //     else { 
-                       
-                //         let rprop = check_resolve(name,prop); // see if another name matches
-                //         if (!rprop)
-                //             { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
-                //         prop = rprop;
-                //     }
-                // }
-                // return getter(prop,name);
             },
             set(target, prop, value) {
                 fail('function '+name+' is trying to change value '+prop); 
             }
         });
-        // let ctx = (n) => {
-        //     subscribe(n);
-        //     return boxes[n].cache.get()
-        // }
         clear_deps();
         set(fn(_,set),true);
     }
@@ -56,7 +35,6 @@ let update = (boxes,name,cb) => {
 let box = (name,value,cache,pubsub) => {
 
     let fn, dirty;
-
     if (typeof value === 'function') { fn = value; dirty = true; }
     else { cache.set(value); dirty = false; }
 
@@ -72,7 +50,6 @@ let simple_pubsub = () => {
     let deps = {};
     return {
         getdeps: () => deps,
-        // publish: () => Object.values(deps).forEach(dep => dep.dirty == true),
         subscribe: (name) => deps[name] = true,
         clear_deps: () => deps = {}
     }
@@ -88,34 +65,32 @@ let dirty_deps = (boxes, name) => {
     })
 }
 
+let dynamic = (_, name, boxes) => {
+    _.deps[name] = boxes[name].pubsub.getdeps();
+    _.fn[name] = boxes[name].fn;
+}
+
+let static = (res, _, name, boxes) => {
+
+    Object.defineProperty(res, name, { 
+        get() { return boxes[name].cache.get() }, 
+        set(v) { 
+            boxes[name].cache.set(v);
+            _.value[name] = v;
+            dirty_deps(boxes, name);
+            Object.keys(boxes).forEach(name => update(boxes,name, (v) => _.value[name] = v))
+        } 
+    })
+}
+
 let make_res = (boxes) => {
-    let _ = {
-        deps: {},
-        value: {},
-        fn: {},
-        subs: {}
-    };
+    let _ = { deps: {}, value: {}, fn: {}, subs: {} };
     let res = {};
     Object.keys(boxes).forEach(name => {
         _.value[name] = boxes[name].cache.get();
-        if (boxes[name].fn) {
-            _.deps[name] = boxes[name].pubsub.getdeps();
-            _.fn[name] = boxes[name].fn;
-        }
-        else
-        {
-            Object.defineProperty(res, name, { 
-                get() { return boxes[name].cache.get() }, 
-                set(v) { 
-                    boxes[name].cache.set(v);
-                    _.value[name] = v;
-                    dirty_deps(boxes, name);
-                    Object.keys(boxes).forEach(name => update(boxes,name, (v) => _.value[name] = v))
-                } 
-            })
-        }
+        if (boxes[name].fn) dynamic(_, name, boxes);
+        else static(res, _, name, boxes);
     })
-
     res._ = _;
     return res;
 }
