@@ -10,7 +10,7 @@ module.exports = {
     _: {
         fn: ['count'],
         subs: [],
-        deps: { count: { data: true } },
+        deps: { count: ['data'] },
         value: { data: null, count: 0 },
         fatal: {}
     }

@@ -1,5 +1,6 @@
 let { get_library } = require('./library');
-let { get_tests } = require('./tests');
+let { get_old_tests, get_new_tests } = require('./tests');
+let { convert_old } = require('./convert');
 let { check_test } = require('./check');
 
-module.exports = { get_library, get_tests, check_test };
+module.exports = { get_library, get_old_tests, get_new_tests, convert_old, check_test };

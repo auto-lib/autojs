@@ -1,4 +1,6 @@
 
+let fail = (msg) => { console.log(msg); }
+
 let execute = (name, fn, cache, pubsub) => {
 
     let _ = new Proxy({}, {
@@ -23,15 +25,34 @@ let simple_pubsub = () => {
     let deps = {};
     return {
         state: () => deps,
-        subscribe: (n,f) => {
+        subscribe: (n,f,m) => {
             if (!(n in deps)) deps[n] = [];
-            deps[n].push(f);
+            // named function
+            if (m) {
+                let o = {};
+                o[m] = f;
+                deps[n].push(f);
+            }
+            else
+                deps[n].push(f);
         },
         publish: (n,v) => {
             if (n in deps) deps[n].forEach(f => f(v))
         },
         clear_deps: (n) => delete(deps[n])
     }
+}
+
+let makeres = (obj,cache,pubsub) => {
+    let res = {};
+    Object.keys(obj).forEach(name =>
+        Object.defineProperty(res, name, { 
+            get() { return cache.get(name) }, 
+            set(v) { pubsub.publish(name,v) } 
+        })
+    )
+    res['#'] = { cache, pubsub };
+    return res;
 }
 
 let auto_ = (obj,cache,pubsub) => {
@@ -44,7 +65,7 @@ let auto_ = (obj,cache,pubsub) => {
             else cache.set(name,value);
         }
     })
-    return { cache, pubsub }
+    return makeres(obj,cache,pubsub);
 }
 
 let auto = (obj) => auto_(obj, mem_cache(), simple_pubsub());
