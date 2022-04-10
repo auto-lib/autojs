@@ -1,5 +1,5 @@
 
-let { get_library, get_tests, check_test } = require('./lib.js');
+let { get_library, get_tests, check_test } = require('./tests/lib.js');
 
 let tests = get_tests();
 
@@ -11,7 +11,7 @@ else
     console.log('running tests');
     
     tests.forEach(name => {
-        const test = require('./src/' + name + '.js');
+        const test = require('./tests/src/' + name + '.js');
         check_test(library, name, test);
     })
 }
