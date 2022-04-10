@@ -19,7 +19,7 @@ module.exports = {
         fn: [ 'charts' ],
         subs: [],
         deps: { 
-            charts: { names: true, data: true, a: true, b: true }, 
+            charts: ['names','data','a','b'], 
         },
         value: { 
             data: {

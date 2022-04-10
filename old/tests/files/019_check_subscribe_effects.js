@@ -4,12 +4,12 @@ module.exports = {
         count: ($) => $.data ? $.data.length : 0
     },
     fn: ($, global) => {
-        $['#'].count.subscribe( v => global.msg = "count is "+v );
+        $['#'].count.subscribe( v => global.msg = "count is "+v);
         $.data = [1,2,3];
     },
     _: {
         fn: [ 'count' ],
-        deps: { count: { data: true } },
+        deps: { count: ['data'] },
         subs: { count: ['000'] },
         value: { data: [1,2,3], count: 3 },
         fatal: {}

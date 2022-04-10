@@ -7,7 +7,7 @@ module.exports = {
     _: {
         fn: [ 'count' ],
         subs: [],
-        deps: { 'count': [] },
+        deps: {},
         value: { data: null, count: 10 },
         fatal: {
             msg: "function count is trying to change value data",

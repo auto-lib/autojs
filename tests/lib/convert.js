@@ -6,7 +6,7 @@ function convert_old(test)
         cache: test._.value,
         pubsub: test._.deps,
         fatal: test._.fatal,
-        subs: test._.subs
+        global: test.global
     }
 }
 

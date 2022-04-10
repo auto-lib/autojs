@@ -1,5 +1,7 @@
 
-let fail = (msg) => { console.log(msg); }
+let fail = (msg,stack,fatal) => { 
+    fatal.msg = msg;
+    fatal.stack = stack.get(); }
 
 let get_stack = () => {
     let stack = [];
@@ -10,13 +12,13 @@ let get_stack = () => {
     }
 }
 
-let ctx = (name, cache, pubsub) => new Proxy({}, {
+let ctx = (name, cache, pubsub, stack, fatal) => new Proxy({}, {
     get(target, prop) {
         pubsub.subscribe(name, prop);
         return cache.get(prop);
     },
     set(target, prop, value) {
-        fail('function '+name+' is trying to change value '+prop);
+        fail('function '+name+' is trying to change value '+prop,stack,fatal);
     }
 })
 
@@ -25,14 +27,13 @@ let execute = (name, fn, cache, pubsub, stack, fatal) => {
     if (fatal.error) return;
     if (stack.get().indexOf(name)>-1) {
         stack.push(name);
-        fatal.msg = 'circular dependency';
-        fatal.stack = stack.get();
+        fail('circular dependency',stack,fatal)
         return;
     }
 
     stack.push(name);
 
-    let v = fn(ctx(name,cache,pubsub));
+    let v = fn(ctx(name,cache,pubsub,stack,fatal));
 
     cache.set(name, v);
     pubsub.publish(name, v);
@@ -48,21 +49,25 @@ let mem_cache = () => {
 }
 
 let simple_pubsub = () => {
-    let deps = {};
-    let fn = {};
+    let deps = {}, fn = {};
+    let num = 0;
+    let state = () => deps;
+    let add_fn = (f,n) => {
+        if (!n) { num += 1; n = '#'+num.toString().padStart(3, "0"); }
+        fn[n] = f;
+        return n;
+    }
+    let subscribe = (n,m) => {
+        if (typeof n === 'function') n = add_fn(n);
+        if (!(n in deps)) deps[n] = [];
+        if (deps[n].indexOf(m)==-1) deps[n].push(m);
+    }
+    let publish = (n,v) => {
+        Object.keys(deps).forEach(m => { if (deps[m].indexOf(n)>-1) fn[m](v); })
+    }
+    let clear_deps = (n) => delete(deps[n]);
     return {
-        state: () => deps,
-        add_fn: (n,f) => fn[n] = f,
-        subscribe: (n,m) => {
-            if (!(n in deps)) deps[n] = [];
-            if (deps[n].indexOf(m)==-1) deps[n].push(m);
-        },
-        publish: (n,v) => {
-            Object.keys(deps).forEach(m => {
-                if (deps[m].indexOf(n)>-1) fn[m](v);
-            })
-        },
-        clear_deps: (n) => delete(deps[n])
+        state, add_fn, subscribe, publish, clear_deps
     }
 }
 
@@ -79,7 +84,10 @@ let makeres = (obj,cache,pubsub,fatal) => {
             set(v) { cache.set(name, v); pubsub.publish(name,v) } 
         })
         res['#'][name] = {
-            subscribe: f => () => {}
+            subscribe: f => {
+                pubsub.subscribe(f,name);
+                f(cache.get(name));
+            }
         }
     })
     res['_'] = { cache, pubsub, fatal };
@@ -95,10 +103,10 @@ let box = (name,value,cache,pubsub,stack,fatal) =>
 
         let fn = () => {
             execute(name,value,cache,pubsub,stack,fatal);
-            if (!fatal.msg) stack.clear();
+            stack.clear();
         }
 
-        pubsub.add_fn(name,fn);
+        pubsub.add_fn(fn,name);
 
         fn();
     }
