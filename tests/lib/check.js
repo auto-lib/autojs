@@ -9,12 +9,14 @@ function check_test(library, name, test)
 
     let a = {
         cache: _['#'].cache.state(),
-        pubsub: _['#'].pubsub.state()
+        pubsub: _['#'].pubsub.state(),
+        fatal: _['#'].fatal
     }
 
     let b = {
         cache: test.cache,
-        pubsub: test.pubsub
+        pubsub: test.pubsub,
+        fatal: test.fatal
     }
 
     let same = compare(a,b);

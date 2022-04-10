@@ -1,19 +1,30 @@
 
 let fail = (msg) => { console.log(msg); }
 
-let execute = (name, fn, cache, pubsub) => {
+let ctx = (name, cache, pubsub) => new Proxy({}, {
+    get(target, prop) {
+        pubsub.subscribe(name, prop);
+        return cache.get(prop);
+    },
+    set(target, prop, value) {
+        fail('function '+name+' is trying to change value '+prop);
+    }
+})
 
-    let _ = new Proxy({}, {
-        get(target, prop) {
-            pubsub.subscribe(name, prop);
-            return cache.get(prop);
-        },
-        set(target, prop, value) {
-            fail('function '+name+' is trying to change value '+prop);
-        }
-    })
+let execute = (name, fn, cache, pubsub, stack, fatal) => {
 
-    let v = fn(_);
+    if (fatal.error) return;
+    if (stack.indexOf(name)>-1) {
+        stack.push(name);
+        fatal.msg = 'circular dependency';
+        fatal.stack = stack;
+        return;
+    }
+
+    stack.push(name);
+
+    let v = fn(ctx(name,cache,pubsub));
+
     cache.set(name, v);
     pubsub.publish(name, v);
 }
@@ -46,7 +57,7 @@ let simple_pubsub = () => {
     }
 }
 
-let makeres = (obj,cache,pubsub) => {
+let makeres = (obj,cache,pubsub,fatal) => {
     let res = {};
     Object.keys(obj).forEach(name =>
         Object.defineProperty(res, name, { 
@@ -54,20 +65,28 @@ let makeres = (obj,cache,pubsub) => {
             set(v) { cache.set(name, v); pubsub.publish(name,v) } 
         })
     )
-    res['#'] = { cache, pubsub };
+    res['#'] = { cache, pubsub, fatal };
     return res;
 }
 
 let auto_ = (obj,cache,pubsub) => {
     
+    let stack = [];
+    let fatal = {};
+
     Object.keys(obj).forEach(name => {
         if (name[0] != '#')
         {
             let value = obj[name];
             if (typeof value === 'function')
             {
-                pubsub.add_fn(name,() => execute(name,value,cache,pubsub));
-                execute(name,value,cache,pubsub);
+                pubsub.add_fn(name,() => {
+                    
+                    execute(name,value,cache,pubsub,stack,fatal);
+                    stack = [];
+                })
+                execute(name,value,cache,pubsub,stack,fatal);
+                stack = [];
             }
             else
             {
@@ -76,7 +95,7 @@ let auto_ = (obj,cache,pubsub) => {
             }
         }
     })
-    return makeres(obj,cache,pubsub);
+    return makeres(obj,cache,pubsub,fatal);
 }
 
 let auto = (obj) => auto_(obj, mem_cache(), simple_pubsub());
