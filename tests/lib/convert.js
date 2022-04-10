@@ -5,7 +5,8 @@ function convert_old(test)
         fn: test.fn,
         cache: test._.value,
         pubsub: test._.deps,
-        fatal: test._.fatal
+        fatal: test._.fatal,
+        subs: test._.subs
     }
 }
 

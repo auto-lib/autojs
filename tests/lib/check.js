@@ -8,15 +8,17 @@ function check_test(library, name, test)
     test.fn(_);
 
     let a = {
-        cache: _['#'].cache.state(),
-        pubsub: _['#'].pubsub.state(),
-        fatal: _['#'].fatal
+        cache: _['_'].cache.state(),
+        pubsub: _['_'].pubsub.state(),
+        fatal: _['_'].fatal,
+        subs: _['_'].subs
     }
 
     let b = {
         cache: test.cache,
         pubsub: test.pubsub,
-        fatal: test.fatal
+        fatal: test.fatal,
+        subs: test.subs
     }
 
     let same = compare(a,b);
