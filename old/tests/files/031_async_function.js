@@ -10,7 +10,7 @@ module.exports = {
     timeout: 100, // wait for a set time
     _: {
         fn: [ 'async_func', 'another_async' ],
-        deps: { async_func: {}, another_async: {} },
+        deps: { },
         subs: { },
         value: { data: [1,2,3], async_func: 'async done', another_async: undefined },
         fatal: { }

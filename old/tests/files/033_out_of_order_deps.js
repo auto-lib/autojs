@@ -9,7 +9,7 @@ module.exports = {
     fn: ($) => {},
     _: {
         fn: [ 'func', 'size' ],
-        deps: { func: { size: true }, size: { data: true } },
+        deps: { func: ['size'], size: ['data'] },
         subs: { },
         value: { data: [1,2,3], func: 4, size: 3 },
         fatal: { }

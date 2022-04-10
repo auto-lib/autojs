@@ -10,19 +10,12 @@ function remove_hash(obj) {
     return ret;
 }
 
-function check_test(library, name, test)
-{
-    let _ = library(test.obj);
-    
-    let global = {};
-    test.fn(_,global);
+function confirm(_,global,test,name) {
 
-    let pubsub = {};
-    
     let a = {
         cache: _['_'].cache.state(),
         pubsub: remove_hash(_['_'].pubsub.state()),
-        fatal: _['_'].fatal,
+        fatal: _['_'].fatal.get(),
         global
     }
 
@@ -48,6 +41,24 @@ function check_test(library, name, test)
     }
 
     return same;
+}
+
+async function delay(time) {
+    let { setTimeout } = require("timers/promises");
+    await setTimeout(time);
+ }
+
+async function check_test(library, name, test)
+{
+    let _ = library(test.obj);
+    
+    let global = {};
+    test.fn(_,global);
+
+    let c = () => confirm(_,global,test,name);
+
+    if (test.timeout) await delay(test.timeout);
+    return c();
 }
 
 module.exports = { check_test };

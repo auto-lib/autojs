@@ -1,42 +1,59 @@
 
-let fail = (msg,stack,fatal) => { 
-    fatal.msg = msg;
-    fatal.stack = stack.get(); }
+let fail = (msg,stack,fatal) => fatal.set({msg, stack: stack})
 
-let get_stack = () => {
+let get_stack = (fatal) => {
     let stack = [];
     return {
         push: (v) => stack.push(v),
+        pop: () => stack.pop(),
         clear: () => stack = [],
-        get: () => stack
+        get: () => stack,
+        check: (name) => {
+            if (stack.indexOf(name)>-1) {
+                stack.push(name);
+                fail('circular dependency',stack,fatal)
+                return false;
+            }
+            return true;
+        }
+    }
+}
+
+let get_fatal = () => {
+    let fatal = {};
+    return {
+        set: (v) => fatal = v,
+        get: () => fatal
     }
 }
 
 let ctx = (name, cache, pubsub, stack, fatal) => new Proxy({}, {
     get(target, prop) {
-        pubsub.subscribe(name, prop);
-        return cache.get(prop);
+        if (!cache.has(prop) && !pubsub.has(prop)) fail('function '+name+' is trying to access non-existent variable '+prop,stack.get(),fatal);
+        else {
+            pubsub.subscribe(name, prop);
+            return cache.get(prop);
+        }
     },
     set(target, prop, value) {
-        fail('function '+name+' is trying to change value '+prop,stack,fatal);
+        fail('function '+name+' is trying to change value '+prop,stack.get(),fatal);
     }
 })
 
 let execute = (name, fn, cache, pubsub, stack, fatal) => {
 
-    if (fatal.error) return;
-    if (stack.get().indexOf(name)>-1) {
-        stack.push(name);
-        fail('circular dependency',stack,fatal)
-        return;
-    }
-
+    stack.check(name);
+    if (fatal.get().msg) return;
     stack.push(name);
 
-    let v = fn(ctx(name,cache,pubsub,stack,fatal));
+    let set = (v) => {
+        cache.set(name, v);
+        pubsub.publish(name, v);
+    }
 
-    cache.set(name, v);
-    pubsub.publish(name, v);
+    let v = fn(ctx(name,cache,pubsub,stack,fatal),set);
+
+    set(v);
 }
 
 let mem_cache = () => {
@@ -44,13 +61,15 @@ let mem_cache = () => {
     return { 
         state: () => value, 
         set: (n,v) => value[n] = v, 
-        get: n => value[n]
+        get: n => value[n],
+        has: n => n in value
     }
 }
 
 let simple_pubsub = () => {
     let deps = {}, fn = {};
     let num = 0;
+    let has = n => n in fn;
     let state = () => deps;
     let add_fn = (f,n) => {
         if (!n) { num += 1; n = '#'+num.toString().padStart(3, "0"); }
@@ -67,63 +86,78 @@ let simple_pubsub = () => {
     }
     let clear_deps = (n) => delete(deps[n]);
     return {
-        state, add_fn, subscribe, publish, clear_deps
+        has, state, add_fn, subscribe, publish, clear_deps
     }
 }
 
-// connect to the outside world:
-//  - get/set
-//  - subscribe
-//  - internals (for testing/debugging)
+let dynamic_access = (res,name,cache,stack,fatal) => {
+    Object.defineProperty(res, name, { 
+        get() { return cache.get(name) }, 
+        set(v) { fail('someone is trying to set function '+name,stack,fatal); }
+    })
+}
 
-let makeres = (obj,cache,pubsub,fatal) => {
-    let res = { '#': {} };
-    Object.keys(obj).forEach(name => {
-        Object.defineProperty(res, name, { 
-            get() { return cache.get(name) }, 
-            set(v) { cache.set(name, v); pubsub.publish(name,v) } 
-        })
-        res['#'][name] = {
-            subscribe: f => {
-                pubsub.subscribe(f,name);
-                f(cache.get(name));
-            }
+let static_access = (res,name,cache,pubsub,stack) => {
+    Object.defineProperty(res, name, { 
+        get() { return cache.get(name) }, 
+        set(v) {
+            stack.clear();
+            cache.set(name, v); 
+            pubsub.publish(name);  
         }
     })
-    res['_'] = { cache, pubsub, fatal };
+}
+
+let loop_keys = (obj, fn) => Object.keys(obj).forEach(name => fn(name,obj[name]));
+
+let key_map = (obj, fn) => {
+    let o = {};
+    loop_keys(obj, (name, value) => { if (fn(name,value)) o[name] = value })
+    return o;
+}
+let looper = (obj,fn) => {
+    let o = key_map(obj, (name,value) => fn(name,value));
+    return { each: fn => loop_keys(o,fn) }
+}
+
+let auto_ = (obj,res,fatal,stack,cache,pubsub) => {
+    
+    let exec = (name,value) => execute(name,value,cache,pubsub,stack,fatal);
+
+    let statics = looper(obj, (n,v) => typeof v !== 'function');
+    let dynamics = looper(obj, (n,v) => typeof v === 'function');
+
+    statics.each( (n,v) => cache.set(n,v) );
+    dynamics.each( (n,v) => pubsub.add_fn(() => exec(n,v), n) );
+    
+    // so far nothing has happened
+    // now execute and publish
+    // not sure which order this should be in?
+
+    dynamics.each( (n,v) => { stack.clear(); exec(n,v); } );
+    statics.each( (n,v) => { stack.clear(); pubsub.publish(n); });
+
+    // from here on no effect either
+
+    if (!('#' in res)) res['#'] = {};
+
+    statics.each( (n,v) => static_access(res,n,cache,pubsub,stack) );
+    dynamics.each( (n,v) => dynamic_access(res,n,cache,stack,fatal) );
+
+    loop_keys(obj, (n,v) => res['#'][n] = { subscribe: fn => {
+        let f = () => fn(cache.get(n));
+        f()
+        pubsub.subscribe(f,n)
+    }})
+
+    res['_'] = { cache, pubsub, fatal }; // for debugging / testing
+
     return res;
 }
 
-let box = (name,value,cache,pubsub,stack,fatal) =>
-{
-    if (typeof value === 'function')
-    {
-        // register a function under the variable name
-        // which can be subscribed to
-
-        let fn = () => {
-            execute(name,value,cache,pubsub,stack,fatal);
-            stack.clear();
-        }
-
-        pubsub.add_fn(fn,name);
-
-        fn();
-    }
-    else
-        cache.set(name,value);
+let auto = (obj) => {
+    let fatal = get_fatal();
+    return auto_(obj, {}, fatal, get_stack(fatal), mem_cache(), simple_pubsub())
 }
-
-let auto_ = (obj,cache,pubsub) => {
-    
-    let stack = get_stack(); // call stack (circle detection)
-    let fatal = {}; // fatal error
-
-    Object.keys(obj).forEach(name => { if (name[0] != '#') box(name,obj[name],cache,pubsub,stack,fatal) });
-
-    return makeres(obj,cache,pubsub,fatal);
-}
-
-let auto = (obj) => auto_(obj, mem_cache(), simple_pubsub());
 
 module.exports = { auto };

@@ -8,7 +8,7 @@ module.exports = {
     fn: ($) => {},
     _: {
         fn: [ 'func' ],
-        deps: { func: { } },
+        deps: { },
         subs: { },
         value: { data: [1,2,3], func: NaN },
         fatal: { 
