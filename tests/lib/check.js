@@ -5,6 +5,8 @@ function check_test(library, name, test)
 {
     let _ = library(test.obj);
     
+    test.fn(_);
+
     let a = {
         cache: _['#'].cache.state(),
         pubsub: _['#'].pubsub.state()
@@ -27,9 +29,6 @@ function check_test(library, name, test)
     else
     {
         console.log(name,'ok');
-        console.log(' - obj',test.obj);
-        console.log(' - state auto',a);
-        console.log(' - state test',b);
     }
 
     return same;

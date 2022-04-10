@@ -13,31 +13,34 @@ let execute = (name, fn, cache, pubsub) => {
         }
     })
 
-    cache.set(name, fn(_));
+    let v = fn(_);
+    cache.set(name, v);
+    pubsub.publish(name, v);
 }
 
 let mem_cache = () => {
     let value = {};
-    return { state: () => value, set: (n,v) => value[n] = v, get: n => value[n] }
+    return { 
+        state: () => value, 
+        set: (n,v) => value[n] = v, 
+        get: n => value[n]
+    }
 }
 
 let simple_pubsub = () => {
     let deps = {};
+    let fn = {};
     return {
         state: () => deps,
-        subscribe: (n,f,m) => {
+        add_fn: (n,f) => fn[n] = f,
+        subscribe: (n,m) => {
             if (!(n in deps)) deps[n] = [];
-            // named function
-            if (m) {
-                let o = {};
-                o[m] = f;
-                deps[n].push(f);
-            }
-            else
-                deps[n].push(f);
+            if (deps[n].indexOf(m)==-1) deps[n].push(m);
         },
         publish: (n,v) => {
-            if (n in deps) deps[n].forEach(f => f(v))
+            Object.keys(deps).forEach(m => {
+                if (deps[m].indexOf(n)>-1) fn[m](v);
+            })
         },
         clear_deps: (n) => delete(deps[n])
     }
@@ -48,7 +51,7 @@ let makeres = (obj,cache,pubsub) => {
     Object.keys(obj).forEach(name =>
         Object.defineProperty(res, name, { 
             get() { return cache.get(name) }, 
-            set(v) { pubsub.publish(name,v) } 
+            set(v) { cache.set(name, v); pubsub.publish(name,v) } 
         })
     )
     res['#'] = { cache, pubsub };
@@ -61,8 +64,16 @@ let auto_ = (obj,cache,pubsub) => {
         if (name[0] != '#')
         {
             let value = obj[name];
-            if (typeof value === 'function') execute(name,value,cache,pubsub);
-            else cache.set(name,value);
+            if (typeof value === 'function')
+            {
+                pubsub.add_fn(name,() => execute(name,value,cache,pubsub));
+                execute(name,value,cache,pubsub);
+            }
+            else
+            {
+                pubsub.add_fn(name,() => {}); 
+                cache.set(name,value);
+            }
         }
     })
     return makeres(obj,cache,pubsub);
