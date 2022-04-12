@@ -12,7 +12,7 @@ module.exports = {
         value: { a: null, b: NaN, c: NaN },
         fatal: {
             msg: 'circular dependency',
-            stack: ['c', 'b', 'c']
+            stack: ['b', 'c', 'b']
         }
     }
 }

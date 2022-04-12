@@ -12,7 +12,7 @@ module.exports = {
         value: { a: undefined, b: undefined, c: undefined },
         fatal: {
             msg: 'circular dependency',
-            stack: ['c','b','a','c']
+            stack: ['a','b','c','a']
         }
     }
 }

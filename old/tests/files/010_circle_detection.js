@@ -11,7 +11,7 @@ module.exports = {
         value: { tick: undefined, tock: undefined },
         fatal: {
             msg: 'circular dependency',
-            stack: [ 'tock', 'tick', 'tock' ]
+            stack: [ 'tick', 'tock', 'tick' ]
         }
     }
 }

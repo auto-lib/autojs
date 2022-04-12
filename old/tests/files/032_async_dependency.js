@@ -7,7 +7,7 @@ module.exports = {
         another_async: (_,set) => setTimeout( () => set(_.async_func + ', and another done too'), 100)
     },
     fn: ($, global) => {},
-    timeout: 150, // wait for a set time
+    timeout: 100, // wait for a set time
     _: {
         fn: [ 'async_func', 'another_async' ],
         deps: { another_async: ['async_func'] },

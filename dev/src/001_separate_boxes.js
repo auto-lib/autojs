@@ -9,6 +9,7 @@ let get_stack = (fatal) => {
         clear: () => stack = [],
         get: () => stack,
         check: (name) => {
+            if (fatal.get().msg) return false;
             if (stack.indexOf(name)>-1) {
                 stack.push(name);
                 fail('circular dependency',stack,fatal)
@@ -27,7 +28,21 @@ let get_fatal = () => {
     }
 }
 
-let ctx = (name, cache, pubsub, stack, fatal) => new Proxy({}, {
+let ctx_follow = (name, fn, cache, pubsub, stack, fatal) => new Proxy({}, {
+    get(target, prop) {
+        if (!cache.has(prop) && !pubsub.has(prop)) fail('function '+name+' is trying to access non-existent variable '+prop,stack.get(),fatal);
+        else {
+            if (!cache.has(prop) && prop in fn) execute_follow(prop,fn,cache,pubsub,stack,fatal);
+            pubsub.subscribe(name, prop);
+            return cache.get(prop);
+        }
+    },
+    set(target, prop, value) {
+        fail('function '+name+' is trying to change value '+prop,stack.get(),fatal);
+    }
+})
+
+let ctx_publish = (name, fn, cache, pubsub, stack, fatal) => new Proxy({}, {
     get(target, prop) {
         if (!cache.has(prop) && !pubsub.has(prop)) fail('function '+name+' is trying to access non-existent variable '+prop,stack.get(),fatal);
         else {
@@ -40,7 +55,21 @@ let ctx = (name, cache, pubsub, stack, fatal) => new Proxy({}, {
     }
 })
 
-let execute = (name, fn, cache, pubsub, stack, fatal) => {
+let execute_follow = (name, fn, cache, pubsub, stack, fatal) => {
+
+    stack.check(name);
+    if (fatal.get().msg) return;
+    stack.push(name);
+
+    let set = (v) => cache.set(name, v);
+
+    let v = fn[name](ctx_follow(name, fn, cache, pubsub, stack, fatal),set);
+
+    set(v);
+
+}
+
+let execute_publish = (name, fn, cache, pubsub, stack, fatal) => {
 
     stack.check(name);
     if (fatal.get().msg) return;
@@ -51,7 +80,7 @@ let execute = (name, fn, cache, pubsub, stack, fatal) => {
         pubsub.publish(name, v);
     }
 
-    let v = fn(ctx(name,cache,pubsub,stack,fatal),set);
+    let v = fn[name](ctx_publish(name,fn,cache,pubsub,stack,fatal),set);
 
     set(v);
 }
@@ -60,7 +89,7 @@ let mem_cache = () => {
     let value = {};
     return { 
         state: () => value, 
-        set: (n,v) => value[n] = v, 
+        set: (n,v) => value[n] = v,
         get: n => value[n],
         has: n => n in value
     }
@@ -120,22 +149,26 @@ let looper = (obj,fn) => {
     return { each: fn => loop_keys(o,fn) }
 }
 
-let auto_ = (obj,res,fatal,stack,cache,pubsub) => {
+let auto_ = (obj,res,fn,fatal,stack,cache,pubsub) => {
     
-    let exec = (name,value) => execute(name,value,cache,pubsub,stack,fatal);
+    let exec_follow = (name) => execute_follow(name,fn,cache,pubsub,stack,fatal);
+    let exec_publish = (name) => execute_publish(name,fn,cache,pubsub,stack,fatal);
 
     let statics = looper(obj, (n,v) => typeof v !== 'function');
     let dynamics = looper(obj, (n,v) => typeof v === 'function');
 
     statics.each( (n,v) => cache.set(n,v) );
-    dynamics.each( (n,v) => pubsub.add_fn(() => exec(n,v), n) );
+    
+    dynamics.each( (n,v) => fn[n] = v);
+    dynamics.each( (n,v) => pubsub.add_fn(() => exec_publish(n), n) );
     
     // so far nothing has happened
     // now execute and publish
     // not sure which order this should be in?
 
-    dynamics.each( (n,v) => { stack.clear(); exec(n,v); } );
-    statics.each( (n,v) => { stack.clear(); pubsub.publish(n); });
+    //statics.each( (n,v) => { stack.clear(); pubsub.publish(n); });
+    dynamics.each( (n,v) => { stack.clear(); exec_follow(n); } );
+    //dynamics.each( (n,v) => { stack.clear(); pubsub.publish(n); });
 
     // from here on no effect either
 
@@ -157,7 +190,7 @@ let auto_ = (obj,res,fatal,stack,cache,pubsub) => {
 
 let auto = (obj) => {
     let fatal = get_fatal();
-    return auto_(obj, {}, fatal, get_stack(fatal), mem_cache(), simple_pubsub())
+    return auto_(obj, {}, {}, fatal, get_stack(fatal), mem_cache(), simple_pubsub())
 }
 
 module.exports = { auto };

@@ -21,7 +21,7 @@ module.exports = {
         value: { data: [1,2,3], initial: NaN, loop_a: undefined, loop_b: undefined },
         fatal: {
             msg: 'circular dependency',
-            stack: [ 'loop_b', 'loop_a', 'initial', 'loop_b' ]
+            stack: [ 'initial', 'loop_a', 'loop_b', 'loop_a' ]
         }
     }
 }
