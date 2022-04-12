@@ -13,9 +13,9 @@ module.exports = {
     _: {
         fn: [ 'func_1', 'func_2', 'combine' ],
         deps: { 
-            func_1: { data: true }, 
-            func_2: { data: true }, 
-            combine: { func_1: true, func_2: true, data: true } },
+            func_1: ['data'], 
+            func_2: ['data'], 
+            combine: ['func_1', 'func_2', 'data'] },
         subs: { },
         value: { data: [1,2,3,4], func_1: 4, func_2: 14, combine: 22 },
         fatal: { }

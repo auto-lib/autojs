@@ -110,9 +110,7 @@ let simple_pubsub = () => {
         if (!(n in deps)) deps[n] = [];
         if (deps[n].indexOf(m)==-1) deps[n].push(m);
     }
-    let publish = (n,v) => {
-        Object.keys(deps).forEach(m => { if (deps[m].indexOf(n)>-1) fn[m](v); })
-    }
+    let publish = (n,v) => Object.keys(deps).forEach(m => { if (deps[m].indexOf(n)>-1) fn[m](v); });
     let clear_deps = (n) => delete(deps[n]);
     return {
         has, state, add_fn, subscribe, publish, clear_deps
@@ -132,7 +130,7 @@ let static_access = (res,name,cache,pubsub,stack) => {
         set(v) {
             stack.clear();
             cache.set(name, v); 
-            pubsub.publish(name);  
+            pubsub.publish(name,v);  
         }
     })
 }
@@ -166,9 +164,7 @@ let auto_ = (obj,res,fn,fatal,stack,cache,pubsub) => {
     // now execute and publish
     // not sure which order this should be in?
 
-    //statics.each( (n,v) => { stack.clear(); pubsub.publish(n); });
     dynamics.each( (n,v) => { stack.clear(); exec_follow(n); } );
-    //dynamics.each( (n,v) => { stack.clear(); pubsub.publish(n); });
 
     // from here on no effect either
 
