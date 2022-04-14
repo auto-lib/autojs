@@ -25,7 +25,7 @@ let auto = (obj) => {
         external(res, name, v, c, ps);
     })
 
-    res['_'] = () => ({ cache: cache(), pubsub: pubsub(), error: error() });
+    res['_'] = () => ({ cache: cache(), deps: pubsub(), error: error() });
     
     return res;
 }

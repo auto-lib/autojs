@@ -5,10 +5,12 @@ let dynamic = (func,cache,pubsub,error) => {
     let deps = {};
 
     let ctx = new Proxy({},{
-        get(t,n) { deps[n] = true;
-            if (!c.has(n)) e( n+' not found in cache' );
+        get(t,n) { 
+            deps[n] = true;
+            if (!c.has(n)) e(n+' not found in cache');
             else return c.get(n); },
-        set(t,n,v) { e({ msg: 'trying to set '+n }) }
+        set(t,n,v) { 
+            e('trying to set '+n) }
     })
 
     let set = v => {

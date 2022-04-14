@@ -1,5 +1,5 @@
 
-// convert { x: { y: true, z: true } } to { x: ['y','z,'] }
+// convert { x: { y: true, z: true } } to { x: ['y','z'] }
 // for readability in debugging
 let arr = (d) => {
     let o = {};
@@ -16,11 +16,7 @@ let make_pubsub = () => {
         return ({
             fn: func => { fns[name] = func; func(); },
             deps(d) { deps[name] = d; },
-            trigger() { 
-                Object.keys(deps).forEach(n => {
-                    if (name in deps[n]) fns[n]()
-                })
-            }
+            trigger() { Object.keys(deps).forEach(n => { if (name in deps[n]) fns[n](); }) }
         })
     }
 
