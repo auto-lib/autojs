@@ -1,15 +1,22 @@
 
+// convert { x: { y: true, z: true } } to { x: ['y','z,'] }
+// for readability in debugging
+let arr = (d) => {
+    let o = {};
+    Object.keys(d).forEach( key => o[key] = Object.keys(d[key]).map(name => name) );
+    return o;
+}
+
 let make_pubsub = () => {
 
     let fns = {}, deps = {};
-
+    
     let pubsub = (name) => {
-        if (!name) return deps;
+        if (!name) return arr(deps);
         return ({
-            fn: func => { console.log('pubsub fn '+name); fns[name] = func; func(); },
-            deps(deps) { console.log('pubsub deps ' + name + ' ' + JSON.stringify(deps)); deps[name] = deps; },
+            fn: func => { fns[name] = func; func(); },
+            deps(d) { deps[name] = d; },
             trigger() { 
-                console.log('pubsub trigger '+name); 
                 Object.keys(deps).forEach(n => {
                     if (name in deps[n]) fns[n]()
                 })

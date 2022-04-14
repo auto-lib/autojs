@@ -29,6 +29,11 @@ let dynamic = (func,cache,pubsub) => {
 
 let static = (value,cache,pubsub) => {
     
+    let v = value, c = cache, ps = pubsub;
+    let errors = [];
+
+    c.set(v);
+
 }
 
 // let log = [];
