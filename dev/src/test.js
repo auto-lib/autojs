@@ -9,6 +9,4 @@ let _ = auto({
 
 _.x = 5;
 
-console.log('cache', _['#'].cache());
-console.log('pubsub', _['#'].pubsub());
-console.log('error', _['#'].error());
+console.log('state',_._());
