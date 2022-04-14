@@ -58,7 +58,7 @@ maybe this is only an issue with async code...
 
 ok so this is failing:
 
-```
+```js
 // devlog/docs/028_complete_leaves.md
 
 module.exports = {

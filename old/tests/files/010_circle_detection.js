@@ -8,7 +8,7 @@ module.exports = {
         fn: ['tick','tock'],
         subs: [],
         deps: { tick: ['tock'], tock: ['tick'] },
-        value: { tick: undefined, tock: undefined },
+        value: { tick: undefined },
         fatal: {
             msg: 'circular dependency',
             stack: [ 'tick', 'tock', 'tick' ]
