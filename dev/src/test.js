@@ -1,12 +1,21 @@
 
-let auto = require('./001_separate_boxes/');
+let cache = require('./001_separate_boxes/cache')();
+let error = require('./001_separate_boxes/error')();
+let pubsub = require('./001_separate_boxes/pubsub')();
 
-let _ = auto({
+let auto = obj => require('./001_separate_boxes/')(obj, { cache, error, pubsub });
+
+let a = auto({
     x: 10,
-    y: _ => _.z * 2,
+    y: _ => _.x * 2,
     log: _ => console.log('y =',_.y)
 });
 
-_.x = 5;
+let b = auto({
+    z: _ => _.x + _.y,
+    log: _ => console.log('z =',_.z)
+});
 
-console.log('state',_._());
+a.x = 5;
+
+console.log('state',a._());

@@ -1,15 +1,19 @@
 
 let { dynamic, static } = require('./value');
+
 let make_cache = require('./cache');
 let make_pubsub = require('./pubsub');
 let make_error = require('./error');
+
 let external = require('./external');
 
-let auto = (obj) => {
+let auto = (obj, opt) => {
 
-    let cache = make_cache();
-    let pubsub = make_pubsub();
-    let error = make_error();
+    let { cache, pubsub, error } = opt;
+
+    cache = cache || make_cache();
+    pubsub = pubsub || make_pubsub();
+    error = error || make_error();
 
     let res = {};
 
