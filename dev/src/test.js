@@ -4,10 +4,10 @@ module.paths.push('./001_separate_boxes');
 
 // log everything that happens internally
 let evts = [];
-let hook = (obj,v,fn,parm) => parm ? evts.push({ obj,v,fn,parm }) : evts.push({ obj,v,fn });
+let log = (obj,v,fn,parm) => parm ? evts.push({ obj,v,fn,parm }) : evts.push({ obj,v,fn });
 
 // get wrap using hook function
-let { cache, error, pubsub } = require('trace')(hook, { 
+let { cache, error, pubsub } = require('prehook')(log, { 
     // cache: require('cache')() 
     pubsub: require('pubsub')()
 });

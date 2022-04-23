@@ -6,7 +6,7 @@
 // if you want to hook cache or error or pubsub, pass it in
 // otherwise we return a default
 
-let trace = (hook, objs) => {
+module.exports = (func, objs) => {
 
     objs = objs || {};
     let { cache, error, pubsub } = objs;
@@ -15,7 +15,7 @@ let trace = (hook, objs) => {
 
     if (cache) tcache = name => {
         if (!name) return cache();
-        let h = (fn,parm) => hook('cache',name,fn,parm);
+        let h = (fn,parm) => func('cache',name,fn,parm);
         return ({
             get(n) { h('get',n); return cache(name).get(n); },
             set(v) { h('set',v); return cache(name).set(v); },
@@ -25,7 +25,7 @@ let trace = (hook, objs) => {
     
     if (pubsub) tpubsub = (name) => {
         if (!name) return pubsub();
-        let h = (fn,parm) => hook('pubsub',name,fn,parm);
+        let h = (fn,parm) => func('pubsub',name,fn,parm);
         return ({
             fn(func) { h('fn'); pubsub(name).fn(func); },
             deps(d) { h('deps',Object.keys(d)); pubsub(name).deps(d); },
@@ -39,5 +39,3 @@ let trace = (hook, objs) => {
         pubsub: tpubsub || pubsub || require('./pubsub')()
     };
 }
-
-module.exports = trace;
