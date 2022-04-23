@@ -1,6 +1,7 @@
 
 // convert { x: { y: true, z: true } } to { x: ['y','z'] }
 // for readability in debugging
+
 let arr = (d) => {
     let o = {};
     Object.keys(d).forEach( key => o[key] = Object.keys(d[key]).map(name => name) );

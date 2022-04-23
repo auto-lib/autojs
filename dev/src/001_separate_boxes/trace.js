@@ -23,6 +23,16 @@ let trace = (hook, objs) => {
         })
     }
     
+    if (pubsub) tpubsub = (name) => {
+        if (!name) return pubsub();
+        let h = (fn,parm) => hook('pubsub',name,fn,parm);
+        return ({
+            fn(func) { h('fn'); pubsub(name).fn(func); },
+            deps(d) { h('deps',Object.keys(d)); pubsub(name).deps(d); },
+            trigger() { h('trigger'); pubsub(name).trigger(); }
+        })
+    }
+
     return {
         cache: tcache || cache || require('./cache')(), 
         error: terror || error || require('./error')(), 

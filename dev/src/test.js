@@ -3,10 +3,13 @@
 module.paths.push('./001_separate_boxes');
 
 // log everything that happens internally
-let evts = [], hook = (obj,v,fn,parm) => evts.push({ obj,v,fn,parm });
+let evts = [], hook = (obj,v,fn,parm) => parm ? evts.push({ obj,v,fn,parm }) : evts.push({ obj,v,fn });
 
 // get wrap using hook function
-let { cache, error, pubsub } = require('trace')(hook, { cache: require('cache')() });
+let { cache, error, pubsub } = require('trace')(hook, { 
+    // cache: require('cache')() 
+    pubsub: require('pubsub')()
+});
 
 // wrap main function with above internal objects
 let auto = obj => require('./001_separate_boxes/')(obj, { cache, error, pubsub });
