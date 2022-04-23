@@ -1,5 +1,6 @@
 
-// convert { x: { y: true, z: true } } to { x: ['y','z'] }
+// convert { x: { y: true, z: true } }
+// to { x: ['y','z'] }
 // for readability in debugging
 
 let arr = (d) => {

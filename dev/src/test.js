@@ -3,7 +3,8 @@
 module.paths.push('./001_separate_boxes');
 
 // log everything that happens internally
-let evts = [], hook = (obj,v,fn,parm) => parm ? evts.push({ obj,v,fn,parm }) : evts.push({ obj,v,fn });
+let evts = [];
+let hook = (obj,v,fn,parm) => parm ? evts.push({ obj,v,fn,parm }) : evts.push({ obj,v,fn });
 
 // get wrap using hook function
 let { cache, error, pubsub } = require('trace')(hook, { 
