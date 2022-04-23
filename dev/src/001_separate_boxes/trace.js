@@ -1,4 +1,8 @@
 
+/* function to intercept the inner calls of objects */
+/* if you want to hook, pass in an object */
+/* otherwise we give you the default */
+
 let trace = (hook, objs) => {
 
     objs = objs || {};

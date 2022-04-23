@@ -17,16 +17,18 @@ let auto = obj => require('./001_separate_boxes/')(obj, { cache, error, pubsub }
 
 let a = auto({
     x: 10,
-    y: _ => _.x * 2,
+    y: _ => _.x * 2 + _.w,
     log: _ => console.log('y =',_.y)
 });
 
 let b = auto({
+    w: 2,
     z: _ => _.x + _.y,
     log: _ => console.log('z =',_.z)
 });
 
 a.x = 5;
+b.w = 3;
 
 console.log('evts',evts);
 
