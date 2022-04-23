@@ -1,7 +1,10 @@
 
-/* function to intercept the inner calls of objects */
-/* if you want to hook, pass in an object */
-/* otherwise we give you the default */
+// function to intercept the inner calls of objects
+// so we can see exactly what occurs internally
+// e.g. let evts = [], hook = (obj,v,fn,parm) => evts.push({ obj,v,fn,parm });
+
+// if you want to hook cache or error or pubsub, pass it in
+// otherwise we return a default
 
 let trace = (hook, objs) => {
 

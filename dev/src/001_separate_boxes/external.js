@@ -1,4 +1,7 @@
 
+// define properties on the returned object
+// so that we can e.g. _.x = 10 or console.log(_.y)
+
 let dynamic = (name,cache) => 
 ({
     get() { return cache.get(name) },

@@ -6,10 +6,12 @@ let auto = (obj, opt) => {
 
     let { cache, pubsub, error } = opt;
 
+    // use defaults if none passed in
     cache = cache || require('./cache')();
     pubsub = pubsub || require('./pubsub')();
     error = error || require('./error')();
 
+    // res just binds external access like _.x = 2
     let res = {};
 
     Object.keys(obj).forEach(name => {
@@ -24,6 +26,9 @@ let auto = (obj, opt) => {
         external(res, name, v, c, ps);
     })
 
+    // give access to outside to view internal vars
+    // (you can also create the objects yourself
+    //  and get the internals from there...)
     res['_'] = () => ({ cache, pubsub, error });
     
     return res;

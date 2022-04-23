@@ -15,14 +15,14 @@ let auto = obj => require('./001_separate_boxes/')(obj, { cache, error, pubsub }
 let a = auto({
     x: 10,
     y: _ => _.x * 2 + _.w,
-    log: _ => console.log('y =',_.y)
+    log: _ => console.log('y =',_.y) // this will run any time y changes
 });
 
 // object two (note: interdependent with 'a')
 let b = auto({
     w: 2,
     z: _ => _.x + _.y,
-    log: _ => console.log('z =',_.z)
+    log: _ => console.log('z =',_.z) // this will also run but when z changes
 });
 
 // set values (should react automatically)

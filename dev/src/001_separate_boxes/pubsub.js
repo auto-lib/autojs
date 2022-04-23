@@ -14,8 +14,9 @@ let make_pubsub = () => {
     let pubsub = (name) => {
         if (!name) return arr(deps); // how we view the state from the outside
         return ({
-            fn: func => { fns[name] = func; func(); },
-            deps(d) { deps[name] = d; },
+            fn: func => { fns[name] = func; func(); }, // define a function by name
+            deps(d) { deps[name] = d; }, // set the dependencies for named function
+            // call all functions that names this one
             trigger() { Object.keys(deps).forEach(n => { if (name in deps[n]) fns[n](); }) }
         })
     }
