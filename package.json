@@ -1,18 +1,14 @@
 {
     "name": "@autolib/auto",
-  "version": "1.36.35",
-    "description": "reactivity without side effects",
-    "main": "build/auto-commonjs.js",
-    "module": "build/auto-es6.js",
+    "version": "1.36.35",
+    "description": "automatic javascript",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/kewp/auto.git"
+        "url": "git+https://github.com/auto-lib/autojs.git"
     },
     "keywords": [],
-    "author": "",
-    "license": "ISC",
-    "bugs": {
-        "url": "https://github.com/kewp/auto/issues"
-    },
-    "homepage": "https://github.com/kewp/auto"
+    "author": "Karl Penzhorn",
+    "license": "MIT",
+    "bugs": { "url": "https://github.com/auto-lib/autojs/issues" },
+    "homepage": "https://autolib.dev"
 }
