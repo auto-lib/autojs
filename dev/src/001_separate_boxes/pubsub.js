@@ -12,7 +12,7 @@ let make_pubsub = () => {
     let fns = {}, deps = {};
     
     let pubsub = (name) => {
-        if (!name) return arr(deps);
+        if (!name) return arr(deps); // how we view the state from the outside
         return ({
             fn: func => { fns[name] = func; func(); },
             deps(d) { deps[name] = d; },

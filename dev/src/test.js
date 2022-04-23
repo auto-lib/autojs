@@ -1,7 +1,17 @@
 
-let cache = require('./001_separate_boxes/cache')();
-let error = require('./001_separate_boxes/error')();
-let pubsub = require('./001_separate_boxes/pubsub')();
+module.paths.push('./001_separate_boxes');
+
+let evts = [];
+
+let hook = (obj,v,fn,parm) => evts.push({ obj,v,fn,parm });
+
+let trace = require('trace');
+
+let { cache, error, pubsub } = trace(hook, {
+    cache: require('cache')(),
+    error: require('error')(),
+    pubsub: require('pubsub')()
+});
 
 let auto = obj => require('./001_separate_boxes/')(obj, { cache, error, pubsub });
 
@@ -18,4 +28,10 @@ let b = auto({
 
 a.x = 5;
 
-console.log('state',a._());
+console.log('evts',evts);
+
+console.log('state',{
+    cache: cache(),
+    error: error(),
+    deps: pubsub()
+});
