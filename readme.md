@@ -33,7 +33,7 @@ _.x = 5
 ```
 
 at which point both `y` and `log` will
-get trigger, i.g.
+get triggered, i.e.
 
 ```bash
 $ node test.js
@@ -67,8 +67,9 @@ b.w = 3;
 ```
 
 each auto object uses a _cache_ for storing values,
-_error_ for reporting on exceptions, and
-_pubsub_ for connecting with a publish / subscribe.
+an _error_ object for reporting on exceptions and
+a _pubsub_ for connecting with a publish / subscribe
+mechanism
 
 above we get default objects for each of these (you can
 also use your own custom objects, or wrap the defaults -
@@ -77,12 +78,8 @@ each refer to values the other defines.
 
 ## custom core objects
 
-three objects are passed in each time you call `auto`:
-_cache_ which holds data values, _error_ which catches
-any exceptions raised by the value functions, and _pubsub_
-which deals with subscriptions and dependencies.
-
-you can easily pass in your own versions, for example
+you can easily pass in your own versions of the core
+objects, for example
 if you wish to use a database for the cache store,
 want to send any errors to a server, or if you want
 to connect auto objects over a transport (auto objects
