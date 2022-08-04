@@ -30,8 +30,10 @@ let b = auto({
 });
 
 // set values (should react automatically)
-a.x = 5;
-b.w = 3;
+//a.x = 5;
+//b.w = 3;
+
+console.log('a.x',a.x);
 
 // show everything that happened internally
 console.log('evts',evts);
