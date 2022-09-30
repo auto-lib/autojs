@@ -1,16 +1,15 @@
 module.exports = {
     obj: {
-        data: null,
         func: ($) => 'val'
     },
     fn: ($) => {
         // nothing to do
     },
     _: {
-        fn: ['func'],
+        fn: [ 'func' ],
         subs: [],
-        deps: { }, // no dependencies tracked
-        value: { data: null, func: 'val' }, // no values cached
+        deps: { func: [] }, // no dependencies tracked
+        value: { func: 'val' }, // no values cached
         fatal: {}
     }
 }
