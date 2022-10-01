@@ -271,3 +271,78 @@ async, like events. which is weird
 because the new version of the library
 is built on a message queue.
 
+---
+
+with auto you only choose one thing - the
+name (of the function/variable).
+
+what is great about that is ... well you
+do not have to figure out how to plug
+the function into the program.
+
+and this is what i want - to not have to
+figure out how to plug _anything_ into
+your system.
+
+i suppose the real point is not to have
+a particular system for ... i dunno, specifying
+the 'shape' of the component (function?),
+but rather just that you needn't say 'this
+goes here', which is how things are typically
+built (in fact i can't think of a single
+case where ... this is not the case - you 
+always need to say two things. 1. what is
+the shape, and 2. where does it go).
+
+like lego.
+
+but what if the lego blocks were self-assembling?
+
+again, this sounds insane - how would this work?
+
+but it does work, just look at auto. the entire
+system is literally a collection of name-function
+pairs.
+
+it's not perfect. i'm struggling to get it to
+work elegantly with building a user interface.
+hence this rant - what am i missing; is there
+a similar approach which is more flexible;
+what is the underlying principal ...
+
+yeah, i like the idea ... i like the notion
+that the whole point, the thing that makes this
+a huge step, is this idea that you needn't have
+both things: you needn't have to specify both
+shape and assemblage. that is not necessary ...
+
+it's kind of an amazing idea - imagine the universe
+was like this - that if you want to build a car
+you just specify the parts but not how to put
+them together ... imagine that is how the universe
+worked ... that two parts fitting together in
+a particular way was ... well specified by, what?
+
+i mean, in auto it's specified in the function
+body:
+
+```js
+auto({
+    x: 10,
+    y: _ => _.x * 2,
+    z: _ => _.x + _.y
+})
+```
+
+which is odd - we do specify how things are
+assembled, but we _wrap_ it ......
+
+---
+
+so really what i want is not just sequence-free
+software but _construction free software_.
+
+what ... would we need in order for that ...
+what is the requirement of a system to
+be 'construction free' ?
+
