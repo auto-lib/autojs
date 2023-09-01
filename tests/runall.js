@@ -130,7 +130,7 @@ let check = (auto, name, test) => {
 	else
 	{
 		test.obj['#fatal'] = () => {}; // zero out default fatal behaviour
-		let $ = auto(test.obj);
+		let $ = auto(test.obj, test.opt);
 		let global = {};
 		try {
 			test.fn($, global);

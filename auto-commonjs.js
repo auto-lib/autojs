@@ -7,6 +7,9 @@ let auto = (obj,opt) => {
     let stack = [];
     let fatal = {};
     let subs = {};
+    let trace = {};
+    let tnode = {};
+    let trace_fn = opt && opt.trace;
     let watch = opt && 'watch' in opt ? opt.watch : {};
     let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100;
     let tests = opt && 'tests' in opt ? opt.tests : {};
@@ -40,6 +43,7 @@ let auto = (obj,opt) => {
         deps[name] = {};
         let t0 = performance.now();
         value[name] = fn[name]();
+        tnode[name] = value[name];
         let t1 = performance.now();
         if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(name,'took',t1-t0,'ms to complete');
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
@@ -70,6 +74,8 @@ let auto = (obj,opt) => {
             fail('outside code trying to set unknown variable '+name);
             return;
         }
+        trace = { name, value: val, result: {} }
+        tnode = trace.result;
         value[name] = val;
         if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
         run_subs(name);
@@ -77,6 +83,7 @@ let auto = (obj,opt) => {
         Object.keys(fn).forEach( key => {
             if (!(key in value) && key[0] != '#') update(key);
         });
+        if (trace_fn) trace_fn(trace);
     }
     let get_subtag = (name) => {
         let val = 0;
@@ -162,7 +169,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.33.36'
+        v: '1.34.7'
     };
     run_tests(obj);
     wrap(res, res['#'], obj);
