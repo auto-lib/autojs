@@ -118,6 +118,11 @@ let auto = (obj,opt) => {
 
         if (fatal.msg) return;
 
+        if (dynamic_internal.includes(name)) {
+            fail(`External read of internal function '${name}'`);
+            return;
+        }
+        
         if (parent && static_external.includes(name)) { 
             fail(`Function '${parent}' tried to access external variable '${name}'`);
             return;

@@ -56,6 +56,10 @@ let auto = (obj,opt) => {
     }
     let getter = (name, parent) => {
         if (fatal.msg) return;
+        if (dynamic_internal.includes(name)) {
+            fail(`External read of internal function '${name}'`);
+            return;
+        }
         if (parent && static_external.includes(name)) {
             fail(`Function '${parent}' tried to access external variable '${name}'`);
             return;
@@ -177,7 +181,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.35.12'
+        v: '1.35.13'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
