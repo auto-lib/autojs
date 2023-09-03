@@ -118,6 +118,11 @@ let auto = (obj,opt) => {
 
         if (fatal.msg) return;
 
+        if (parent && static_external.includes(name)) { 
+            fail(`Function '${parent}' tried to access external variable '${name}'`);
+            return;
+        }
+
         if (parent) deps[parent][name] = true;
 
         return value[name];
@@ -367,18 +372,18 @@ let auto = (obj,opt) => {
 
     let add_fn = (inner_obj, fn, arr) => {
 
-        fn(obj); 
+        res[fn](inner_obj); 
         Object.keys(inner_obj).forEach(name => arr.push(name));
 
     }
 
-    res.add_static_external = (inner_obj) => add_fn(inner_obj, add_static, static_external);
-    res.add_static_internal = (inner_obj) => add_fn(inner_obj, add_static, static_internal);
-    res.add_static_mixed = (inner_obj) => add_fn(inner_obj, add_static, static_mixed);
+    res.add_static_external = (inner_obj) => add_fn(inner_obj, 'add_static', static_external);
+    res.add_static_internal = (inner_obj) => add_fn(inner_obj, 'add_static', static_internal);
+    res.add_static_mixed = (inner_obj) => add_fn(inner_obj, 'add_static', static_mixed);
 
-    res.add_dynamic_external = (inner_obj) => add_fn(inner_obj, add_dynamic, dynamic_external);
-    res.add_dynamic_internal = (inner_obj) => add_fn(inner_obj, add_dynamic, dynamic_internal);
-    res.add_dynamic_mixed = (inner_obj) => add_fn(inner_obj, add_dynamic, dynamic_mixed);
+    res.add_dynamic_external = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_external);
+    res.add_dynamic_internal = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_internal);
+    res.add_dynamic_mixed = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_mixed);
     
     // first run tests...
     run_tests(obj);
