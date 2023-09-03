@@ -8,6 +8,12 @@ let auto = (obj,opt) => {
     let trace = {};
     let tnode = {};
     let trace_fn = opt && opt.trace;
+    let static_external = [];
+    let static_internal = [];
+    let static_mixed = [];
+    let dynamic_external = [];
+    let dynamic_internal = [];
+    let dynamic_mixed = [];
     let watch = opt && 'watch' in opt ? opt.watch : {};
     let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100;
     let tests = opt && 'tests' in opt ? opt.tests : {};
@@ -124,8 +130,8 @@ let auto = (obj,opt) => {
             get() { return getter(name) }
         } )
     }
-    let setup_static = (name, res) => {
-        value[name] = obj[name];
+    let setup_static = (name, v, res) => {
+        value[name] = v;
         Object.defineProperty(res, name, {
             get() { return getter(name) },
             set(v) { setter(name, v) }
@@ -141,7 +147,7 @@ let auto = (obj,opt) => {
         if (!obj['#fatal']) fn['#fatal'] = default_fatal;
         Object.keys(obj).forEach(name => {
             if (typeof obj[name] == 'function') setup_dynamic (obj, name, res);
-            else setup_static (name, res);
+            else setup_static (name, obj[name], res);
             setup_sub(hash, name);
         });
     }
@@ -167,8 +173,33 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.34.7'
+        v: '1.35.5'
     };
+    res.add_static = (inner_obj) => {
+        Object.keys(inner_obj).forEach(name => {
+            setup_static(name, inner_obj[name], res);
+            setup_sub(res['#'], name);
+        })
+    }
+    res.add_dynamic = (inner_obj) => {
+        Object.keys(inner_obj).forEach(name => {
+            setup_dynamic(inner_obj, name, res);
+            setup_sub(res['#'], name);
+        })
+        Object.keys(inner_obj).forEach(name => {
+            update(name);
+        })
+    }
+    let add_fn = (inner_obj, fn, arr) => {
+        fn(obj);
+        Object.keys(inner_obj).forEach(name => arr.push(name));
+    }
+    res.add_static_external = (inner_obj) => add_fn(inner_obj, add_static, static_external);
+    res.add_static_internal = (inner_obj) => add_fn(inner_obj, add_static, static_internal);
+    res.add_static_mixed = (inner_obj) => add_fn(inner_obj, add_static, static_mixed);
+    res.add_dynamic_external = (inner_obj) => add_fn(inner_obj, add_dynamic, dynamic_external);
+    res.add_dynamic_internal = (inner_obj) => add_fn(inner_obj, add_dynamic, dynamic_internal);
+    res.add_dynamic_mixed = (inner_obj) => add_fn(inner_obj, add_dynamic, dynamic_mixed);
     run_tests(obj);
     wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => {
