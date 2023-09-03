@@ -116,6 +116,9 @@ let auto = (obj,opt) => {
         };
     }
     let setup_dynamic = (obj, name, res) => {
+        if (typeof obj[name] != 'function') {
+            console.trace('EXCEPTION trying to set non-function '+name+' as dynamic value');
+        }
         let _ = new Proxy({}, {
             get(target, prop) {
                 if (!(prop in value)) {
@@ -139,6 +142,10 @@ let auto = (obj,opt) => {
         } )
     }
     let setup_static = (name, v, res) => {
+        if (typeof v == 'function') {
+            console.trace('EXCEPTION trying to set function '+name+' as static value');
+            return;
+        }
         value[name] = v;
         Object.defineProperty(res, name, {
             get() { return getter(name) },
@@ -181,7 +188,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.35.13'
+        v: '1.35.14'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

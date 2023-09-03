@@ -225,6 +225,10 @@ let auto = (obj,opt) => {
 
     let setup_dynamic = (obj, name, res) => {
 
+        if (typeof obj[name] != 'function') {
+            console.trace('EXCEPTION trying to set non-function '+name+' as dynamic value');
+        }
+        
         // this is kind of magic
         // each function gets it's own special global object
         // which called getter with it's own name as the parent parameter
@@ -281,6 +285,11 @@ let auto = (obj,opt) => {
     // called from wrap() below
 
     let setup_static = (name, v, res) => {
+
+        if (typeof v == 'function') {
+            console.trace('EXCEPTION trying to set function '+name+' as static value');
+            return;
+        }
 
         // save whatever was defined originally
         value[name] = v;
