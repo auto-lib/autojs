@@ -3,6 +3,58 @@
 // dynamic values. static values can only be changed from the outside
 // where-as dynamic values can only change from the inside, basically
 
+/**
+ * @typedef {Object} InternalExternalMixed
+ * @property {Object} internal - Description for internal.
+ * @property {Object} external - Description for external.
+ * @property {Object} mixed - Description for mixed.
+ */
+
+/**
+ * @typedef {Object} StaticDynamic
+ * @property {InternalExternalMixed} static - Description for static.
+ * @property {InternalExternalMixed} dynamic - Description for dynamic.
+ */
+
+/**
+ * @typedef {Object} Auto
+ * @property {Object} _ - internal state
+ * @property {Object} # - subscribable values
+ * @property {number} v - version number
+ * @property {function} add_static - add static values
+ * @property {function} add_dynamic - add dynamic values
+ * @property {function} add_static_external - add static values which can be accessed from outside
+ * @property {function} add_static_internal - add static values which can only be accessed from inside
+ * @property {function} add_static_mixed - add static values which can be accessed from inside and outside
+ * @property {function} add_dynamic_external - add dynamic values which can be accessed from outside
+ * @property {function} add_dynamic_internal - add dynamic values which can only be accessed from inside
+ * @property {function} add_dynamic_mixed - add dynamic values which can be accessed from inside and outside
+ * @property {function(StaticDynamic): void} add_guarded - add guarded values using an object
+*/
+
+/**
+ * @typedef {Object} AutoOptions
+ * @property {Object} watch - watch these variables
+ * @property {number} report_lag - report any function which takes longer than this to run
+ * @property {Object} tests - run these tests
+ */
+
+/**
+ * @param {Object} [obj] - object to wrap
+ * @param {AutoOptions} [opt] - options
+ * @returns {Auto} - wrapped object
+ * @example
+ * let auto = require('auto');
+ * let obj = {
+ *    data: null,
+ *   count: ($) => $.data ? $.data : undefined
+ * }
+ * let _ = auto(obj);
+ * _.data; // null
+ * _.count; // undefined
+ * res.data = [1,2,3];
+ * res.count; // 3
+*/
 let auto = (obj,opt) => {
 
     let deps = {};   // list of dependencies (dynamic)
@@ -103,7 +155,7 @@ let auto = (obj,opt) => {
         let t1 = performance.now();
         if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(name,'took',t1-t0,'ms to complete');
 
-        if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
+        if (name in watch) console.log(name,get_vars(name));
 
         // run any subscriptions to this value
         run_subs(name);
@@ -228,7 +280,7 @@ let auto = (obj,opt) => {
         if (typeof obj[name] != 'function') {
             console.trace('EXCEPTION trying to set non-function '+name+' as dynamic value');
         }
-        
+
         // this is kind of magic
         // each function gets it's own special global object
         // which called getter with it's own name as the parent parameter
