@@ -1,16 +1,19 @@
 /**
  * @typedef {Object} InternalExternalMixed
+ * @preserve
  * @property {Object} internal - Description for internal.
  * @property {Object} external - Description for external.
  * @property {Object} mixed - Description for mixed.
  */
 /**
  * @typedef {Object} StaticDynamic
+ * @preserve
  * @property {InternalExternalMixed} static - Description for static.
  * @property {InternalExternalMixed} dynamic - Description for dynamic.
  */
 /**
  * @typedef {Object} Auto
+ * @preserve
  * @property {Object} _ - internal state
  * @property {Object} # - subscribable values
  * @property {number} v - version number
@@ -26,12 +29,14 @@
 */
 /**
  * @typedef {Object} AutoOptions
+ * @preserve
  * @property {Object} watch - watch these variables
  * @property {number} report_lag - report any function which takes longer than this to run
  * @property {Object} tests - run these tests
  */
 /**
  * @template T
+ * @preserve
  * @param {T} [obj] - object to wrap
  * @param {AutoOptions} [opt] - options
  * @returns {T & {'#':T}} - wrapped object
@@ -50,91 +55,7 @@
 declare function auto<T>(obj?: T, opt?: AutoOptions): T & {
     '#': T;
 };
-type InternalExternalMixed = {
-    /**
-     * - Description for internal.
-     */
-    internal: any;
-    /**
-     * - Description for external.
-     */
-    external: any;
-    /**
-     * - Description for mixed.
-     */
-    mixed: any;
-};
-type StaticDynamic = {
-    /**
-     * - Description for static.
-     */
-    static: InternalExternalMixed;
-    /**
-     * - Description for dynamic.
-     */
-    dynamic: InternalExternalMixed;
-};
-type Auto = {
-    /**
-     * - internal state
-     */
-    _: any;
-    /**
-     * # - subscribable values
-     */
-    "": any;
-    /**
-     * - version number
-     */
-    v: number;
-    /**
-     * - add static values
-     */
-    add_static: Function;
-    /**
-     * - add dynamic values
-     */
-    add_dynamic: Function;
-    /**
-     * - add static values which can be accessed from outside
-     */
-    add_static_external: Function;
-    /**
-     * - add static values which can only be accessed from inside
-     */
-    add_static_internal: Function;
-    /**
-     * - add static values which can be accessed from inside and outside
-     */
-    add_static_mixed: Function;
-    /**
-     * - add dynamic values which can be accessed from outside
-     */
-    add_dynamic_external: Function;
-    /**
-     * - add dynamic values which can only be accessed from inside
-     */
-    add_dynamic_internal: Function;
-    /**
-     * - add dynamic values which can be accessed from inside and outside
-     */
-    add_dynamic_mixed: Function;
-    /**
-     * - add guarded values using an object
-     */
-    add_guarded: (arg0: StaticDynamic) => void;
-};
-type AutoOptions = {
-    /**
-     * - watch these variables
-     */
-    watch: any;
-    /**
-     * - report any function which takes longer than this to run
-     */
-    report_lag: number;
-    /**
-     * - run these tests
-     */
-    tests: any;
-};
+type InternalExternalMixed = any;
+type StaticDynamic = any;
+type Auto = any;
+type AutoOptions = any;

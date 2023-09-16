@@ -1,9 +1,9 @@
 {
   "name": "@autolib/auto",
-  "version": "1.35.24",
+  "version": "1.35.26",
   "description": "reactivity without side effects",
-  "main": "auto-commonjs.js",
-  "types": "./types/auto-commonjs.d.ts",
+  "main": "auto-es6.js",
+  "types": "./types/auto-es6.d.ts",
   "module": "auto-es6.js",
   "repository": {
     "type": "git",
