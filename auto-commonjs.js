@@ -2,20 +2,17 @@ const { performance } = require('perf_hooks');
 
 /**
  * @typedef {Object} InternalExternalMixed
- * @preserve
  * @property {Object} internal - Description for internal.
  * @property {Object} external - Description for external.
  * @property {Object} mixed - Description for mixed.
  */
 /**
  * @typedef {Object} StaticDynamic
- * @preserve
  * @property {InternalExternalMixed} static - Description for static.
  * @property {InternalExternalMixed} dynamic - Description for dynamic.
  */
 /**
  * @typedef {Object} Auto
- * @preserve
  * @property {Object} _ - internal state
  * @property {Object} # - subscribable values
  * @property {number} v - version number
@@ -31,14 +28,12 @@ const { performance } = require('perf_hooks');
 */
 /**
  * @typedef {Object} AutoOptions
- * @preserve
  * @property {Object} watch - watch these variables
  * @property {number} report_lag - report any function which takes longer than this to run
  * @property {Object} tests - run these tests
  */
 /**
  * @template T
- * @preserve
  * @param {T} [obj] - object to wrap
  * @param {AutoOptions} [opt] - options
  * @returns {T & {'#':T}} - wrapped object
@@ -244,7 +239,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.35.23'
+        v: '1.35.24'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
