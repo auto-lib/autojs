@@ -1,4 +1,4 @@
-module.exports = {
+export default {
     obj: {
         tick: ($) => $.tock,
         tock: ($) => $.tick

@@ -4,7 +4,7 @@ let _trace = [];
 let get_trace = () => _trace;
 let put_trace = v => _trace.push(v);
 
-module.exports = {
+export default {
     obj: {
         data: [1,2,3],
         combine: (_) => _.data.length + _.func_1 + _.func_2,

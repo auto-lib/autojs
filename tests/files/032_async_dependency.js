@@ -1,6 +1,6 @@
 // devlog/docs/026_asynchronous_functions.md
 
-module.exports = {
+export default {
     obj: {
         data: [1,2,3],
         async_func: (_,set) => setTimeout( () => set('async done'), 50),

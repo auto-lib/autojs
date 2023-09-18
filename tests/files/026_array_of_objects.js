@@ -8,7 +8,7 @@ let var3_func = (v) => {
     else return 'unknown';
 }
 
-module.exports = {
+export default {
     obj: {
         tst: {
             var1: [1,2,3],

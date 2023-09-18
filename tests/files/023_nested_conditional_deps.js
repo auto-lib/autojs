@@ -3,7 +3,7 @@
 // checking to see if func2 picks up the data2 dependency
 // since it has to first check func1... which is a function...
 
-module.exports = {
+export default {
     obj: {
         data1: null,
         func1: ($) => $.data1 ? $.data1.length : null,

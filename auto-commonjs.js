@@ -1,42 +1,10 @@
 const { performance } = require('perf_hooks');
 
 /**
- * @typedef {Object} InternalExternalMixed
- * @property {Object} internal - Description for internal.
- * @property {Object} external - Description for external.
- * @property {Object} mixed - Description for mixed.
- */
-/**
- * @typedef {Object} StaticDynamic
- * @property {InternalExternalMixed} static - Description for static.
- * @property {InternalExternalMixed} dynamic - Description for dynamic.
- */
-/**
- * @typedef {Object} Auto
- * @property {Object} _ - internal state
- * @property {Object} # - subscribable values
- * @property {number} v - version number
- * @property {function} add_static - add static values
- * @property {function} add_dynamic - add dynamic values
- * @property {function} add_static_external - add static values which can be accessed from outside
- * @property {function} add_static_internal - add static values which can only be accessed from inside
- * @property {function} add_static_mixed - add static values which can be accessed from inside and outside
- * @property {function} add_dynamic_external - add dynamic values which can be accessed from outside
- * @property {function} add_dynamic_internal - add dynamic values which can only be accessed from inside
- * @property {function} add_dynamic_mixed - add dynamic values which can be accessed from inside and outside
- * @property {function(StaticDynamic): void} add_guarded - add guarded values using an object
-*/
-/**
- * @typedef {Object} AutoOptions
- * @property {Object} watch - watch these variables
- * @property {number} report_lag - report any function which takes longer than this to run
- * @property {Object} tests - run these tests
- */
-/**
  * @template T
- * @param {T} [obj] - object to wrap
- * @param {AutoOptions} [opt] - options
- * @returns {T & {'#':T}} - wrapped object
+ * @param {T} obj
+ * @param {import('./types/index.d.ts').AutoOptions} [opt]
+ * @returns {import('./types/index.d.ts').Auto<T>}
  * @example
  * let auto = require('auto');
  * let obj = {
@@ -180,6 +148,7 @@ let auto = (obj,opt) => {
             },
             set(target, prop, value) {
                 fail('function '+name+' is trying to change value '+prop);
+                return true;
             }
         });
         fn[name] = () => {
@@ -239,7 +208,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.35.26'
+        v: '1.35.36'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

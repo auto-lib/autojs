@@ -3,7 +3,7 @@
 // make sure that values are updated
 // when they are subscribed to
 
-module.exports = {
+export default {
     obj: {
         data: null,
         derived: (_) => _.data ? _.data.length : 0

@@ -1,4 +1,4 @@
-module.exports = {
+export default {
     obj: {
         a: ($) => $.b,
         b: ($) => $.c,

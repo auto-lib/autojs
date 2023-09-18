@@ -1,5 +1,5 @@
 
-module.exports = {
+export default {
     obj: {},
     fn: ($) => {
         $.add_static_mixed({

@@ -3,7 +3,7 @@
 // make sure that loops are seen
 // even if they aren't on the edges...
 
-module.exports = {
+export default {
     obj: {
         data: [1,2,3],
         initial: (_) => _.data.length + _.loop_a,

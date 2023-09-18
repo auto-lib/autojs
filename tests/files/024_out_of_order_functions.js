@@ -1,5 +1,5 @@
 
-module.exports = {
+export default {
     obj: {
         data1: null,
         func2: ($) => $.func1 ? $.func1.length : ($.data2 ? $.data2.length : 0),

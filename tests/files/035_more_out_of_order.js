@@ -1,6 +1,6 @@
 // devlog/docs/027_out_of_order_deps.md
 
-module.exports = {
+export default {
     obj: {
         data: [1,2,3],
         func: (_) => _.more.length + 1,

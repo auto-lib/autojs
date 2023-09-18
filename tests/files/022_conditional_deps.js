@@ -3,7 +3,7 @@
 // a conditional dependency that it catches
 // the second dependency...
 
-module.exports = {
+export default {
     obj: {
         data1: null,
         data2: null,

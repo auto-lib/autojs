@@ -1,6 +1,6 @@
 // devlog/docs/028_complete_leaves.md
 
-module.exports = {
+export default {
     obj: {
         data: [1,2,3],
         combine: (_) => _.data.length + _.func_1 + _.func_2,

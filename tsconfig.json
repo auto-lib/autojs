@@ -1,16 +1,15 @@
 {
     "compilerOptions": {
       "allowJs": true,
-      "checkJs": false,
+      "checkJs": true,
       "declaration": true,
       "emitDeclarationOnly": true,
       "outDir": "./types",
-      "esModuleInterop": true
+      "esModuleInterop": true,
     },
     "include": [
-      "auto-commonjs.js",
       "auto-es6.js",
-      "auto-no-export.js"
+      "./types/index.d.ts"
     ]
   }
   

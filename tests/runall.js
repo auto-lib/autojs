@@ -2,7 +2,9 @@
 let script;
 if (process.argv.length>2) script = process.argv[2]; // just run one script (easier with lots of debug info)
 
-let fs = require('fs');
+// let fs = require('fs');
+
+import fs from 'fs';
 
 let fail = (msg) => { console.trace(msg); process.exit(1); }
 
@@ -148,7 +150,7 @@ let check = (auto, name, test) => {
 let get_latest_path = () => {
 
 	let latest_path;
-	require('fs').readdirSync(devlog_path).forEach(name => {
+	fs.readdirSync(devlog_path).forEach(name => {
 		if (parseInt(name.substring(0, 3)) > 0) latest_path = name;
 	});
 
@@ -161,13 +163,14 @@ let copy_latest_lib = (version) => {
 
 	console.log("\nlatest file is " + devlog_path + "/" + latest_path + "\ncopying to auto.js files\n")
 	
-	let latest = "\n// " + latest_path + "\n" + require('fs').readFileSync(devlog_path + "/" + latest_path).toString();
+	let latest = "\n// " + latest_path + "\n" + fs.readFileSync(devlog_path + "/" + latest_path).toString();
 
 	// remove comments
 	let lines = [];
 	let prev_empty = false; // don't have more than one empty line
 	latest.split('\n').forEach( (line,i) => {
 		let was_empty = line.trim().length==0;
+		line = line.replace('../../../types/index.d.ts','./types/index.d.ts');
 		if (!was_empty) line = line.replace(/\/\/.*$/gm,'').trimEnd();
 		if (line.trim().length>0 || (was_empty && !prev_empty && latest[i+1].trim().length>1)) lines.push(line);
 		prev_empty = was_empty ? true : (line.trim().length == 0 ? true : false);
@@ -177,24 +180,27 @@ let copy_latest_lib = (version) => {
 
 	cleaned = cleaned.replace('v: undefined', "v: '1."+version.major+"."+version.minor+"'"); // save file name to lib
 
-	require('fs').writeFileSync("../auto-no-export.js", cleaned);
-	require('fs').writeFileSync("../auto-commonjs.js", "const { performance } = require('perf_hooks');\n\n" + cleaned + "\n\nmodule.exports = auto;");
-	require('fs').writeFileSync("../auto-es6.js", cleaned + "\n\nexport default auto;");
+	fs.writeFileSync("../auto-no-export.js", cleaned);
+	fs.writeFileSync("../auto-commonjs.js", "const { performance } = require('perf_hooks');\n\n" + cleaned + "\n\nmodule.exports = auto;");
+	fs.writeFileSync("../auto-es6.js", cleaned + "\n\nexport default auto;");
 }
 
 let run_tests = () => {
 
-	const auto = require('../auto-commonjs.js');
+	import('../auto-es6.js').then(auto => {
 
-	require('fs').readdirSync("./files").forEach(name => {
-		if (parseInt(name.substring(0, 3)) > 0) {
-			if (!script || name == script)
-			{
-				const test = require("./files/" + name);
-				name = name.replace('.js', '');
-				check(auto, name, test);
+		fs.readdirSync("./files").forEach(name => {
+			if (parseInt(name.substring(0, 3)) > 0) {
+				if (!script || name == script)
+				{
+					import("./files/" + name).then(test => {
+						// const test = require("./files/" + name);
+						name = name.replace('.js', '');
+						check(auto.default, name, test.default);
+					})
+				}
 			}
-		}
+		})
 	})
 }
 
@@ -234,7 +240,7 @@ let clear_old_md5s = () => {
 
 	let latest_name = get_latest_path().replace('.js','');
 
-	require('fs').readdirSync("./").forEach(name => {
+	fs.readdirSync("./").forEach(name => {
 		if (name.indexOf('.md5')>-1 && name.indexOf(latest_name)==-1)
 		{
 			console.log("deleting "+name);
