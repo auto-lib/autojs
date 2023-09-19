@@ -16,8 +16,16 @@ export type AutoOptions = {
   tests?: Object
 }
 
+type SubscribeFunction = (value: any) => void;
+
+type HashObject<T> = {
+  [K in keyof T]: {
+    subscribe: SubscribeFunction;
+  };
+};
+
 export type Auto<T> = Reactive<T> & {
-  '#': Reactive<T>
+  '#': HashObject<T>
 }
 
 
