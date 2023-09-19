@@ -11,9 +11,9 @@ type FunctionPropertyNames<T> = {
 export type Reactive<T> = DataProperties<T> & FunctionReturnTypes<T>;
 
 export type AutoOptions = {
-  watch: Object,
-  report_lag: number,
-  tests: Object
+  watch?: Object,
+  report_lag?: number,
+  tests?: Object
 }
 
 export type Auto<T> = Reactive<T> & {
