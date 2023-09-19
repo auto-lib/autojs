@@ -19,3 +19,6 @@ export type AutoOptions = {
 export type Auto<T> = Reactive<T> & {
   '#': Reactive<T>
 }
+
+
+export default function auto<T>(obj:T, options?:AutoOptions):Auto<T>;
