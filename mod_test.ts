@@ -1,3 +1,4 @@
+import { AssertionError } from "https://deno.land/std@0.202.0/assert/assertion_error.ts";
 import { assertExists, assertInstanceOf, assert, fail } from "https://deno.land/std@0.202.0/assert/mod.ts";
 import { z } from "https://deno.land/x/zod@v3.20.0/mod.ts";
 
@@ -58,7 +59,15 @@ Deno.test("Getting latest module", async (t) => {
             assertExists(testMod.default);
             assertInstanceOf(testMod.default, Object);
 
-            if (!validateTestShape(testMod.default)) fail("test shape is invalid");
+
+            try {
+                if (!validateTestShape(testMod.default)) fail("test shape is invalid");
+            }
+            catch (error) {
+                const newError = new AssertionError(error.message);
+                Error.captureStackTrace(newError, newError.constructor); // capture the stack trace
+                throw newError; // re-throw the error without the stack trace
+            }
 
             const result = mod.auto(testMod.default);
             assertExists(result);
