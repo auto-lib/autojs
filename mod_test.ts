@@ -1,5 +1,4 @@
-import { AssertionError } from "https://deno.land/std@0.202.0/assert/assertion_error.ts";
-import { assertExists, assertInstanceOf, assert, fail } from "https://deno.land/std@0.202.0/assert/mod.ts";
+import { assertExists, assertInstanceOf, fail } from "https://deno.land/std@0.202.0/assert/mod.ts";
 import { z } from "https://deno.land/x/zod@v3.20.0/mod.ts";
 
 const FILE_EXTENSION = ".ts";
@@ -16,61 +15,60 @@ function handleError(error: any): void {
 }
 
 function getFilesFromDirectory(root: string): Deno.DirEntry[] {
+    console.log(' - getting files from', root);
     return [...Deno.readDirSync(root)]
         .filter((dir) => dir.isFile && dir.name.endsWith(FILE_EXTENSION))
         .sort((a, b) => b.name.localeCompare(a.name));
 }
 
 function getLatestModule(root: string): Deno.DirEntry {
+    console.log(' - getting latest module from', root);
     return getFilesFromDirectory(root)[0];
 }
 
-function validateTestShape(testObj: any):boolean {
+function validateTestShape(testObj: Record<string, any>): boolean {
     const result = testSchema.safeParse(testObj);
-    if (!result.success) console.log(result.error.issues);
+    if (!result.success) console.log('\nERROR: test shape wrong\n\n', testObj, '\n\n', result.error.issues, '\n');
     return result.success;
 }
 
-Deno.test("Getting latest module", async (t) => {
+console.log();
 
-    const latest = getLatestModule(SRC_DIR).name;
-    const modPath = `${SRC_DIR}/${latest}`;
+const latest = getLatestModule(SRC_DIR).name;
+const modPath = `${SRC_DIR}/${latest}`;
 
-    const modTs = await Deno.readTextFile(modPath).catch(handleError);
+console.log(' - importing module from', modPath);
 
-    await t.step("latest module should exist", () => {
-        assertExists(modTs);
-    })
+const modTs = await Deno.readTextFile(modPath).catch(handleError);
+assertExists(modTs);
 
-    const mod = await import(modPath).catch(handleError);
+const mod = await import(modPath).catch(handleError);
 
-    await t.step("module should export an auto function", () => {
-        assertExists(mod.auto);
-        assertInstanceOf(mod.auto, Function);
-    })
+assertExists(mod.auto);
+assertInstanceOf(mod.auto, Function);
 
-    for (const test of getFilesFromDirectory(TEST_DIR)) {
+const test_files = getFilesFromDirectory(TEST_DIR);
 
-        await t.step(`running test ${test.name}`, async () => {
+console.log();
 
-            const testPath = `${TEST_DIR}/${test.name}`;
-            const testMod = await import(testPath).catch(handleError);
+for (const test of test_files) {
 
-            assertExists(testMod.default);
-            assertInstanceOf(testMod.default, Object);
+    console.log(`[${test.name}]`);
 
+    try {
 
-            try {
-                if (!validateTestShape(testMod.default)) fail("test shape is invalid");
-            }
-            catch (error) {
-                const newError = new AssertionError(error.message);
-                Error.captureStackTrace(newError, newError.constructor); // capture the stack trace
-                throw newError; // re-throw the error without the stack trace
-            }
+        const testPath = `${TEST_DIR}/${test.name}`;
+        const testMod = await import(testPath).catch(handleError);
 
-            const result = mod.auto(testMod.default);
-            assertExists(result);
-        })
+        if (!testMod.defdault) fail("test module has no default export");
+        assertInstanceOf(testMod.default, Object);
+
+        if (!validateTestShape(testMod.default)) fail("test shape is invalid");
+
+        const result = mod.auto(testMod.default);
+        assertExists(result);
+
     }
-});
+    catch (error) { console.log('\n -- error', error); }
+}
+
