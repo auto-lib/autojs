@@ -1,3 +1,6 @@
-export function is42(num: number): boolean {
-  return num === 42;
+
+type Auto<T> = T;
+
+export function auto<T>(obj?: T): Auto<T> {
+  return obj as Auto<T>;
 }

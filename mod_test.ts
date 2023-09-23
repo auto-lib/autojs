@@ -1,10 +1,8 @@
-import { assertEquals } from "https://deno.land/std@0.202.0/testing/asserts.ts";
-import { is42 } from "./mod.ts";
+import { assertNotEquals } from "https://deno.land/std@0.202.0/assert/mod.ts";
+// import { auto } from "./mod.ts";
 
-Deno.test("42 should return true", () => {
-  assertEquals(true, is42(42));
+Deno.test("mod.ts should exist", async () => {
+  const mod_ts = await Deno.readFile("./mod.ts").catch((e) => console.error(e));
+  assertNotEquals(mod_ts, undefined);
 });
 
-Deno.test("1 should return false", () => {
-  assertEquals(false, is42(1));
-});
