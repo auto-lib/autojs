@@ -221,8 +221,16 @@ export function auto(obj?: object, opt?:Opt): Auto {
         v: '1.35.41'                            // version number of this lib
     };
 
-    if (obj) wrap(res, res['#'], obj);
-
+    if (obj)
+    {
+        wrap(res, res['#'], obj);
+        Object.keys(fn).forEach(name => { 
+            if (name[0] != '#'){ // TODO need to look into this hash thing... do we use it?
+                update(name);
+            }
+        }); 
+    }
+    
     return res;
 
 }

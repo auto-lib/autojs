@@ -3,7 +3,7 @@ import { getFilesFromDirectory, getLatestModulePath, handleError, validateTestSh
 
 const TEST_DIR = "../tests";
 
-function convertToArrays(obj: Record<string, unknown>, keys:string[]): Record<string, unknown>
+function convertKeysToArrays(obj: Record<string, unknown>, keys:string[]): Record<string, unknown>
 {
     const result: Record<string, unknown> = {};
 
@@ -51,10 +51,12 @@ export async function runTests()
 
         if (!validateTestShape(testMod.default)) fail("test shape is invalid");
 
-        const result = mod.auto(testMod.default);
+        const result = mod.auto(testMod.default.obj);
         assertExists(result);
 
-        const obj = convertToArrays(result._, ['fn', 'subs']);
+        const obj = convertKeysToArrays(result._, ['fn', 'subs']);
+        if (obj.deps) obj.deps = convertKeysToArrays(obj.deps as Record<string, unknown>, Object.keys(obj.deps));
+
         assertEquals(obj, testMod.default._);
     
     }

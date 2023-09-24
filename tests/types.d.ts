@@ -3,7 +3,7 @@ type Fn = () => unknown;
 type Ret = {
     fn: string[],
     subs: string[],
-    deps: Record<string, Record<string, boolean>>,
+    deps: Record<string, string[]>,
     value: Record<string, unknown>,
     fatal: {
         msg?: string,
