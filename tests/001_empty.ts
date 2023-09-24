@@ -1,16 +1,12 @@
 
-export default {
-    obj: {
-        // no values to wrap
-    },
-    fn: ($:unknown) => {
-        // nothing to do
-    },
-    _: {
-        fn: [],
-        subs: [],
-        deps: {},  // no dependencies tracked
-        value: {}, // no values cached,
-        fatal: {}
-    }
+const obj:Obj = {};
+const fn:Fn = () => {}
+const _:Ret = {
+    fn: [],
+    subs: [],
+    deps: {},  // no dependencies tracked
+    value: {}, // no values cached,
+    fatal: {}
 }
+
+export default { obj, fn, _ }

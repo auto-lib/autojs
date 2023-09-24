@@ -8,8 +8,10 @@ function convertToArrays(obj: Record<string, unknown>, keys:string[]): Record<st
     const result: Record<string, unknown> = {};
 
     for (const key in obj) {
-        if (keys.includes(key)) result[key] = Object.keys(obj[key] as object);
-        else result[key] = obj[key];
+        if (keys.includes(key)) 
+            result[key] = Object.keys(obj[key] as object);
+        else 
+            result[key] = obj[key];
     }
 
     return result;
@@ -31,13 +33,15 @@ export async function runTests()
     assertExists(mod.auto);
     assertInstanceOf(mod.auto, Function);
 
-    const test_files = getFilesFromDirectory(TEST_DIR);
+    const test_files = getFilesFromDirectory(TEST_DIR).reverse();
 
     console.log();
 
     for (const test of test_files) {
 
-        console.log(`[${test.name}]`);
+        if (test.name == 'types.d.ts') continue;
+
+        console.log(`* ${test.name.replace('.ts', '')}`);
 
         const testPath = `${TEST_DIR}/${test.name}`;
         const testMod = await import(testPath).catch(handleError);
