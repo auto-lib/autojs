@@ -1,18 +1,28 @@
 import { build, emptyDir } from "https://deno.land/x/dnt@0.38.1/mod.ts";
-import { runTestsExitIfError } from "./util.ts";
+import { getLatestModule, runTestsExitIfError } from "./util.ts";
+import { existsSync } from "https://deno.land/std@0.202.0/fs/mod.ts";
+import { runTests } from "./test.ts";
 
 if (!Deno.args[0]) {
   console.error("Please provide a version number");
   Deno.exit(1);
 }
 
-await runTestsExitIfError();
+const MOD_PATH = './mod.ts';
 
-await emptyDir("./npm");
+await runTests();
+
+Deno.exit(1);
+
+const latest = getLatestModule();
+
+if (existsSync(MOD_PATH)) Deno.removeSync(MOD_PATH);
+
+await emptyDir("../npm");
 
 await build({
 
-  entryPoints: ["./mod.ts"],
+  entryPoints: [MOD_PATH],
   outDir: "./npm",
   testPattern: "", // disable tests
   shims: {
@@ -37,3 +47,5 @@ await build({
     Deno.copyFileSync("README.md", "npm/README.md");
   },
 });
+
+if (existsSync(MOD_PATH)) Deno.removeSync(MOD_PATH);
