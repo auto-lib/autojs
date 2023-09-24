@@ -29,7 +29,7 @@ for (const test of test_files) {
     const testPath = `${TEST_DIR}/${test.name}`;
     const testMod = await import(testPath).catch(handleError);
 
-    if (!testMod.defdault) fail("test module has no default export");
+    if (!testMod.default) fail("test module has no default export");
     assertInstanceOf(testMod.default, Object);
 
     if (!validateTestShape(testMod.default)) fail("test shape is invalid");
@@ -39,3 +39,4 @@ for (const test of test_files) {
   
 }
 
+console.log('\nAll tests passed!\n');

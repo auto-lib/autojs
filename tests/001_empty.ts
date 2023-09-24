@@ -3,7 +3,7 @@ export default {
     obj: {
         // no values to wrap
     },
-    fn: ($:any) => {
+    fn: ($:unknown) => {
         // nothing to do
     },
     _: {

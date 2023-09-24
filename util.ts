@@ -6,11 +6,11 @@ export const SRC_DIR = "./src";
 const FILE_EXTENSION = ".ts";
 
 export const testSchema = z.object({
-    obsj: z.object({}),
+    obj: z.object({}),
     fn: z.function(),
 });
 
-export function handleError(error: any): void {
+export function handleError(error: unknown): void {
     console.error("An error occurred:", error);
 }
 
@@ -26,7 +26,7 @@ export function getLatestModule(root: string): Deno.DirEntry {
     return getFilesFromDirectory(root)[0];
 }
 
-export function validateTestShape(testObj: Record<string, any>): boolean {
+export function validateTestShape(testObj: Record<string, unknown>): boolean {
     const result = testSchema.safeParse(testObj);
     if (!result.success) console.log('\nERROR: test shape wrong\n\n', testObj, '\n\n', result.error.issues, '\n');
     return result.success;
