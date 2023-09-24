@@ -53,7 +53,8 @@ export async function runTests()
 
         const result = mod.auto(testMod.default.obj);
         assertExists(result);
-
+        testMod.default.fn(result);
+        
         const obj = convertKeysToArrays(result._, ['fn', 'subs']);
         if (obj.deps) obj.deps = convertKeysToArrays(obj.deps as Record<string, unknown>, Object.keys(obj.deps));
 

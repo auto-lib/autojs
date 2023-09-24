@@ -230,7 +230,7 @@ export function auto(obj?: object, opt?:Opt): Auto {
             }
         }); 
     }
-    
+
     return res;
 
 }
