@@ -1,7 +1,19 @@
-import { assertExists, assertInstanceOf, fail } from "https://deno.land/std@0.202.0/assert/mod.ts";
+import { assertEquals, assertExists, assertInstanceOf, fail } from "https://deno.land/std@0.202.0/assert/mod.ts";
 import { getFilesFromDirectory, getLatestModulePath, handleError, validateTestShape } from "./util.ts";
 
 const TEST_DIR = "../tests";
+
+function convertToArrays(obj: Record<string, unknown>, keys:string[]): Record<string, unknown>
+{
+    const result: Record<string, unknown> = {};
+
+    for (const key in obj) {
+        if (keys.includes(key)) result[key] = Object.keys(obj[key] as object);
+        else result[key] = obj[key];
+    }
+
+    return result;
+}
 
 export async function runTests()
 {
@@ -37,6 +49,9 @@ export async function runTests()
 
         const result = mod.auto(testMod.default);
         assertExists(result);
+
+        const obj = convertToArrays(result._, ['fn', 'subs']);
+        assertEquals(obj, testMod.default._);
     
     }
 
