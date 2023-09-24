@@ -1,17 +1,15 @@
 import { assertExists, assertInstanceOf, fail } from "https://deno.land/std@0.202.0/assert/mod.ts";
-import { getFilesFromDirectory, getLatestModule, handleError, validateTestShape } from "./util.ts";
+import { getFilesFromDirectory, getLatestModulePath, handleError, validateTestShape } from "./util.ts";
 
 const TEST_DIR = "../tests";
-const SRC_DIR = "../src";
 
 export async function runTests()
 {
-    console.log();
+    console.log('\nRunning tests\n');
 
-    const latest = getLatestModule().name;
-    const modPath = `${SRC_DIR}/${latest}`;
+    const modPath = getLatestModulePath();
 
-    console.log(' - importing module from', modPath);
+    console.log(' - importing auto from', modPath);
 
     const modTs = await Deno.readTextFile(modPath).catch(handleError);
     assertExists(modTs);

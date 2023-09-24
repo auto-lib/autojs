@@ -14,15 +14,13 @@ export function handleError(error: unknown): void {
 }
 
 export function getFilesFromDirectory(root: string): Deno.DirEntry[] {
-    console.log(' - getting files from', root);
     return [...Deno.readDirSync(root)]
         .filter((dir) => dir.isFile && dir.name.endsWith(FILE_EXTENSION))
         .sort((a, b) => b.name.localeCompare(a.name));
 }
 
-export function getLatestModule(): Deno.DirEntry {
-    console.log(' - getting latest module from', SRC_DIR);
-    return getFilesFromDirectory(SRC_DIR)[0];
+export function getLatestModulePath(): string {
+    return `${SRC_DIR}/${getFilesFromDirectory(SRC_DIR)[0].name}`;
 }
 
 export function validateTestShape(testObj: Record<string, unknown>): boolean {
