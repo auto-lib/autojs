@@ -6,7 +6,7 @@ const SRC_DIR = "../src";
 
 export const testSchema = z.object({
     obj: z.object({}),
-    fn: z.function(),
+    fn: z.optional(z.function()),
 });
 
 export function handleError(error: unknown): void {

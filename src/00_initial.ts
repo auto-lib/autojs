@@ -46,9 +46,13 @@ export function auto(obj?: object, opt?:Opt): Auto {
     }
 
     const get_vars = (name:string) => {
-        const o = { deps: {}, value: value[name] };
+        type DepValue = {
+            value: any;  // Replace 'any' with the type of your values if you know it.
+            deps: Record<string, DepValue>;
+        };
+        const o = { deps: {} as Record<string, DepValue | any>, value: value[name] };
         if (name in deps) 
-            Object.keys(deps[name]).forEach( dep => {
+            Object.keys(deps[name]).forEach( (dep:string) => {
                 if (!deps[dep]) 
                     o.deps[dep] = value[dep];
                 else {
@@ -238,9 +242,9 @@ export function auto(obj?: object, opt?:Opt): Auto {
     {
         wrap(res, res['#'], obj);
         Object.keys(fn).forEach(name => { 
-            if (name[0] != '#'){ // TODO need to look into this hash thing... do we use it?
+            // if (name[0] != '#'){ // TODO need to look into this hash thing... do we use it?
                 update(name);
-            }
+            // }
         }); 
     }
 

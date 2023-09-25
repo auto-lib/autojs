@@ -49,16 +49,17 @@ export async function runTests()
         if (!testMod.default) fail("test module has no default export");
         assertInstanceOf(testMod.default, Object);
 
-        if (!validateTestShape(testMod.default)) fail("test shape is invalid");
+        const testObj = testMod.default;
+        if (!validateTestShape(testObj)) fail("test shape is invalid");
 
-        const result = mod.auto(testMod.default.obj);
+        const result = mod.auto(testObj.obj);
         assertExists(result);
-        testMod.default.fn(result);
-        
+        if (testObj.fn) testObj.fn(result);
+
         const obj = convertKeysToArrays(result._, ['fn', 'subs']);
         if (obj.deps) obj.deps = convertKeysToArrays(obj.deps as Record<string, unknown>, Object.keys(obj.deps));
 
-        assertEquals(obj, testMod.default._);
+        assertEquals(obj, testObj._);
     
     }
 
