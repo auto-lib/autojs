@@ -63,9 +63,9 @@ export function auto(obj?: object, opt?:Opt): Auto {
 
         if (value[name]) return;
 
-        // Object.keys(deps).forEach( child => {
-        //     if (name in deps[child] && !(child in value)) update(child);
-        // })
+        Object.keys(deps).forEach( child => {
+            if (name in deps[child] && !(child in value)) update(child);
+        }) 
 
         if (fatal.msg) return;
 
@@ -98,6 +98,19 @@ export function auto(obj?: object, opt?:Opt): Auto {
         return value[name];
     }
 
+    const clear = (name:string) => {
+
+        Object.keys(deps).forEach( dep => 
+            Object.keys(deps[dep]).forEach(child => {
+                if (child == name && dep in fn)
+                {
+                    delete(value[dep]);
+                    clear(dep);
+                }
+            })
+        )
+    }
+
     const setter = (name:string, val:unknown) => {
 
         if (fatal.msg) return;
@@ -116,7 +129,7 @@ export function auto(obj?: object, opt?:Opt): Auto {
 
         // run_subs(name);    // run subscriptions to this value
 
-        // clear(name);
+        clear(name); // delete all values that depend on this one
 
         // make sure any dynamic values dependent on this one
         // are updated
