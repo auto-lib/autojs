@@ -3,8 +3,8 @@ const { performance } = require('perf_hooks');
 /**
  * @template T
  * @param {T} obj
- * @param {import('./types/index.d.ts').AutoOptions} [opt]
- * @returns {import('./types/index.d.ts').Auto<T>}
+ * @param {import('../../../types/index.js').AutoOptions} [opt]
+ * @returns {import('../../../types/index.js').Auto<T>}
  * @example
  * let auto = require('auto');
  * let obj = {
@@ -65,7 +65,14 @@ let auto = (obj,opt) => {
         if (stack.indexOf(name)!==stack.length-1) { fail('circular dependency'); return; }
         deps[name] = {};
         let t0 = performance.now();
-        value[name] = fn[name]();
+        let v = fn[name]();
+        if (!!v && typeof v.then === 'function')
+        {
+            v.then( v => {
+                setter(name, v);
+            })
+        }
+        value[name] = v;
         tnode[name] = value[name];
         let t1 = performance.now();
         if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(name,'took',t1-t0,'ms to complete');
@@ -208,7 +215,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.35.36'
+        v: '1.36.18'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
@@ -239,6 +246,7 @@ let auto = (obj,opt) => {
     wrap(res, res['#'], obj);
     Object.keys(fn).forEach(name => {
         if (name[0] != '#'){
+            value[name] = undefined;
             update(name);
         }
     });
