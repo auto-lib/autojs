@@ -25,6 +25,8 @@ let auto = (obj,opt) => {
     let trace = {};
     let tnode = {};
     let trace_fn = opt && opt.trace;
+    let count = opt && opt.count;
+    let counts = {};
     let static_external = [];
     let static_internal = [];
     let static_mixed = [];
@@ -54,28 +56,48 @@ let auto = (obj,opt) => {
     }
     let run_subs = (name) => {
         if (subs[name])
+        {
+            if (name in watch) console.log('[run subs]',name);
             Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]))
+        }
     }
-    let update = (name) => {
+    let update = (name,src,caller) => {
         if (value[name]) return;
+        if (name in watch && caller)
+        {
+            console.log('updating',name,'because',caller,'called it');
+        }
+        if (name in watch && src)
+        {
+            console.log('updating',name,'because',src,'changed');
+        }
+        if (count) counts[name]['update'] += 1;
         if (fatal.msg) return;
         stack.push(name);
         if (stack.indexOf(name)!==stack.length-1) { fail('circular dependency'); return; }
         deps[name] = {};
         let t0 = performance.now();
         let v = fn[name]();
-        if (!!v && typeof v.then === 'function')
+        if ( !value[name] && !v)
         {
-            v.then( v => {
-                setter(name, v);
-            })
         }
-        value[name] = v;
-        tnode[name] = value[name];
-        let t1 = performance.now();
-        if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(name,'took',t1-t0,'ms to complete');
-        if (name in watch) console.log(name,get_vars(name));
-        run_subs(name);
+        {
+            value[name] = v;
+            if (!!v && typeof v.then === 'function')
+            {
+                v.then( v => {
+                    setter(name, v);
+                })
+            }
+            else
+            {
+                tnode[name] = value[name];
+                let t1 = performance.now();
+                if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(name,'took',t1-t0,'ms to complete');
+                if (name in watch) console.log('[update]',name,get_vars(name));
+                run_subs(name);
+            }
+        }
         stack.pop();
     }
     let getter = (name, parent) => {
@@ -96,8 +118,13 @@ let auto = (obj,opt) => {
             Object.keys(deps[dep]).forEach(child => {
                 if (child == name && dep in fn)
                 {
-                    delete(value[dep]);
-                    clear(dep);
+                    if (dep in value)
+                    {
+                        if (count) counts[dep]['clear'] += 1;
+                        if (dep in watch) console.log('[clear]',dep,'value cleared because dependency',name,'changed');
+                        delete(value[dep]);
+                        clear(dep);
+                    }
                 }
             })
         )
@@ -112,12 +139,14 @@ let auto = (obj,opt) => {
         }
         trace = { name, value: val, result: {} }
         tnode = trace.result;
+        if (!value[name] && !val) return;
+        if (count && name in counts) counts[name]['setter'] += 1;
         value[name] = val;
-        if (name in watch) console.log(name,'=',value[name],get_vars(name).deps);
+        if (name in watch) console.trace('[setter]',name,'=',value[name],get_vars(name).deps);
         run_subs(name);
         clear(name);
         Object.keys(fn).forEach( key => {
-            if (!(key in value) && key[0] != '#') update(key);
+            if (!(key in value) && key[0] != '#') update(key,name);
         });
         if (trace_fn) trace_fn(trace);
     }
@@ -146,7 +175,7 @@ let auto = (obj,opt) => {
         let _ = new Proxy({}, {
             get(target, prop) {
                 if (!(prop in value)) {
-                    if (prop in fn) update(prop);
+                    if (prop in fn) update(prop,null,name);
                     else { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
                 }
                 return getter(prop,name);
@@ -213,7 +242,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.36.18'
+        v: '1.37.25'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
@@ -242,6 +271,28 @@ let auto = (obj,opt) => {
     res.add_dynamic_mixed = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_mixed);
     run_tests(obj);
     wrap(res, res['#'], obj);
+    function print_and_reset_counts() {
+        let toprint = Object.keys(counts);
+        let totals = toprint.map(name => counts[name]['update'] + counts[name]['setter'] + counts[name]['clear']);
+        let sorted = totals.map((v,i) => [v, toprint[i]]).sort((a,b) => b[0]-a[0]);
+        if (count.top) sorted = sorted.slice(0,count.top);
+        if (count.max) sorted = sorted.filter(v => v[0] > count.max);
+        const names = sorted.map(v => v[1]);
+        console.log('[access counts]',names.map(name => ({ name, counts: counts[name] })));
+        counts = {};
+        Object.keys(fn).forEach(name => {
+            counts[name] = { update: 0, setter: 0, clear: 0 };
+        })
+    }
+    if (count)
+    {
+        counts = {};
+        Object.keys(fn).forEach(name => {
+            counts[name] = { update: 0, setter: 0, clear: 0 };
+        })
+        if (count.repeat) setInterval(print_and_reset_counts, count.interval);
+        else setTimeout(print_and_reset_counts, count.interval);
+    }
     Object.keys(fn).forEach(name => {
         if (name[0] != '#'){
             value[name] = undefined;
