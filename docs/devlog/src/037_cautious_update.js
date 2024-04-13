@@ -57,9 +57,9 @@ let auto = (obj,opt) => {
 
     let get_vars = (name) => {
         let o = { deps: {}, value: value[name] };
-        if (name in deps) 
+        if (name in deps)
             Object.keys(deps[name]).forEach(dep => {
-                if (!deps[dep]) 
+                if (!deps[dep])
                     o.deps[dep] = value[dep];
                 else {
                     o.deps[dep] = { value: value[dep], deps: {} };
@@ -73,19 +73,19 @@ let auto = (obj,opt) => {
     // the following five functions are what run continuously
     // (and everything after the break is just setup code)
     // ------------------------------------------------------
-    
+
     // == something went wrong ==
     // == save the message/stack and run any subscriptions to this (TODO on subscriptions) ==
 
-    let fail = (msg,stop) => { 
-        
+    let fail = (msg,stop) => {
+
         // save out to global object
         // so we can access it from outside for debugging
         // and also update uses this to stop looping during a circle
 
         fatal.msg = msg;
         fatal.stack = stack.map(s => s); // copy out the call stack
-        
+
         if (!stop && fn['#fatal']) fn['#fatal'](res); // run the function #fatal which is meant for reactions to errors. this should be a subscription so we can have multiple...
     }
 
@@ -99,11 +99,11 @@ let auto = (obj,opt) => {
             Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]))
         }
     }
-    
+
     // == update a dynamic value ==
     // == never static ==
 
-    let update = (name,src,caller) => {   
+    let update = (name,src,caller) => {
 
         if (value[name]) return;
 
@@ -130,7 +130,7 @@ let auto = (obj,opt) => {
 
         deps[name] = {}; // clear dependencies for this value
         let t0 = performance.now();
-        
+
         let v = fn[name](); // run the dynamic value's function and save the output
 
         if ( !value[name] && !v)
@@ -138,18 +138,19 @@ let auto = (obj,opt) => {
             // console.log('skipping',name,'because both old and new value are null');
         }
         {
-            value[name] = v; // save the output
-
             if (!!v && typeof v.then === 'function')
             {
+              value[name] = null;
                 v.then( v => {
                     setter(name, v);
                 })
             }
             else
             {
+                value[name] = v; // save the output
+
                 // value[name] = fn[name](); // run the dynamic value's function and save the output
-                
+
                 tnode[name] = value[name];
 
                 let t1 = performance.now();
@@ -176,8 +177,8 @@ let auto = (obj,opt) => {
             fail(`External read of internal function '${name}'`);
             return;
         }
-        
-        if (parent && static_external.includes(name)) { 
+
+        if (parent && static_external.includes(name)) {
             fail(`Function '${parent}' tried to access external variable '${name}'`);
             return;
         }
@@ -192,7 +193,7 @@ let auto = (obj,opt) => {
 
     let clear = (name) => {
 
-        Object.keys(deps).forEach( dep => 
+        Object.keys(deps).forEach( dep =>
             Object.keys(deps[dep]).forEach(child => {
                 if (child == name && dep in fn)
                 {
@@ -220,9 +221,9 @@ let auto = (obj,opt) => {
 
         trace = { name, value: val, result: {} }
         tnode = trace.result;
-        
+
         if (!value[name] && !val) return; // ignore nulls
-        
+
         if (count && name in counts) counts[name]['setter'] += 1;
 
         value[name] = val; // save
@@ -257,7 +258,7 @@ let auto = (obj,opt) => {
         while( subs[name] && tag() in subs[name] ) val += 1; // increment until not found
         return tag();
     }
-    
+
     // setup the subscribe function
     // and add get/set (mostly for svelte integration)
 
@@ -268,18 +269,18 @@ let auto = (obj,opt) => {
         hash[name].get = () => getter(name);
         hash[name].set = (v) => setter(name, v);
         hash[name].subscribe = (f) => {
-            
+
             // run the function immediately on latest value
             f(value[name]);
-        
+
             // you can subscribe multiple times
             // so we need to get a unique code for each one
             let subtag = get_subtag(name);
-        
+
             // save sub function
             if (!subs[name]) subs[name] = {};
             subs[name][subtag] = (v) => f(v);
-            
+
             // return unsubscribe method
             return () => { delete(subs[name][subtag]); }
         };
@@ -307,7 +308,7 @@ let auto = (obj,opt) => {
                 return getter(prop,name);
             },
             set(target, prop, value) {
-                fail('function '+name+' is trying to change value '+prop); 
+                fail('function '+name+' is trying to change value '+prop);
                 return true;
             }
         });
@@ -337,13 +338,13 @@ let auto = (obj,opt) => {
 
             let v; try { v = obj[name](_, (v) => setter(name, v) ); }
             catch(e) { show_vars(name); if (!fatal.msg) fail('exception',true); console.log(e); }
-            
+
             return v;
         }
-        
+
         // this is getting the function itself (outside, kind-of)
-        Object.defineProperty(res, name, { 
-            get() { return getter(name) } 
+        Object.defineProperty(res, name, {
+            get() { return getter(name) }
         } )
     }
 
@@ -361,9 +362,9 @@ let auto = (obj,opt) => {
         value[name] = v;
 
         // use our functions for get/set
-        Object.defineProperty(res, name, { 
-            get() { return getter(name) }, 
-            set(v) { setter(name, v) } 
+        Object.defineProperty(res, name, {
+            get() { return getter(name) },
+            set(v) { setter(name, v) }
         })
     }
 
@@ -378,9 +379,9 @@ let auto = (obj,opt) => {
         console.log(' _',_);
         console.log(' (there might be an error below too if your function failed as well)');
     }
-    
+
     // called once on the root object
-    
+
     let wrap = (res, hash, obj) => {
 
         // add handler that prints out to console for convenience in browser
@@ -399,7 +400,7 @@ let auto = (obj,opt) => {
     }
 
     let run_tests = (obj) => {
-        Object.keys(obj).forEach(name => { 
+        Object.keys(obj).forEach(name => {
             if (typeof obj[name] == 'function' && name in tests)
             {
                 try {
@@ -438,7 +439,7 @@ let auto = (obj,opt) => {
     }
 
     res.add_dynamic = (inner_obj) => {
-            
+
         Object.keys(inner_obj).forEach(name => {
 
             setup_dynamic(inner_obj, name, res);
@@ -452,7 +453,7 @@ let auto = (obj,opt) => {
 
     let add_fn = (inner_obj, fn, arr) => {
 
-        res[fn](inner_obj); 
+        res[fn](inner_obj);
         Object.keys(inner_obj).forEach(name => arr.push(name));
 
     }
@@ -464,7 +465,7 @@ let auto = (obj,opt) => {
     res.add_dynamic_external = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_external);
     res.add_dynamic_internal = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_internal);
     res.add_dynamic_mixed = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_mixed);
-    
+
     // first run tests...
     run_tests(obj);
 
@@ -473,9 +474,9 @@ let auto = (obj,opt) => {
 
     // this is to detect any bad functions on boot (i.e. functions which refer to a non-existent variable)
     // we set everything to undefined because the check is "name in value"
-    
+
     wrap(res, res['#'], obj);
-    
+
     function print_and_reset_counts() {
 
         let toprint = Object.keys(counts);
@@ -503,12 +504,12 @@ let auto = (obj,opt) => {
         else setTimeout(print_and_reset_counts, count.interval);
     }
 
-    Object.keys(fn).forEach(name => { 
+    Object.keys(fn).forEach(name => {
         if (name[0] != '#'){ // TODO need to look into this hash thing... do we use it?
             value[name] = undefined;
             update(name);
         }
-    }); 
+    });
 
     return res;
 }

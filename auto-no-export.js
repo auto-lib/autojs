@@ -52,7 +52,7 @@ let auto = (obj,opt) => {
     let fail = (msg,stop) => {
         fatal.msg = msg;
         fatal.stack = stack.map(s => s);
-        if (!stop && fn['#fatal']) fn['#fatal'](res);
+        if (typeof fn['#fatal'] === 'function') fn['#fatal'](res);
     }
     let run_subs = (name) => {
         if (subs[name])
@@ -82,15 +82,16 @@ let auto = (obj,opt) => {
         {
         }
         {
-            value[name] = v;
             if (!!v && typeof v.then === 'function')
             {
+              value[name] = null;
                 v.then( v => {
                     setter(name, v);
                 })
             }
             else
             {
+                value[name] = v;
                 tnode[name] = value[name];
                 let t1 = performance.now();
                 if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(name,'took',t1-t0,'ms to complete');
@@ -142,7 +143,7 @@ let auto = (obj,opt) => {
         if (!value[name] && !val) return;
         if (count && name in counts) counts[name]['setter'] += 1;
         value[name] = val;
-        if (name in watch) console.trace('[setter]',name,'=',value[name],get_vars(name).deps);
+        if (name in watch) console.log('[setter]',name,'=',value[name],get_vars(name).deps);
         run_subs(name);
         clear(name);
         Object.keys(fn).forEach( key => {
@@ -188,7 +189,7 @@ let auto = (obj,opt) => {
         fn[name] = () => {
             if (fatal.msg) return;
             let v; try { v = obj[name](_, (v) => setter(name, v) ); }
-            catch(e) { show_vars(name); if (!fatal.msg) fail('exception',true); console.log(e); }
+            catch(e) { show_vars(name); if (!fatal.msg) fail('exception'); console.log(e); }
             return v;
         }
         Object.defineProperty(res, name, {
@@ -213,12 +214,13 @@ let auto = (obj,opt) => {
         console.log(' (there might be an error below too if your function failed as well)');
     }
     let wrap = (res, hash, obj) => {
-        if (!obj['#fatal']) fn['#fatal'] = default_fatal;
         Object.keys(obj).forEach(name => {
             if (typeof obj[name] == 'function') setup_dynamic (obj, name, res);
             else setup_static (name, obj[name], res);
             setup_sub(hash, name);
         });
+        if (typeof obj['#fatal'] === 'function') fn['#fatal'] = obj['#fatal'];
+        else fn['#fatal'] = default_fatal;
     }
     let run_tests = (obj) => {
         Object.keys(obj).forEach(name => {
@@ -242,7 +244,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.37.25'
+        v: '1.38.18'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

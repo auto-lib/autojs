@@ -9,7 +9,7 @@ import fs from 'fs';
 let fail = (msg) => { console.trace(msg); process.exit(1); }
 
 let devlog_path = "../docs/devlog/src"
-	
+
 /* this code bums me out. wish it was cleaner. man i don't like node... */
 /* it's weird - auto's code is good. why is this different? */
 
@@ -60,7 +60,7 @@ let assert_global_same = (name, should_be, actual) => {
 }
 
 let assert_internals_same = (name, should_be, actual) => {
-	
+
 	let diff = [];
 
 	let missing_fn = false;
@@ -131,7 +131,8 @@ let check = (auto, name, test) => {
 	if (ignored[name]) console.log(name + ": ignored ("+ignored[name]+")")
 	else
 	{
-		test.obj['#fatal'] = () => {}; // zero out default fatal behaviour
+	   if (typeof test.obj['#fatal'] !== 'function') test.obj['#fatal'] = () => {}; // zero out default fatal behaviour
+		// test.obj['#fatal'] = () => {}; // zero out default fatal behaviour
 		let $ = auto(test.obj, test.opt);
 		let global = {};
 		try {
@@ -162,7 +163,7 @@ let copy_latest_lib = (version) => {
 	let latest_path = get_latest_path(devlog_path);
 
 	console.log("\nlatest file is " + devlog_path + "/" + latest_path + "\ncopying to auto.js files\n")
-	
+
 	let latest = "\n// " + latest_path + "\n" + fs.readFileSync(devlog_path + "/" + latest_path).toString();
 
 	// remove comments
@@ -218,7 +219,7 @@ let get_package_version = () => {
 			let i = sections.indexOf('version');
 			let numb = sections[i+2]; // it must be the second part after 'version'
 			let numbs = numb.split('.');
-			
+
 			version = {
 				major: parseInt(numbs[1]),
 				minor: parseInt(numbs[2])
