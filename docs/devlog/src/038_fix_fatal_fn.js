@@ -86,7 +86,7 @@ let auto = (obj,opt) => {
         fatal.msg = msg;
         fatal.stack = stack.map(s => s); // copy out the call stack
 
-        if (typeof fn['#fatal'] === 'function') fn['#fatal'](res); // run the function #fatal which is meant for reactions to errors. this should be a subscription so we can have multiple...
+        if (typeof fn['#fatal'] === 'function') fn['#fatal']({msg,res,stack}); // run the function #fatal which is meant for reactions to errors. this should be a subscription so we can have multiple...
     }
 
     // == run any subscriptions to a value ==
@@ -337,7 +337,7 @@ let auto = (obj,opt) => {
             // it does
 
             let v; try { v = obj[name](_, (v) => setter(name, v) ); }
-            catch(e) { show_vars(name); if (!fatal.msg) fail('exception'); console.log(e); }
+            catch(e) { show_vars(name); if (!fatal.msg) fail({msg:`exception in ${name}`, e}); console.log(e); }
 
             return v;
         }

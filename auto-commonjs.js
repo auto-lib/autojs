@@ -54,7 +54,7 @@ let auto = (obj,opt) => {
     let fail = (msg,stop) => {
         fatal.msg = msg;
         fatal.stack = stack.map(s => s);
-        if (typeof fn['#fatal'] === 'function') fn['#fatal'](res);
+        if (typeof fn['#fatal'] === 'function') fn['#fatal']({msg,res,stack});
     }
     let run_subs = (name) => {
         if (subs[name])
@@ -191,7 +191,7 @@ let auto = (obj,opt) => {
         fn[name] = () => {
             if (fatal.msg) return;
             let v; try { v = obj[name](_, (v) => setter(name, v) ); }
-            catch(e) { show_vars(name); if (!fatal.msg) fail('exception'); console.log(e); }
+            catch(e) { show_vars(name); if (!fatal.msg) fail({msg:`exception in ${name}`, e}); console.log(e); }
             return v;
         }
         Object.defineProperty(res, name, {
@@ -246,7 +246,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.38.18'
+        v: '1.38.20'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
