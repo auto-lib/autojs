@@ -36,12 +36,17 @@ let auto = (obj,opt) => {
     let watch = opt && 'watch' in opt ? opt.watch : {};
     let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100;
     let tests = opt && 'tests' in opt ? opt.tests : {};
-    let get_vars = (name) => {
+    let get_vars = (name,array_only) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
             Object.keys(deps[name]).forEach(dep => {
                 if (!deps[dep])
-                    o.deps[dep] = value[dep];
+                {
+                    if (array_only && Array.isArray(value[dep]))
+                        o.deps[dep] = `array, length ${value[dep].length}`;
+                    else
+                        o.deps[dep] = value[dep];
+                }
                 else {
                     o.deps[dep] = { value: value[dep], deps: {} };
                     Object.keys(deps[dep]).forEach(inner => o.deps[dep].deps[inner] = get_vars(inner)); }
@@ -52,7 +57,8 @@ let auto = (obj,opt) => {
     let fail = (msg,stop) => {
         fatal.msg = msg;
         fatal.stack = stack.map(s => s);
-        if (typeof fn['#fatal'] === 'function') fn['#fatal']({msg,res,stack});
+        let vars = get_vars(stack[stack.length-1],true);
+        if (typeof fn['#fatal'] === 'function') fn['#fatal']({msg,res,stack:stack,vars});
     }
     let run_subs = (name) => {
         if (subs[name])
@@ -244,7 +250,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.38.20'
+        v: '1.38.28'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

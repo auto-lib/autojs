@@ -55,12 +55,17 @@ let auto = (obj,opt) => {
     // as well as the dependents of those variables, recursively, so you can
     // see the entire state tree that led to all the values
 
-    let get_vars = (name) => {
+    let get_vars = (name,array_only) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
             Object.keys(deps[name]).forEach(dep => {
                 if (!deps[dep])
-                    o.deps[dep] = value[dep];
+                {
+                    if (array_only && Array.isArray(value[dep]))
+                        o.deps[dep] = `array, length ${value[dep].length}`;
+                    else
+                        o.deps[dep] = value[dep];
+                }
                 else {
                     o.deps[dep] = { value: value[dep], deps: {} };
                     Object.keys(deps[dep]).forEach(inner => o.deps[dep].deps[inner] = get_vars(inner)); }
@@ -85,8 +90,8 @@ let auto = (obj,opt) => {
 
         fatal.msg = msg;
         fatal.stack = stack.map(s => s); // copy out the call stack
-
-        if (typeof fn['#fatal'] === 'function') fn['#fatal']({msg,res,stack}); // run the function #fatal which is meant for reactions to errors. this should be a subscription so we can have multiple...
+        let vars = get_vars(stack[stack.length-1],true);
+        if (typeof fn['#fatal'] === 'function') fn['#fatal']({msg,res,stack:stack,vars}); // run the function #fatal which is meant for reactions to errors. this should be a subscription so we can have multiple...
     }
 
     // == run any subscriptions to a value ==
