@@ -8,13 +8,13 @@
   "module": "auto-es6.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kewp/auto.git"
+    "url": "git+https://github.com/auto-lib/auto.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/kewp/auto/issues"
+    "url": "https://github.com/auto-lib/auto/issues"
   },
-  "homepage": "https://github.com/kewp/auto"
+  "homepage": "https://github.com/auto-lib/auto"
 }
