@@ -149,6 +149,7 @@ let auto = (obj,opt) => {
                 v.then( v => {
                     setter(name, v);
                 })
+                run_subs(name);
             }
             else
             {

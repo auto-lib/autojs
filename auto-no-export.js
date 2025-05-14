@@ -94,6 +94,7 @@ let auto = (obj,opt) => {
                 v.then( v => {
                     setter(name, v);
                 })
+                run_subs(name);
             }
             else
             {
@@ -250,7 +251,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.40.8'
+        v: '1.40.9'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
