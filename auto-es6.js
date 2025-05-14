@@ -90,7 +90,7 @@ let auto = (obj,opt) => {
         {
             if (!!v && typeof v.then === 'function')
             {
-              value[name] = null;
+              value[name] = v;
                 v.then( v => {
                     setter(name, v);
                 })
@@ -251,7 +251,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.39.5'
+        v: '1.40.7'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
