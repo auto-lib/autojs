@@ -147,7 +147,6 @@ let auto = (obj,opt) => {
         trace = { name, value: val, result: {} }
         tnode = trace.result;
         if (!value[name] && !val) return;
-        if (val && typeof val.then == 'function') console.log('WARNING: setting a promise as a value');
         if (count && name in counts) counts[name]['setter'] += 1;
         value[name] = val;
         if (name in watch) console.log('[setter]',name,'=',value[name],get_vars(name).deps);
@@ -251,7 +250,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.40.7'
+        v: '1.40.8'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
