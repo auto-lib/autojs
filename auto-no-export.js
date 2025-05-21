@@ -27,6 +27,7 @@ let auto = (obj,opt) => {
     let trace_fn = opt && opt.trace;
     let count = opt && opt.count;
     let counts = {};
+    let tag = opt && opt.tag;
     let static_external = [];
     let static_internal = [];
     let static_mixed = [];
@@ -53,7 +54,7 @@ let auto = (obj,opt) => {
             })
         return o;
     }
-    let show_vars = (name) => console.log('EXCEPTION in '+name,get_vars(name).deps);
+    let show_vars = (name) => console.log(`${tag?'['+tag+'] ':''}EXCEPTION in ${name}`,get_vars(name).deps);
     let fail = (msg,stop) => {
         fatal.msg = msg;
         fatal.stack = stack.map(s => s);
@@ -63,7 +64,7 @@ let auto = (obj,opt) => {
     let run_subs = (name) => {
         if (subs[name])
         {
-            if (name in watch) console.log('[run subs]',name);
+            if (name in watch) console.log(`${tag?'['+tag+'] ':''}[run subs]`,name);
             Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]))
         }
     }
@@ -71,11 +72,11 @@ let auto = (obj,opt) => {
         if (value[name]) return;
         if (name in watch && caller)
         {
-            console.log('updating',name,'because',caller,'called it');
+            console.log(`${tag?'['+tag+'] ':''}updating ${name}`,'because',caller,'called it');
         }
         if (name in watch && src)
         {
-            console.log('updating',name,'because',src,'changed');
+            console.log(`${tag?'['+tag+'] ':''}updating ${name}`,'because',src,'changed');
         }
         if (count) counts[name]['update'] += 1;
         if (fatal.msg) return;
@@ -101,8 +102,8 @@ let auto = (obj,opt) => {
                 value[name] = v;
                 tnode[name] = value[name];
                 let t1 = performance.now();
-                if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(name,'took',t1-t0,'ms to complete');
-                if (name in watch) console.log('[update]',name,get_vars(name));
+                if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(`${tag?'['+tag+'] ':''} ${name}`,'took',t1-t0,'ms to complete');
+                if (name in watch) console.log(`${tag?'['+tag+'] ':''}[update]`,name,get_vars(name));
                 run_subs(name);
             }
         }
@@ -129,7 +130,7 @@ let auto = (obj,opt) => {
                     if (dep in value)
                     {
                         if (count) counts[dep]['clear'] += 1;
-                        if (dep in watch) console.log('[clear]',dep,'value cleared because dependency',name,'changed');
+                        if (dep in watch) console.log(`${tag?'['+tag+'] ':''}[clear]`,dep,'value cleared because dependency',name,'changed');
                         delete(value[dep]);
                         clear(dep);
                     }
@@ -141,7 +142,7 @@ let auto = (obj,opt) => {
         if (fatal.msg) return;
         if (!(name in value))
         {
-            console.trace('ERROR trying to set unknown variable '+name);
+            console.trace(`${tag?'['+tag+'] ':''}ERROR trying to set unknown variable ${name}`);
             fail('outside code trying to set unknown variable '+name);
             return;
         }
@@ -150,7 +151,7 @@ let auto = (obj,opt) => {
         if (!value[name] && !val) return;
         if (count && name in counts) counts[name]['setter'] += 1;
         value[name] = val;
-        if (name in watch) console.log('[setter]',name,'=',value[name],get_vars(name).deps);
+        if (name in watch) console.log(`${tag?'['+tag+'] ':''}[setter]`,name,'=',value[name],get_vars(name).deps);
         run_subs(name);
         clear(name);
         Object.keys(fn).forEach( key => {
@@ -178,7 +179,7 @@ let auto = (obj,opt) => {
     }
     let setup_dynamic = (obj, name, res) => {
         if (typeof obj[name] != 'function') {
-            console.trace('EXCEPTION trying to set non-function '+name+' as dynamic value');
+            console.trace(`${tag?'['+tag+'] ':''}EXCEPTION trying to set non-function ${name} as dynamic value`);
         }
         let _ = new Proxy({}, {
             get(target, prop) {
@@ -205,7 +206,7 @@ let auto = (obj,opt) => {
     }
     let setup_static = (name, v, res) => {
         if (typeof v == 'function') {
-            console.trace('EXCEPTION trying to set function '+name+' as static value');
+            console.trace(`${tag?'['+tag+'] ':''}EXCEPTION trying to set function ${name} as static value`);
             return;
         }
         value[name] = v;
@@ -215,7 +216,7 @@ let auto = (obj,opt) => {
         })
     }
     let default_fatal = (_) => {
-        console.log('FATAL',_._.fatal.msg);
+        console.log(`${tag?'['+tag+'] ':''}FATAL`,_._.fatal.msg);
         console.log(' stack',_._.fatal.stack);
         console.log(' _',_);
         console.log(' (there might be an error below too if your function failed as well)');
@@ -237,13 +238,13 @@ let auto = (obj,opt) => {
                     let got = obj[name](tests[name]._);
                     let should = tests[name].output;
                     if (JSON.stringify(got) !== JSON.stringify(should)) {
-                        console.log('WARNING test failed for',name);
+                        console.log(`${tag?'['+tag+'] ':''}WARNING test failed for ${name}`);
                         console.log(' should be',should);
                         console.log(' got',got);
                     }
                 }
                 catch (e) {
-                    console.log('EXCEPTION running test for',name,e);
+                    console.log(`${tag?'['+tag+'] ':''}EXCEPTION running test for`,name,e);
                 }
             }
         })
@@ -251,7 +252,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.40.9'
+        v: '1.41.3'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
@@ -287,7 +288,7 @@ let auto = (obj,opt) => {
         if (count.top) sorted = sorted.slice(0,count.top);
         if (count.max) sorted = sorted.filter(v => v[0] > count.max);
         const names = sorted.map(v => v[1]);
-        console.log('[access counts]',names.map(name => ({ name, counts: counts[name] })));
+        console.log(`${tag?'['+tag+'] ':''}[access counts]`,names.map(name => ({ name, counts: counts[name] })));
         counts = {};
         Object.keys(fn).forEach(name => {
             counts[name] = { update: 0, setter: 0, clear: 0 };
