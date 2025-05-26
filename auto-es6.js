@@ -28,6 +28,8 @@ let auto = (obj,opt) => {
     let count = opt && opt.count;
     let counts = {};
     let tag = opt && opt.tag;
+    let deep_log = opt && opt.deep_log;
+    if (deep_log) console.log(`${tag?'['+tag+'] ':''}auto started`,obj);
     let static_external = [];
     let static_internal = [];
     let static_mixed = [];
@@ -69,6 +71,7 @@ let auto = (obj,opt) => {
         }
     }
     let update = (name,src,caller) => {
+        if (deep_log&&(src||caller)) console.log(`${tag?'['+tag+'] ':''}updating ${name}`,src?'because '+src:'',caller?'called by '+caller:'');
         if (value[name]) return;
         if (name in watch && caller)
         {
@@ -110,7 +113,12 @@ let auto = (obj,opt) => {
         stack.pop();
     }
     let getter = (name, parent) => {
-        if (fatal.msg) return;
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}getting ${name}`,parent?'called by '+parent:'');
+        if (fatal.msg)
+        {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}fatal error, not getting ${name}`);
+            return;
+        }
         if (dynamic_internal.includes(name)) {
             fail(`External read of internal function '${name}'`);
             return;
@@ -123,6 +131,7 @@ let auto = (obj,opt) => {
         return value[name];
     }
     let clear = (name) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}clearing ${name}`);
         Object.keys(deps).forEach( dep =>
             Object.keys(deps[dep]).forEach(child => {
                 if (child == name && dep in fn)
@@ -139,6 +148,7 @@ let auto = (obj,opt) => {
         )
     }
     let setter = (name, val) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}setting ${name} to`,val);
         if (fatal.msg) return;
         if (!(name in value))
         {
@@ -222,6 +232,7 @@ let auto = (obj,opt) => {
         console.log(' (there might be an error below too if your function failed as well)');
     }
     let wrap = (res, hash, obj) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}wrapping object`,obj);
         Object.keys(obj).forEach(name => {
             if (typeof obj[name] == 'function') setup_dynamic (obj, name, res);
             else setup_static (name, obj[name], res);
@@ -231,6 +242,7 @@ let auto = (obj,opt) => {
         else fn['#fatal'] = () => default_fatal(res);
     }
     let run_tests = (obj) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}running tests`,tests);
         Object.keys(obj).forEach(name => {
             if (typeof obj[name] == 'function' && name in tests)
             {
@@ -252,7 +264,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.41.3'
+        v: '1.42.10'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
