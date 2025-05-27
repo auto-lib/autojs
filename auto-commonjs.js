@@ -63,7 +63,16 @@ let auto = (obj,opt) => {
         fatal.msg = msg;
         fatal.stack = stack.map(s => s);
         let vars = get_vars(stack[stack.length-1],true);
-        if (typeof fn['#fatal'] === 'function') fn['#fatal']({msg,res,stack:stack,vars});
+        if (typeof fn['#fatal'] === 'function')
+        {
+            try {
+                fn['#fatal']({msg,res,stack:stack,vars});
+            } catch (e) {
+                console.log(`${tag?'['+tag+'] ':''}EXCEPTION running #fatal function`,e);
+                console.log(' stack',stack);
+                console.log(' vars',vars);
+            }
+        }
     }
     let run_subs = (name) => {
         if (subs[name])
@@ -266,7 +275,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.42.10'
+        v: '1.43.0'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
