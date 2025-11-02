@@ -25,6 +25,10 @@ let auto = (obj,opt) => {
     let subs = {};
     let trace = {};
     let tnode = {};
+    let txn_counter = 0;
+    let in_batch = false;
+    let batch_triggers = [];
+    let batch_changed = new Set();
     let trace_fn = opt && opt.trace;
     let count = opt && opt.count;
     let counts = {};
@@ -193,18 +197,27 @@ let auto = (obj,opt) => {
         variables.forEach(name => visit(name));
         return sorted;
     }
-    let propagate = (trigger_name, trigger_value) => {
-        if (deep_log) console.log(`${tag?'['+tag+'] ':''}propagating changes from ${trigger_name}`);
+    let propagate = (triggers) => {
+        if (!Array.isArray(triggers)) {
+            triggers = [triggers];
+        }
+        txn_counter += 1;
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[txn ${txn_counter}] propagating changes from`, triggers.map(t => t.name).join(', '));
         trace = {
-            trigger: trigger_name,
-            trigger_value: trigger_value,
+            id: txn_counter,
+            timestamp: Date.now(),
+            triggers: triggers,
             updates: {}
         };
         tnode = trace.updates;
-        let affected = invalidate(trigger_name);
-        if (deep_log) console.log(`${tag?'['+tag+'] ':''}affected variables:`, Array.from(affected));
+        let affected = new Set();
+        triggers.forEach(trigger => {
+            let trigger_affected = invalidate(trigger.name);
+            trigger_affected.forEach(name => affected.add(name));
+        });
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[txn ${txn_counter}] affected variables:`, Array.from(affected));
         let sorted = affected.size > 0 ? topological_sort(affected) : [];
-        if (sorted.length > 0 && deep_log) console.log(`${tag?'['+tag+'] ':''}update order:`, sorted);
+        if (sorted.length > 0 && deep_log) console.log(`${tag?'['+tag+'] ':''}[txn ${txn_counter}] update order:`, sorted);
         sorted.forEach(name => {
             if (name in value) {
                 delete value[name];
@@ -212,23 +225,29 @@ let auto = (obj,opt) => {
         });
         sorted.forEach(name => {
             if (name in fn && !(name in value)) {
-                update(name, trigger_name);
+                update(name, 'txn_' + txn_counter);
             }
         });
-        let changed = [trigger_name, ...sorted];
+        sorted.forEach(name => {
+            trace.updates[name] = value[name];
+        });
+        let changed = new Set();
+        triggers.forEach(t => changed.add(t.name));
+        sorted.forEach(name => changed.add(name));
         changed.forEach(name => {
             if (name in subs) {
                 run_subs(name);
             }
         });
         if (trace_fn) trace_fn(trace);
+        return trace;
     }
     let set_internal = (name, val) => {
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}async resolution for ${name}:`,val);
         if (fatal.msg) return;
         value[name] = val;
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[async resolved]`,name,'=',value[name]);
-        propagate(name, val);
+        propagate({ name, value: val });
     }
     let setter = (name, val) => {
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}setting ${name} to`,val);
@@ -243,7 +262,13 @@ let auto = (obj,opt) => {
         if (count && name in counts) counts[name]['setter'] += 1;
         value[name] = val;
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[setter]`,name,'=',value[name],get_vars(name).deps);
-        propagate(name, val);
+        if (in_batch) {
+            batch_triggers.push({ name, value: val });
+            batch_changed.add(name);
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[batch] accumulated ${name}`);
+        } else {
+            propagate({ name, value: val });
+        }
     }
     let get_subtag = (name) => {
         let val = 0;
@@ -340,7 +365,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.45.1'
+        v: '1.46.1'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
@@ -367,6 +392,29 @@ let auto = (obj,opt) => {
     res.add_dynamic_external = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_external);
     res.add_dynamic_internal = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_internal);
     res.add_dynamic_mixed = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_mixed);
+    res.batch = (fn) => {
+        if (in_batch) {
+            fn();
+            return;
+        }
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[batch] starting`);
+        in_batch = true;
+        batch_triggers = [];
+        batch_changed = new Set();
+        try {
+            fn();
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[batch] complete with ${batch_triggers.length} triggers:`, batch_triggers.map(t => t.name));
+            in_batch = false;
+            if (batch_triggers.length > 0) {
+                return propagate(batch_triggers);
+            }
+        } catch (e) {
+            in_batch = false;
+            batch_triggers = [];
+            batch_changed = new Set();
+            throw e;
+        }
+    };
     run_tests(obj);
     wrap(res, res['#'], obj);
     function print_and_reset_counts() {

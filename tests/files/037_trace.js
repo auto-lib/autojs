@@ -14,7 +14,18 @@ export default {
     fn: ($, global) => {
         $.data = [1,2,3,4];
         $.data = [2,3,4];
-        global.trace = get_trace();
+
+        // Extract just what we need to check from traces
+        let traces = get_trace();
+        global.trace_count = traces.length;
+        global.first_trigger_name = traces[0].triggers[0].name;
+        global.first_trigger_value = traces[0].triggers[0].value;
+        global.first_updates = traces[0].updates;
+        global.second_trigger_name = traces[1].triggers[0].name;
+        global.second_trigger_value = traces[1].triggers[0].value;
+        global.second_updates = traces[1].updates;
+        global.has_ids = typeof traces[0].id === 'number' && typeof traces[1].id === 'number';
+        global.has_timestamps = typeof traces[0].timestamp === 'number' && typeof traces[1].timestamp === 'number';
     },
     opt: {
         trace: v => put_trace(v)
@@ -30,25 +41,22 @@ export default {
         fatal: { }
     },
     global: {
-        trace: [
-            {
-                trigger: 'data',
-                trigger_value: [1,2,3,4],
-                updates: {
-                    func_1: 4,
-                    func_2: 14,
-                    combine: 22
-                }
-            },
-            {
-                trigger: 'data',
-                trigger_value: [2,3,4],
-                updates: {
-                    func_1: 3,
-                    func_2: 13,
-                    combine: 19
-                }
-            }
-        ]
+        trace_count: 2,
+        first_trigger_name: 'data',
+        first_trigger_value: [1,2,3,4],
+        first_updates: {
+            func_1: 4,
+            func_2: 14,
+            combine: 22
+        },
+        second_trigger_name: 'data',
+        second_trigger_value: [2,3,4],
+        second_updates: {
+            func_1: 3,
+            func_2: 13,
+            combine: 19
+        },
+        has_ids: true,
+        has_timestamps: true
     }
 }
