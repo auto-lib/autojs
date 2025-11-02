@@ -17,6 +17,7 @@
 */
 let auto = (obj,opt) => {
     let deps = {};
+    let dependents = {};
     let fn = {};
     let value = {};
     let stack = [];
@@ -94,6 +95,13 @@ let auto = (obj,opt) => {
         if (fatal.msg) return;
         stack.push(name);
         if (stack.indexOf(name)!==stack.length-1) { fail('circular dependency'); return; }
+        if (deps[name]) {
+            Object.keys(deps[name]).forEach(dep => {
+                if (dependents[dep] && dependents[dep][name]) {
+                    delete dependents[dep][name];
+                }
+            });
+        }
         deps[name] = {};
         let t0 = performance.now();
         let v = fn[name]();
@@ -105,7 +113,7 @@ let auto = (obj,opt) => {
             {
               value[name] = v;
                 v.then( v => {
-                    setter(name, v);
+                    set_internal(name, v);
                 })
             }
             else
@@ -134,33 +142,42 @@ let auto = (obj,opt) => {
             fail(`Function '${parent}' tried to access external variable '${name}'`);
             return;
         }
-        if (parent) deps[parent][name] = true;
+        if (parent) {
+            deps[parent][name] = true;
+            if (!dependents[name]) dependents[name] = {};
+            dependents[name][parent] = true;
+        }
         return value[name];
     }
     let invalidate = (name, affected) => {
         if (!affected) affected = new Set();
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}invalidating ${name}`);
-        Object.keys(deps).forEach(dep => {
-            if (deps[dep][name] && dep in fn && dep in value) {
-                if (count) counts[dep]['clear'] += 1;
-                if (dep in watch) console.log(`${tag?'['+tag+'] ':''}[invalidate]`,dep,'invalidated because dependency',name,'changed');
-                affected.add(dep);
-                invalidate(dep, affected);
-            }
-        });
+        if (dependents[name]) {
+            Object.keys(dependents[name]).forEach(dep => {
+                if (dep in fn && dep in value) {
+                    if (count) counts[dep]['clear'] += 1;
+                    if (dep in watch) console.log(`${tag?'['+tag+'] ':''}[invalidate]`,dep,'invalidated because dependency',name,'changed');
+                    affected.add(dep);
+                    invalidate(dep, affected);
+                }
+            });
+        }
         return affected;
     }
     let topological_sort = (variables) => {
         let sorted = [];
         let visited = new Set();
         let visiting = new Set();
+        let path = [];
         let visit = (name) => {
             if (visited.has(name)) return;
             if (visiting.has(name)) {
-                if (deep_log) console.log(`${tag?'['+tag+'] ':''}circular dependency detected in topological sort:`,name);
+                path.push(name);
+                if (deep_log) console.log(`${tag?'['+tag+'] ':''}structural circular dependency:`, path);
                 return;
             }
             visiting.add(name);
+            path.push(name);
             if (name in deps) {
                 Object.keys(deps[name]).forEach(dep => {
                     if (variables.has(dep)) {
@@ -168,6 +185,7 @@ let auto = (obj,opt) => {
                     }
                 });
             }
+            path.pop();
             visiting.delete(name);
             visited.add(name);
             sorted.push(name);
@@ -175,16 +193,18 @@ let auto = (obj,opt) => {
         variables.forEach(name => visit(name));
         return sorted;
     }
-    let propagate = (trigger_name) => {
+    let propagate = (trigger_name, trigger_value) => {
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}propagating changes from ${trigger_name}`);
+        trace = {
+            trigger: trigger_name,
+            trigger_value: trigger_value,
+            updates: {}
+        };
+        tnode = trace.updates;
         let affected = invalidate(trigger_name);
-        if (affected.size === 0) {
-            if (deep_log) console.log(`${tag?'['+tag+'] ':''}no variables affected`);
-            return;
-        }
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}affected variables:`, Array.from(affected));
-        let sorted = topological_sort(affected);
-        if (deep_log) console.log(`${tag?'['+tag+'] ':''}update order:`, sorted);
+        let sorted = affected.size > 0 ? topological_sort(affected) : [];
+        if (sorted.length > 0 && deep_log) console.log(`${tag?'['+tag+'] ':''}update order:`, sorted);
         sorted.forEach(name => {
             if (name in value) {
                 delete value[name];
@@ -195,11 +215,20 @@ let auto = (obj,opt) => {
                 update(name, trigger_name);
             }
         });
-        sorted.forEach(name => {
+        let changed = [trigger_name, ...sorted];
+        changed.forEach(name => {
             if (name in subs) {
                 run_subs(name);
             }
         });
+        if (trace_fn) trace_fn(trace);
+    }
+    let set_internal = (name, val) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}async resolution for ${name}:`,val);
+        if (fatal.msg) return;
+        value[name] = val;
+        if (name in watch) console.log(`${tag?'['+tag+'] ':''}[async resolved]`,name,'=',value[name]);
+        propagate(name, val);
     }
     let setter = (name, val) => {
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}setting ${name} to`,val);
@@ -210,15 +239,11 @@ let auto = (obj,opt) => {
             fail('outside code trying to set unknown variable '+name);
             return;
         }
-        trace = { name, value: val, result: {} }
-        tnode = trace.result;
         if (!value[name] && !val) return;
         if (count && name in counts) counts[name]['setter'] += 1;
         value[name] = val;
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[setter]`,name,'=',value[name],get_vars(name).deps);
-        run_subs(name);
-        propagate(name);
-        if (trace_fn) trace_fn(trace);
+        propagate(name, val);
     }
     let get_subtag = (name) => {
         let val = 0;
@@ -315,7 +340,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.44.1'
+        v: '1.45.1'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

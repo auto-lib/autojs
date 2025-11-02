@@ -32,18 +32,18 @@ export default {
     global: {
         trace: [
             {
-                name: 'data',
-                value: [1,2,3,4],
-                result: {
+                trigger: 'data',
+                trigger_value: [1,2,3,4],
+                updates: {
                     func_1: 4,
                     func_2: 14,
                     combine: 22
                 }
             },
             {
-                name: 'data',
-                value: [2,3,4],
-                result: {
+                trigger: 'data',
+                trigger_value: [2,3,4],
+                updates: {
                     func_1: 3,
                     func_2: 13,
                     combine: 19
