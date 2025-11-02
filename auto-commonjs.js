@@ -31,6 +31,10 @@ let auto = (obj,opt) => {
     let in_batch = false;
     let batch_triggers = [];
     let batch_changed = new Set();
+    let auto_batch_enabled = opt && 'auto_batch' in opt ? opt.auto_batch : true;
+    let auto_batch_delay = opt && 'auto_batch_delay' in opt ? opt.auto_batch_delay : 0;
+    let auto_batch_timer = null;
+    let auto_batch_pending = [];
     let trace_fn = opt && opt.trace;
     let count = opt && opt.count;
     let counts = {};
@@ -251,6 +255,14 @@ let auto = (obj,opt) => {
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[async resolved]`,name,'=',value[name]);
         propagate({ name, value: val });
     }
+    let flush_auto_batch = () => {
+        if (auto_batch_pending.length === 0) return;
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[auto-batch] flushing ${auto_batch_pending.length} triggers`);
+        let triggers = auto_batch_pending;
+        auto_batch_pending = [];
+        auto_batch_timer = null;
+        propagate(triggers);
+    };
     let setter = (name, val) => {
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}setting ${name} to`,val);
         if (fatal.msg) return;
@@ -268,7 +280,16 @@ let auto = (obj,opt) => {
             batch_triggers.push({ name, value: val });
             batch_changed.add(name);
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}[batch] accumulated ${name}`);
-        } else {
+        }
+        else if (auto_batch_enabled) {
+            auto_batch_pending.push({ name, value: val });
+            if (auto_batch_timer !== null) {
+                clearTimeout(auto_batch_timer);
+            }
+            auto_batch_timer = setTimeout(flush_auto_batch, auto_batch_delay);
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[auto-batch] accumulated ${name}, timer scheduled`);
+        }
+        else {
             propagate({ name, value: val });
         }
     }
@@ -367,7 +388,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.46.1'
+        v: '1.47.9'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
@@ -394,6 +415,12 @@ let auto = (obj,opt) => {
     res.add_dynamic_external = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_external);
     res.add_dynamic_internal = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_internal);
     res.add_dynamic_mixed = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_mixed);
+    res.flush = () => {
+        if (auto_batch_timer !== null) {
+            clearTimeout(auto_batch_timer);
+            flush_auto_batch();
+        }
+    };
     res.batch = (fn) => {
         if (in_batch) {
             fn();

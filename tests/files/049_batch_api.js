@@ -48,6 +48,7 @@ export default {
         global.final_result = $.result;
     },
     opt: {
+        auto_batch: false,
         trace: v => put_trace(v)
     },
     _: {

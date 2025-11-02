@@ -143,6 +143,11 @@ let check = (auto, name, test) => {
 			console.log($);
 			process.exit(1);
 		}
+
+		// Flush auto-batch if enabled (makes propagation synchronous for testing)
+		// But only if the test doesn't have its own timeout
+		if (!test.timeout && $.flush) $.flush();
+
 		if (test.timeout) setTimeout( () => confirm(name, test, $, global), test.timeout);
 		else confirm(name, test, $, global);
 	}
@@ -152,7 +157,7 @@ let get_latest_path = () => {
 
 	let latest_path;
 	fs.readdirSync(devlog_path).forEach(name => {
-		if (parseInt(name.substring(0, 3)) > 0) latest_path = name;
+		if (name.endsWith('.js') && parseInt(name.substring(0, 3)) > 0) latest_path = name;
 	});
 
 	return latest_path;

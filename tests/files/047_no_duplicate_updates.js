@@ -38,6 +38,9 @@ export default {
         $.a = 20;
         global.second_counts = { ...execution_counts };
     },
+    opt: {
+        auto_batch: false
+    },
     _: {
         fn: ['b', 'c', 'd'],
         deps: {

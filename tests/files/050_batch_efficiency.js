@@ -45,6 +45,9 @@ export default {
         global.with_batch_subs = batch_sub_count - 1; // -1 for initial call
         global.final_result = $.result;
     },
+    opt: {
+        auto_batch: false
+    },
     _: {
         fn: ['result'],
         deps: {

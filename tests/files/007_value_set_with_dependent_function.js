@@ -1,7 +1,7 @@
 export default {
     obj: {
         data: null,
-        count: ($) => $.data ? $.data.length : 0 
+        count: ($) => $.data ? $.data.length : 0
     },
     fn: ($) => {
         $.data = [1,2,3];

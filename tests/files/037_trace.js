@@ -28,7 +28,8 @@ export default {
         global.has_timestamps = typeof traces[0].timestamp === 'number' && typeof traces[1].timestamp === 'number';
     },
     opt: {
-        trace: v => put_trace(v)
+        trace: v => put_trace(v),
+        auto_batch: false  // Test needs separate transactions for each set
     },
     _: {
         fn: [ 'func_1', 'func_2', 'combine' ],

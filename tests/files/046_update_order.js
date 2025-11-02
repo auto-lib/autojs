@@ -45,6 +45,9 @@ export default {
         global.bottom_after_right = bottom_index > right_index;
         global.all_ran = execution_order.length === 3;
     },
+    opt: {
+        auto_batch: false
+    },
     _: {
         fn: ['left', 'right', 'bottom'],
         deps: {
