@@ -231,6 +231,12 @@ let auto = (obj,opt) => {
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}[txn ${txn_counter}] affected variables:`, Array.from(affected));
         let sorted = affected.size > 0 ? topological_sort(affected) : [];
         if (sorted.length > 0 && deep_log) console.log(`${tag?'['+tag+'] ':''}[txn ${txn_counter}] update order:`, sorted);
+        let old_values = {};
+        sorted.forEach(name => {
+            if (name in value) {
+                old_values[name] = value[name];
+            }
+        });
         sorted.forEach(name => {
             if (name in value) {
                 delete value[name];
@@ -241,12 +247,30 @@ let auto = (obj,opt) => {
                 update(name, 'txn_' + txn_counter);
             }
         });
+        let actually_changed = new Set();
+        triggers.forEach(t => actually_changed.add(t.name));
         sorted.forEach(name => {
+            let old_val = old_values[name];
+            let new_val = value[name];
+            let isObject = typeof new_val === 'object' && new_val !== null;
+            let hasChanged = isObject || old_val !== new_val;
+            if (hasChanged) {
+                actually_changed.add(name);
+                if (deep_log) {
+                    if (isObject) {
+                        console.log(`${tag?'['+tag+'] ':''}[object changed] ${name}:`, old_val, '->', new_val);
+                    } else {
+                        console.log(`${tag?'['+tag+'] ':''}[change detected] ${name}:`, old_val, '->', new_val);
+                    }
+                }
+            } else {
+                if (deep_log) console.log(`${tag?'['+tag+'] ':''}[no change] ${name}:`, old_val);
+            }
+        });
+        actually_changed.forEach(name => {
             trace.updates[name] = value[name];
         });
-        let changed = new Set();
-        triggers.forEach(t => changed.add(t.name));
-        sorted.forEach(name => changed.add(name));
+        let changed = actually_changed;
         changed.forEach(name => {
             if (name in subs) {
                 run_subs(name);
@@ -280,6 +304,10 @@ let auto = (obj,opt) => {
             return;
         }
         if (!value[name] && !val) return;
+        if (value[name] === val && (typeof val !== 'object' || val === null)) {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[no change] ${name} already equals`,val);
+            return;
+        }
         if (count && name in counts) counts[name]['setter'] += 1;
         value[name] = val;
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[setter]`,name,'=',value[name],get_vars(name).deps);
@@ -395,7 +423,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.47.13'
+        v: '1.48.4'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

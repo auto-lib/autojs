@@ -76,7 +76,7 @@ export default {
         fatal: {}
     },
     global: {
-        separate_txn_count: 3,  // Three separate sets = 3 transactions
+        separate_txn_count: 2,  // Two changes (data, filter) - page=1 is no change
         batch_txn_count: 1,      // One batch call = 1 transaction
         batch_trigger_count: 3,  // But 3 triggers in that transaction
         batch_trigger_names: ['data', 'filter', 'page'],
