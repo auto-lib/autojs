@@ -30,7 +30,7 @@ let auto = (obj,opt) => {
     let batch_triggers = [];
     let batch_changed = new Set();
     let auto_batch_enabled = opt && 'auto_batch' in opt ? opt.auto_batch : true;
-    let auto_batch_delay = opt && 'auto_batch_delay' in opt ? opt.auto_batch_delay : 50;
+    let auto_batch_delay = opt && 'auto_batch_delay' in opt ? opt.auto_batch_delay : 0;
     let auto_batch_timer = null;
     let auto_batch_pending = [];
     let trace_fn = opt && opt.trace;
@@ -393,7 +393,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.47.12'
+        v: '1.47.13'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

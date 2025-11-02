@@ -58,7 +58,7 @@ let auto = (obj,opt) => {
 
     // Auto-batching (timer-based)
     let auto_batch_enabled = opt && 'auto_batch' in opt ? opt.auto_batch : true; // enable automatic batching
-    let auto_batch_delay = opt && 'auto_batch_delay' in opt ? opt.auto_batch_delay : 50; // delay in ms (0 = next tick)
+    let auto_batch_delay = opt && 'auto_batch_delay' in opt ? opt.auto_batch_delay : 0; // delay in ms (0 = next tick)
     let auto_batch_timer = null;  // pending timer
     let auto_batch_pending = [];  // pending triggers for auto-batch
 
