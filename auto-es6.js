@@ -107,7 +107,6 @@ let auto = (obj,opt) => {
                 v.then( v => {
                     setter(name, v);
                 })
-                run_subs(name);
             }
             else
             {
@@ -116,7 +115,6 @@ let auto = (obj,opt) => {
                 let t1 = performance.now();
                 if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(`${tag?'['+tag+'] ':''} ${name}`,'took',t1-t0,'ms to complete');
                 if (name in watch) console.log(`${tag?'['+tag+'] ':''}[update]`,name,get_vars(name));
-                run_subs(name);
             }
         }
         stack.pop();
@@ -139,22 +137,69 @@ let auto = (obj,opt) => {
         if (parent) deps[parent][name] = true;
         return value[name];
     }
-    let clear = (name) => {
-        if (deep_log) console.log(`${tag?'['+tag+'] ':''}clearing ${name}`);
-        Object.keys(deps).forEach( dep =>
-            Object.keys(deps[dep]).forEach(child => {
-                if (child == name && dep in fn)
-                {
-                    if (dep in value)
-                    {
-                        if (count) counts[dep]['clear'] += 1;
-                        if (dep in watch) console.log(`${tag?'['+tag+'] ':''}[clear]`,dep,'value cleared because dependency',name,'changed');
-                        delete(value[dep]);
-                        clear(dep);
+    let invalidate = (name, affected) => {
+        if (!affected) affected = new Set();
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}invalidating ${name}`);
+        Object.keys(deps).forEach(dep => {
+            if (deps[dep][name] && dep in fn && dep in value) {
+                if (count) counts[dep]['clear'] += 1;
+                if (dep in watch) console.log(`${tag?'['+tag+'] ':''}[invalidate]`,dep,'invalidated because dependency',name,'changed');
+                affected.add(dep);
+                invalidate(dep, affected);
+            }
+        });
+        return affected;
+    }
+    let topological_sort = (variables) => {
+        let sorted = [];
+        let visited = new Set();
+        let visiting = new Set();
+        let visit = (name) => {
+            if (visited.has(name)) return;
+            if (visiting.has(name)) {
+                if (deep_log) console.log(`${tag?'['+tag+'] ':''}circular dependency detected in topological sort:`,name);
+                return;
+            }
+            visiting.add(name);
+            if (name in deps) {
+                Object.keys(deps[name]).forEach(dep => {
+                    if (variables.has(dep)) {
+                        visit(dep);
                     }
-                }
-            })
-        )
+                });
+            }
+            visiting.delete(name);
+            visited.add(name);
+            sorted.push(name);
+        };
+        variables.forEach(name => visit(name));
+        return sorted;
+    }
+    let propagate = (trigger_name) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}propagating changes from ${trigger_name}`);
+        let affected = invalidate(trigger_name);
+        if (affected.size === 0) {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}no variables affected`);
+            return;
+        }
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}affected variables:`, Array.from(affected));
+        let sorted = topological_sort(affected);
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}update order:`, sorted);
+        sorted.forEach(name => {
+            if (name in value) {
+                delete value[name];
+            }
+        });
+        sorted.forEach(name => {
+            if (name in fn && !(name in value)) {
+                update(name, trigger_name);
+            }
+        });
+        sorted.forEach(name => {
+            if (name in subs) {
+                run_subs(name);
+            }
+        });
     }
     let setter = (name, val) => {
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}setting ${name} to`,val);
@@ -172,10 +217,7 @@ let auto = (obj,opt) => {
         value[name] = val;
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[setter]`,name,'=',value[name],get_vars(name).deps);
         run_subs(name);
-        clear(name);
-        Object.keys(fn).forEach( key => {
-            if (!(key in value) && key[0] != '#') update(key,name);
-        });
+        propagate(name);
         if (trace_fn) trace_fn(trace);
     }
     let get_subtag = (name) => {
@@ -273,7 +315,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.43.0'
+        v: '1.44.1'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
