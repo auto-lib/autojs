@@ -30,7 +30,7 @@ let auto = (obj,opt) => {
     let batch_triggers = [];
     let batch_changed = new Set();
     let auto_batch_enabled = opt && 'auto_batch' in opt ? opt.auto_batch : true;
-    let auto_batch_delay = opt && 'auto_batch_delay' in opt ? opt.auto_batch_delay : 0;
+    let auto_batch_delay = opt && 'auto_batch_delay' in opt ? opt.auto_batch_delay : 50;
     let auto_batch_timer = null;
     let auto_batch_pending = [];
     let trace_fn = opt && opt.trace;
@@ -141,6 +141,13 @@ let auto = (obj,opt) => {
         {
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}fatal error, not getting ${name}`);
             return;
+        }
+        if (!parent && auto_batch_pending.length > 0) {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[auto-flush] flushing ${auto_batch_pending.length} pending changes before read of ${name}`);
+            if (auto_batch_timer !== null) {
+                clearTimeout(auto_batch_timer);
+            }
+            flush_auto_batch();
         }
         if (dynamic_internal.includes(name)) {
             fail(`External read of internal function '${name}'`);
@@ -386,7 +393,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.47.9'
+        v: '1.47.12'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

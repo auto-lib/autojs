@@ -11,6 +11,10 @@
 //
 // 3. Works with explicit batch() - If already in .batch(), auto-batch is skipped
 //
+// 4. Auto-flush on read - When you read a value while auto-batch is pending,
+//    it automatically flushes the batch first to prevent reading stale values.
+//    This eliminates UI "twitching" where stale values briefly appear before updating.
+//
 // Perfect for: loops, API responses, event handlers, any uncontrolled rapid sets
 
 // the biggest thing to understand is the distinction between static and
@@ -54,7 +58,7 @@ let auto = (obj,opt) => {
 
     // Auto-batching (timer-based)
     let auto_batch_enabled = opt && 'auto_batch' in opt ? opt.auto_batch : true; // enable automatic batching
-    let auto_batch_delay = opt && 'auto_batch_delay' in opt ? opt.auto_batch_delay : 0; // delay in ms (0 = next tick)
+    let auto_batch_delay = opt && 'auto_batch_delay' in opt ? opt.auto_batch_delay : 50; // delay in ms (0 = next tick)
     let auto_batch_timer = null;  // pending timer
     let auto_batch_pending = [];  // pending triggers for auto-batch
 
@@ -239,6 +243,17 @@ let auto = (obj,opt) => {
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}fatal error, not getting ${name}`);
             return;
         }
+
+        // Auto-flush: if there are pending auto-batch changes and this is an external read,
+        // flush them immediately to prevent reading stale values
+        if (!parent && auto_batch_pending.length > 0) {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[auto-flush] flushing ${auto_batch_pending.length} pending changes before read of ${name}`);
+            if (auto_batch_timer !== null) {
+                clearTimeout(auto_batch_timer);
+            }
+            flush_auto_batch();
+        }
+
         if (dynamic_internal.includes(name)) {
             fail(`External read of internal function '${name}'`);
             return;
