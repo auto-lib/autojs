@@ -5,18 +5,7 @@ const { performance } = require('perf_hooks');
  * @param {T} obj
  * @param {import('../../../types/index.js').AutoOptions} [opt]
  * @returns {import('../../../types/index.js').Auto<T>}
- * @example
- * let auto = require('auto');
- * let obj = {
- *    data: null,
- *   count: ($) => $.data ? $.data : undefined
- * }
- * let _ = auto(obj);
- * _.data;
- * _.count;
- * res.data = [1,2,3];
- * res.count;
-*/
+ */
 let auto = (obj,opt) => {
     let deps = {};
     let dependents = {};
@@ -166,22 +155,31 @@ let auto = (obj,opt) => {
         }
         return value[name];
     }
-    let invalidate = (name, affected) => {
+    /**
+     * Phase 1: Invalidate
+     * Mark all values affected by a change (recursively find dependents)
+     */
+    let phase1_invalidate = (trigger_name, affected) => {
         if (!affected) affected = new Set();
-        if (deep_log) console.log(`${tag?'['+tag+'] ':''}invalidating ${name}`);
-        if (dependents[name]) {
-            Object.keys(dependents[name]).forEach(dep => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[phase 1: invalidate]`,trigger_name);
+        if (dependents[trigger_name]) {
+            Object.keys(dependents[trigger_name]).forEach(dep => {
                 if (dep in fn && dep in value) {
                     if (count) counts[dep]['clear'] += 1;
-                    if (dep in watch) console.log(`${tag?'['+tag+'] ':''}[invalidate]`,dep,'invalidated because dependency',name,'changed');
+                    if (dep in watch) console.log(`${tag?'['+tag+'] ':''}[invalidate]`,dep,'invalidated because dependency',trigger_name,'changed');
                     affected.add(dep);
-                    invalidate(dep, affected);
+                    phase1_invalidate(dep, affected);
                 }
             });
         }
         return affected;
     }
-    let topological_sort = (variables) => {
+    /**
+     * Phase 2: Topological Sort
+     * Order variables by dependencies so deps compute before dependents
+     */
+    let phase2_topological_sort = (variables) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[phase 2: topological sort]`, Array.from(variables));
         let sorted = [];
         let visited = new Set();
         let visiting = new Set();
@@ -208,45 +206,53 @@ let auto = (obj,opt) => {
             sorted.push(name);
         };
         variables.forEach(name => visit(name));
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[phase 2: result]`, sorted);
         return sorted;
     }
-    let propagate = (triggers) => {
-        if (!Array.isArray(triggers)) {
-            triggers = [triggers];
-        }
-        txn_counter += 1;
-        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[txn ${txn_counter}] propagating changes from`, triggers.map(t => t.name).join(', '));
-        trace = {
-            id: txn_counter,
-            timestamp: Date.now(),
-            triggers: triggers,
-            updates: {}
-        };
-        tnode = trace.updates;
-        let affected = new Set();
-        triggers.forEach(trigger => {
-            let trigger_affected = invalidate(trigger.name);
-            trigger_affected.forEach(name => affected.add(name));
-        });
-        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[txn ${txn_counter}] affected variables:`, Array.from(affected));
-        let sorted = affected.size > 0 ? topological_sort(affected) : [];
-        if (sorted.length > 0 && deep_log) console.log(`${tag?'['+tag+'] ':''}[txn ${txn_counter}] update order:`, sorted);
+    /**
+     * Phase 3: Capture Old Values
+     * Save current values for change detection
+     */
+    let phase3_capture_old_values = (sorted) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[phase 3: capture old values]`);
         let old_values = {};
         sorted.forEach(name => {
             if (name in value) {
                 old_values[name] = value[name];
             }
         });
+        return old_values;
+    }
+    /**
+     * Phase 4: Clear Values
+     * Delete values to mark them for recomputation
+     */
+    let phase4_clear_values = (sorted) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[phase 4: clear values]`);
         sorted.forEach(name => {
             if (name in value) {
                 delete value[name];
             }
         });
+    }
+    /**
+     * Phase 5: Recompute
+     * Trigger updates in dependency order
+     */
+    let phase5_recompute = (sorted, txn_id) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[phase 5: recompute]`);
         sorted.forEach(name => {
             if (name in fn && !(name in value)) {
-                update(name, 'txn_' + txn_counter);
+                update(name, txn_id);
             }
         });
+    }
+    /**
+     * Phase 6: Detect Changes
+     * Compare old vs new to find actual changes
+     */
+    let phase6_detect_changes = (triggers, sorted, old_values) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[phase 6: detect changes]`);
         let actually_changed = new Set();
         triggers.forEach(t => actually_changed.add(t.name));
         sorted.forEach(name => {
@@ -267,15 +273,60 @@ let auto = (obj,opt) => {
                 if (deep_log) console.log(`${tag?'['+tag+'] ':''}[no change] ${name}:`, old_val);
             }
         });
+        return actually_changed;
+    }
+    /**
+     * Phase 7: Build Trace
+     * Record what changed in the transaction trace
+     */
+    let phase7_build_trace = (triggers, actually_changed, txn_id) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[phase 7: build trace]`);
+        trace = {
+            id: txn_id,
+            timestamp: Date.now(),
+            triggers: triggers,
+            updates: {}
+        };
         actually_changed.forEach(name => {
             trace.updates[name] = value[name];
         });
-        let changed = actually_changed;
-        changed.forEach(name => {
+        tnode = trace.updates;
+        return trace;
+    }
+    /**
+     * Phase 8: Notify Subscriptions
+     * Run subscription callbacks for changed values
+     */
+    let phase8_notify_subscriptions = (actually_changed) => {
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[phase 8: notify subscriptions]`);
+        actually_changed.forEach(name => {
             if (name in subs) {
                 run_subs(name);
             }
         });
+    }
+    /**
+     * PROPAGATE: The Orchestrator
+     * Coordinates all 8 phases
+     */
+    let propagate = (triggers) => {
+        if (!Array.isArray(triggers)) {
+            triggers = [triggers];
+        }
+        txn_counter += 1;
+        if (deep_log) console.log(`${tag?'['+tag+'] ':''}[txn ${txn_counter}] propagating changes from`, triggers.map(t => t.name).join(', '));
+        let affected = new Set();
+        triggers.forEach(trigger => {
+            let trigger_affected = phase1_invalidate(trigger.name);
+            trigger_affected.forEach(name => affected.add(name));
+        });
+        let sorted = affected.size > 0 ? phase2_topological_sort(affected) : [];
+        let old_values = phase3_capture_old_values(sorted);
+        phase4_clear_values(sorted);
+        phase5_recompute(sorted, 'txn_' + txn_counter);
+        let actually_changed = phase6_detect_changes(triggers, sorted, old_values);
+        let trace = phase7_build_trace(triggers, actually_changed, txn_counter);
+        phase8_notify_subscriptions(actually_changed);
         if (trace_fn) trace_fn(trace);
         return trace;
     }
@@ -423,7 +474,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.48.4'
+        v: '1.49.0'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
