@@ -12,14 +12,27 @@
 //
 // No behavioral changes - all tests must pass!
 
-// const { performance } = require('perf_hooks');
+// the biggest thing to understand is the distinction between static and
+// dynamic values. static values can only be changed from the outside
+// where-as dynamic values can only change from the inside, basically
 
 /**
  * @template T
  * @param {T} obj
  * @param {import('../../../types/index.js').AutoOptions} [opt]
  * @returns {import('../../../types/index.js').Auto<T>}
- */
+ * @example
+ * let auto = require('auto');
+ * let obj = {
+ *    data: null,
+ *   count: ($) => $.data ? $.data : undefined
+ * }
+ * let _ = auto(obj);
+ * _.data; // null
+ * _.count; // undefined
+ * res.data = [1,2,3];
+ * res.count; // 3
+*/
 let auto = (obj,opt) => {
 
     let deps = {};       // list of dependencies (dynamic) - deps[a] = {b: true, c: true} means a depends on b and c
@@ -39,16 +52,16 @@ let auto = (obj,opt) => {
     let batch_changed = new Set(); // all variables changed during batch
 
     // Auto-batching (timer-based)
-    let auto_batch_enabled = opt && 'auto_batch' in opt ? opt.auto_batch : true;
-    let auto_batch_delay = opt && 'auto_batch_delay' in opt ? opt.auto_batch_delay : 0;
-    let auto_batch_timer = null;
-    let auto_batch_pending = [];
+    let auto_batch_enabled = opt && 'auto_batch' in opt ? opt.auto_batch : true; // enable automatic batching
+    let auto_batch_delay = opt && 'auto_batch_delay' in opt ? opt.auto_batch_delay : 0; // delay in ms (0 = next tick)
+    let auto_batch_timer = null;  // pending timer
+    let auto_batch_pending = [];  // pending triggers for auto-batch
 
-    let trace_fn = opt && opt.trace;
-    let count = opt && opt.count;
+    let trace_fn = opt && opt.trace; // function to run on each trace
+    let count = opt && opt.count; // function to run on each trace
     let counts = {};
-    let tag = opt && opt.tag;
-    let deep_log = opt && opt.deep_log;
+    let tag = opt && opt.tag; // string to show in log messages
+    let deep_log = opt && opt.deep_log; // if true, log everything to the console (for catestrophic failures)
 
     if (deep_log) console.log(`${tag?'['+tag+'] ':''}auto started`,obj);
 
@@ -60,9 +73,18 @@ let auto = (obj,opt) => {
     let dynamic_internal = [];
     let dynamic_mixed = [];
 
+    // if you pass in something like { one: true, two: true }
+    // then any time anything happens with either 'one' or 'two'
+    // (static or dynamic variables) you will get a log message.
+
     let watch = opt && 'watch' in opt ? opt.watch : {};
-    let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100;
-    let tests = opt && 'tests' in opt ? opt.tests : {};
+    let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100; // log a message any time a function takes longer than report_lag milliseconds (default 100)
+    let tests = opt && 'tests' in opt ? opt.tests : {}; // before boot run a test
+
+    // used when a function (of a dynamic variable) causes an exception / has an error
+    // we print out all the values of the dependent variables of the function
+    // as well as the dependents of those variables, recursively, so you can
+    // see the entire state tree that led to all the values
 
     let get_vars = (name,array_only) => {
         let o = { deps: {}, value: value[name] };
@@ -87,9 +109,17 @@ let auto = (obj,opt) => {
     // THE FIVE RUNTIME FUNCTIONS
     // ------------------------------------------------------
 
+    // == something went wrong ==
+    // == save the message/stack and run any subscriptions to this (TODO on subscriptions) ==
+
     let fail = (msg,stop) => {
+
+        // save out to global object
+        // so we can access it from outside for debugging
+        // and also update uses this to stop looping during a circle
+
         fatal.msg = msg;
-        fatal.stack = stack.map(s => s);
+        fatal.stack = stack.map(s => s); // copy out the call stack
         let vars = get_vars(stack[stack.length-1],true);
 
         if (typeof fn['#fatal'] === 'function')
@@ -104,6 +134,9 @@ let auto = (obj,opt) => {
         }
     }
 
+    // == run any subscriptions to a value ==
+    // == static or dynamic ==
+
     let run_subs = (name) => {
         if (subs[name])
         {
@@ -112,7 +145,11 @@ let auto = (obj,opt) => {
         }
     }
 
+    // == update a dynamic value ==
+    // == never static ==
+
     let update = (name,src,caller) => {
+
         if (deep_log&&(src||caller)) console.log(`${tag?'['+tag+'] ':''}updating ${name}`,src?'because '+src:'',caller?'called by '+caller:'');
 
         if (value[name]) return;
@@ -256,6 +293,9 @@ let auto = (obj,opt) => {
         let visit = (name) => {
             if (visited.has(name)) return;
             if (visiting.has(name)) {
+                // Circular dependency detected in dependency graph
+                // This is rare since deps are computed during runtime
+                // Most circulars are caught in update() during evaluation
                 path.push(name);
                 if (deep_log) console.log(`${tag?'['+tag+'] ':''}structural circular dependency:`, path);
                 return;
@@ -264,6 +304,7 @@ let auto = (obj,opt) => {
             visiting.add(name);
             path.push(name);
 
+            // Visit all dependencies first
             if (name in deps) {
                 Object.keys(deps[name]).forEach(dep => {
                     if (variables.has(dep)) {
@@ -278,6 +319,7 @@ let auto = (obj,opt) => {
             sorted.push(name);
         };
 
+        // Visit each variable in the set
         variables.forEach(name => visit(name));
 
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}[phase 2: result]`, sorted);
@@ -339,14 +381,17 @@ let auto = (obj,opt) => {
 
         let actually_changed = new Set();
 
-        // Triggers always count as changed
+        // Triggers always count as changed (they were set externally)
         triggers.forEach(t => actually_changed.add(t.name));
 
         // For computed values, check if value actually changed
+        // Only check === for primitives; objects/arrays always count as changed
         sorted.forEach(name => {
             let old_val = old_values[name];
             let new_val = value[name];
 
+            // Objects/arrays (except null) always count as changed (might be mutated)
+            // Primitives use === comparison
             let isObject = typeof new_val === 'object' && new_val !== null;
             let hasChanged = isObject || old_val !== new_val;
 
@@ -452,7 +497,11 @@ let auto = (obj,opt) => {
         return trace;
     }
 
+    // == internal setter: update a dynamic value after async resolution ==
+    // == doesn't create a new transaction, just updates value and propagates ==
+
     let set_internal = (name, val) => {
+
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}async resolution for ${name}:`,val);
 
         if (fatal.msg) return;
@@ -461,8 +510,11 @@ let auto = (obj,opt) => {
 
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[async resolved]`,name,'=',value[name]);
 
+        // Propagate changes to dependents (with transaction trace)
         propagate({ name, value: val });
     }
+
+    // == flush auto-batch: process accumulated auto-batch triggers ==
 
     let flush_auto_batch = () => {
         if (auto_batch_pending.length === 0) return;
@@ -473,10 +525,16 @@ let auto = (obj,opt) => {
         auto_batch_pending = [];
         auto_batch_timer = null;
 
+        // Propagate all accumulated triggers as one transaction
         propagate(triggers);
     };
 
+    // == set a static value ==
+    // == triggers propagation through dependent values ==
+    // == can participate in explicit batching or auto-batching ==
+
     let setter = (name, val) => {
+
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}setting ${name} to`,val);
 
         if (fatal.msg) return;
@@ -487,9 +545,10 @@ let auto = (obj,opt) => {
             return;
         }
 
-        if (!value[name] && !val) return;
+        if (!value[name] && !val) return; // ignore nulls
 
-        // Change detection for primitives
+        // Change detection: if value hasn't changed, don't propagate
+        // Only for primitives - objects/arrays might be mutated, so always propagate
         if (value[name] === val && (typeof val !== 'object' || val === null)) {
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}[no change] ${name} already equals`,val);
             return;
@@ -497,18 +556,22 @@ let auto = (obj,opt) => {
 
         if (count && name in counts) counts[name]['setter'] += 1;
 
-        value[name] = val;
+        value[name] = val; // save
 
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[setter]`,name,'=',value[name],get_vars(name).deps);
 
+        // Priority 1: If we're in an explicit batch, accumulate
         if (in_batch) {
             batch_triggers.push({ name, value: val });
             batch_changed.add(name);
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}[batch] accumulated ${name}`);
+            // Don't propagate yet - wait for batch to complete
         }
+        // Priority 2: If auto-batching is enabled, accumulate and schedule flush
         else if (auto_batch_enabled) {
             auto_batch_pending.push({ name, value: val });
 
+            // Clear existing timer and schedule new one
             if (auto_batch_timer !== null) {
                 clearTimeout(auto_batch_timer);
             }
@@ -517,39 +580,66 @@ let auto = (obj,opt) => {
 
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}[auto-batch] accumulated ${name}, timer scheduled`);
         }
+        // Priority 3: Normal single-set operation - propagate immediately
         else {
             propagate({ name, value: val });
         }
     }
 
     // --------------------------------------------
-    // SETUP CODE
+    // everything from here down is just setup code
     // --------------------------------------------
 
+    // get an available name for subscription
+    // tricky because they can disappear when unsubscribed from
+
     let get_subtag = (name) => {
+
         let val = 0;
-        let tag = () => val.toString().padStart(3, "0");
-        while( subs[name] && tag() in subs[name] ) val += 1;
+        let tag = () => val.toString().padStart(3, "0"); // e.g. #012
+        while( subs[name] && tag() in subs[name] ) val += 1; // increment until not found
         return tag();
     }
 
+    // setup the subscribe function
+    // and add get/set (mostly for svelte integration)
+
     let setup_sub = (hash, name) => {
+
+        // we access this with something like _['#'].data.subscribe( (v) => console.log('data:',v); )
         hash[name] = {}
         hash[name].get = () => getter(name);
         hash[name].set = (v) => setter(name, v);
         hash[name].subscribe = (f) => {
+
+            // run the function immediately on latest value
             f(value[name]);
+
+            // you can subscribe multiple times
+            // so we need to get a unique code for each one
             let subtag = get_subtag(name);
+
+            // save sub function
             if (!subs[name]) subs[name] = {};
             subs[name][subtag] = (v) => f(v);
+
+            // return unsubscribe method
             return () => { delete(subs[name][subtag]); }
         };
     }
 
+    // setup a dynamic value
+    // called from wrap() below
+
     let setup_dynamic = (obj, name, res) => {
+
         if (typeof obj[name] != 'function') {
             console.trace(`${tag?'['+tag+'] ':''}EXCEPTION trying to set non-function ${name} as dynamic value`);
         }
+
+        // this is kind of magic
+        // each function gets it's own special global object
+        // which called getter with it's own name as the parent parameter
 
         let _ = new Proxy({}, {
             get(target, prop) {
@@ -565,8 +655,28 @@ let auto = (obj,opt) => {
             }
         });
 
+        // this is how we would do the above without Proxy.
+        // the reason I used Proxy is you can then detect
+        // accessing non-existent variable names
+
+        // Object.keys(obj).forEach(
+        //     child => Object.defineProperty(_, child, {
+
+        //         // this is the get/set _inside_ a function
+        //         get() { return getter(child, name); },
+        //         set(v) { fail('function '+name+' is trying to change value '+child);  }
+
+        //     }));
+
+        // here we pass in the specially modified global object to the function
+        // and also throw in the set parameter for async functions
+
         fn[name] = () => {
             if (fatal.msg) return;
+
+            // run the function and catch any error,
+            // printing out all the dependent variables if
+            // it does
 
             let v; try { v = obj[name](_, (v) => setter(name, v) ); }
             catch(e) { show_vars(name); if (!fatal.msg) fail({msg:`exception in ${name}`, e}); console.log(e); }
@@ -574,10 +684,14 @@ let auto = (obj,opt) => {
             return v;
         }
 
+        // this is getting the function itself (outside, kind-of)
         Object.defineProperty(res, name, {
             get() { return getter(name) }
         } )
     }
+
+    // setup a static value
+    // called from wrap() below
 
     let setup_static = (name, v, res) => {
         if (typeof v == 'function') {
@@ -585,13 +699,19 @@ let auto = (obj,opt) => {
             return;
         }
 
+        // save whatever was defined originally
         value[name] = v;
 
+        // use our functions for get/set
         Object.defineProperty(res, name, {
             get() { return getter(name) },
             set(v) { setter(name, v) }
         })
     }
+
+    // nothing happens when a fatal error occurs really so the
+    // tests are cleaner but also it's pluggable so you can
+    // respond however you want. this is set by default for the browser
 
     let default_fatal = (_) => {
         console.log(`${tag?'['+tag+'] ':''}FATAL`,_._.fatal.msg);
@@ -600,12 +720,22 @@ let auto = (obj,opt) => {
         console.log(' (there might be an error below too if your function failed as well)');
     }
 
+    // called once on the root object
+
     let wrap = (res, hash, obj) => {
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}wrapping object`,obj);
 
+        // add handler that prints out to console for convenience in browser
+        // if (!obj['#fatal']) fn['#fatal'] = default_fatal;
+
+        // loop through each key
         Object.keys(obj).forEach(name => {
+
+            // setup dynamic/static
             if (typeof obj[name] == 'function') setup_dynamic (obj, name, res);
             else setup_static (name, obj[name], res);
+
+            // create subscribable object
             setup_sub(hash, name);
         });
 
@@ -635,10 +765,14 @@ let auto = (obj,opt) => {
         })
     }
 
-    const res = {
-        _: { subs, fn, deps, value, fatal },
-        '#': {},
-        v: '1.49.0'
+    // the object we will access from the outside
+    // gives access to the internals via _
+    // and subscribable versions of each value via '#'
+
+    const res = {                             // return object
+        _: { subs, fn, deps, value, fatal },  // so we can see from the outside what's going on
+        '#': {},                               // subscribe methods for each member
+        v: undefined                            // version number of this lib
     };
 
     res.add_static = (inner_obj) => {
@@ -672,12 +806,19 @@ let auto = (obj,opt) => {
     res.add_dynamic_internal = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_internal);
     res.add_dynamic_mixed = (inner_obj) => add_fn(inner_obj, 'add_dynamic', dynamic_mixed);
 
+    // == flush: immediately process pending auto-batch ==
+    // == Useful for testing or when you need synchronous behavior ==
+
     res.flush = () => {
         if (auto_batch_timer !== null) {
             clearTimeout(auto_batch_timer);
             flush_auto_batch();
         }
     };
+
+    // == batch API: group multiple sets into one transaction ==
+    // == Usage: $.batch(() => { $.data = x; $.filter = y; }) ==
+    // == Creates ONE transaction with multiple triggers ==
 
     res.batch = (fn) => {
         if (in_batch) {

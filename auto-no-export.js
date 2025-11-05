@@ -3,7 +3,18 @@
  * @param {T} obj
  * @param {import('../../../types/index.js').AutoOptions} [opt]
  * @returns {import('../../../types/index.js').Auto<T>}
- */
+ * @example
+ * let auto = require('auto');
+ * let obj = {
+ *    data: null,
+ *   count: ($) => $.data ? $.data : undefined
+ * }
+ * let _ = auto(obj);
+ * _.data;
+ * _.count;
+ * res.data = [1,2,3];
+ * res.count;
+*/
 let auto = (obj,opt) => {
     let deps = {};
     let dependents = {};
@@ -472,7 +483,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.49.0'
+        v: '1.49.3'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
