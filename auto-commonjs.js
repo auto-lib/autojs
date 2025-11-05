@@ -114,25 +114,21 @@ let auto = (obj,opt) => {
         }
         deps[name] = {};
         let t0 = performance.now();
-        let v = fn[name]();
-        if ( !value[name] && !v)
-        {
+        let result = fn[name]();
+        if (result && typeof result.then === 'function') {
+            value[name] = result;
+            result.then(resolved_value => {
+                set_internal(name, resolved_value);
+            });
         }
-        {
-            if (!!v && typeof v.then === 'function')
-            {
-              value[name] = v;
-                v.then( v => {
-                    set_internal(name, v);
-                })
+        else {
+            value[name] = result;
+            let t1 = performance.now();
+            if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) {
+                console.log(`${tag?'['+tag+'] ':''} ${name}`,'took',t1-t0,'ms to complete');
             }
-            else
-            {
-                value[name] = v;
-                tnode[name] = value[name];
-                let t1 = performance.now();
-                if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(`${tag?'['+tag+'] ':''} ${name}`,'took',t1-t0,'ms to complete');
-                if (name in watch) console.log(`${tag?'['+tag+'] ':''}[update]`,name,get_vars(name));
+            if (name in watch) {
+                console.log(`${tag?'['+tag+'] ':''}[update]`,name,get_vars(name));
             }
         }
         stack.pop();
@@ -299,7 +295,9 @@ let auto = (obj,opt) => {
             updates: {}
         };
         actually_changed.forEach(name => {
-            trace.updates[name] = value[name];
+            if (name in fn) {
+                trace.updates[name] = value[name];
+            }
         });
         tnode = trace.updates;
         return trace;
@@ -415,10 +413,15 @@ let auto = (obj,opt) => {
         let _ = new Proxy({}, {
             get(target, prop) {
                 if (!(prop in value)) {
-                    if (prop in fn) update(prop,null,name);
-                    else { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
+                    if (prop in fn) {
+                        update(prop, null, name);
+                    }
+                    else {
+                        fail('function '+name+' is trying to access non-existent variable '+prop);
+                        return undefined;
+                    }
                 }
-                return getter(prop,name);
+                return getter(prop, name);
             },
             set(target, prop, value) {
                 fail('function '+name+' is trying to change value '+prop);
@@ -427,9 +430,16 @@ let auto = (obj,opt) => {
         });
         fn[name] = () => {
             if (fatal.msg) return;
-            let v; try { v = obj[name](_, (v) => setter(name, v) ); }
-            catch(e) { show_vars(name); if (!fatal.msg) fail({msg:`exception in ${name}`, e}); console.log(e); }
-            return v;
+            let result;
+            try {
+                result = obj[name](_, (async_value) => setter(name, async_value));
+            }
+            catch(e) {
+                show_vars(name);
+                if (!fatal.msg) fail({msg:`exception in ${name}`, e});
+                console.log(e);
+            }
+            return result;
         }
         Object.defineProperty(res, name, {
             get() { return getter(name) }
@@ -485,7 +495,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.49.3'
+        v: '1.49.5'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
@@ -567,7 +577,6 @@ let auto = (obj,opt) => {
     }
     Object.keys(fn).forEach(name => {
         if (name[0] != '#'){
-            value[name] = undefined;
             update(name);
         }
     });

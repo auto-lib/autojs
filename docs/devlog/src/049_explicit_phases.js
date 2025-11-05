@@ -183,29 +183,25 @@ let auto = (obj,opt) => {
 
         let t0 = performance.now();
 
-        let v = fn[name]();
+        let result = fn[name]();
 
-        if ( !value[name] && !v)
-        {
+        // Check if result is a Promise (async function)
+        if (result && typeof result.then === 'function') {
+            value[name] = result;
+            result.then(resolved_value => {
+                set_internal(name, resolved_value);
+            });
         }
-        {
-            if (!!v && typeof v.then === 'function')
-            {
-              value[name] = v;
-                v.then( v => {
-                    set_internal(name, v);
-                })
+        else {
+            value[name] = result;
+
+            let t1 = performance.now();
+            if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) {
+                console.log(`${tag?'['+tag+'] ':''} ${name}`,'took',t1-t0,'ms to complete');
             }
-            else
-            {
-                value[name] = v;
 
-                tnode[name] = value[name];
-
-                let t1 = performance.now();
-                if (report_lag == -1 || (report_lag && t1-t0 > report_lag)) console.log(`${tag?'['+tag+'] ':''} ${name}`,'took',t1-t0,'ms to complete');
-
-                if (name in watch) console.log(`${tag?'['+tag+'] ':''}[update]`,name,get_vars(name));
+            if (name in watch) {
+                console.log(`${tag?'['+tag+'] ':''}[update]`,name,get_vars(name));
             }
         }
 
@@ -426,8 +422,12 @@ let auto = (obj,opt) => {
             updates: {}
         };
 
+        // Only include computed values (functions) in updates, not triggers
+        // Triggers are already in trace.triggers
         actually_changed.forEach(name => {
-            trace.updates[name] = value[name];
+            if (name in fn) {
+                trace.updates[name] = value[name];
+            }
         });
 
         tnode = trace.updates;
@@ -545,10 +545,11 @@ let auto = (obj,opt) => {
             return;
         }
 
-        if (!value[name] && !val) return; // ignore nulls
+        // Skip if both old and new values are falsy (null, undefined, 0, false, '')
+        if (!value[name] && !val) return;
 
-        // Change detection: if value hasn't changed, don't propagate
-        // Only for primitives - objects/arrays might be mutated, so always propagate
+        // Change detection: if value hasn't changed (primitives only), don't propagate
+        // Objects/arrays always propagate since they might be mutated internally
         if (value[name] === val && (typeof val !== 'object' || val === null)) {
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}[no change] ${name} already equals`,val);
             return;
@@ -637,19 +638,28 @@ let auto = (obj,opt) => {
             console.trace(`${tag?'['+tag+'] ':''}EXCEPTION trying to set non-function ${name} as dynamic value`);
         }
 
-        // this is kind of magic
-        // each function gets it's own special global object
-        // which called getter with it's own name as the parent parameter
+        // Create a Proxy that intercepts property access within the function
+        // This allows automatic dependency tracking - when a function reads $.foo,
+        // we automatically record that this function depends on 'foo'
+        // The Proxy also prevents functions from modifying state (read-only)
 
         let _ = new Proxy({}, {
             get(target, prop) {
+                // If property hasn't been computed yet, trigger its computation
                 if (!(prop in value)) {
-                    if (prop in fn) update(prop,null,name);
-                    else { fail('function '+name+' is trying to access non-existent variable '+prop); return undefined; }
+                    if (prop in fn) {
+                        update(prop, null, name);
+                    }
+                    else {
+                        fail('function '+name+' is trying to access non-existent variable '+prop);
+                        return undefined;
+                    }
                 }
-                return getter(prop,name);
+                // Track that this function (name) depends on this property (prop)
+                return getter(prop, name);
             },
             set(target, prop, value) {
+                // Functions are not allowed to modify state - fail if attempted
                 fail('function '+name+' is trying to change value '+prop);
                 return true;
             }
@@ -668,20 +678,25 @@ let auto = (obj,opt) => {
 
         //     }));
 
-        // here we pass in the specially modified global object to the function
-        // and also throw in the set parameter for async functions
+        // Wrap the user's function with dependency tracking and error handling
+        // Pass in the Proxy object (_) and a setter callback for async functions
 
         fn[name] = () => {
             if (fatal.msg) return;
 
-            // run the function and catch any error,
-            // printing out all the dependent variables if
-            // it does
+            // Execute the function with dependency tracking
+            // Catch any exceptions and display dependent variable state for debugging
+            let result;
+            try {
+                result = obj[name](_, (async_value) => setter(name, async_value));
+            }
+            catch(e) {
+                show_vars(name);
+                if (!fatal.msg) fail({msg:`exception in ${name}`, e});
+                console.log(e);
+            }
 
-            let v; try { v = obj[name](_, (v) => setter(name, v) ); }
-            catch(e) { show_vars(name); if (!fatal.msg) fail({msg:`exception in ${name}`, e}); console.log(e); }
-
-            return v;
+            return result;
         }
 
         // this is getting the function itself (outside, kind-of)
@@ -882,7 +897,6 @@ let auto = (obj,opt) => {
 
     Object.keys(fn).forEach(name => {
         if (name[0] != '#'){
-            value[name] = undefined;
             update(name);
         }
     });
