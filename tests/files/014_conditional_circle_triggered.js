@@ -16,7 +16,7 @@ export default {
         value: { data: true, a: undefined, b: undefined, c: undefined },
         fatal: {
             msg: 'circular dependency',
-            stack: [ 'a', 'b', 'c', 'a' ]
+            stack: [ 'c', 'a', 'b', 'c' ]
         }
     }
 }
