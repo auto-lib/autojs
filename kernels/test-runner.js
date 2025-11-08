@@ -14,6 +14,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { URL } from 'url';
 
 // ============================================================================
 // Test Utilities (from tests/runall.js)
@@ -114,7 +115,9 @@ class TestRunner {
             throw new Error(`Kernel not found: ${autoPath}`);
         }
 
-        const module = await import(autoPath);
+        // Use file:// URL for ES6 imports
+        const fileUrl = new URL('file://' + autoPath).href;
+        const module = await import(fileUrl);
         this.auto = module.default || module;
 
         console.log(`\n📦 Loaded kernel: ${this.kernelName}`);
@@ -145,7 +148,9 @@ class TestRunner {
         this.stats.total++;
 
         try {
-            const module = await import(testPath);
+            // Use file:// URL for ES6 imports
+            const fileUrl = new URL('file://' + testPath).href;
+            const module = await import(fileUrl);
             const test = module.default;
 
             // Add default #fatal handler
