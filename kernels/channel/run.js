@@ -1,5 +1,6 @@
 
-let _auto = require('./auto');
+// let _auto = require('./auto');
+import _auto from './auto.js';
 let auto = obj => _auto(obj,true); // hack to make each object give verbose logging
 
 let errs = [];

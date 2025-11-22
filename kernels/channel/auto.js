@@ -14,7 +14,7 @@ let delayed = {
         if (typeof v === 'function')
         {
             state.fn[n] = v;
-            state.deps[n] = [];
+            state.deps[n] = {};
             sig('run',n);
         }
         else sig('set',{ name:n, value:v })
@@ -22,8 +22,8 @@ let delayed = {
     run: (n,v,sig,state) => {
         let name = v;
         let fn = state.fn[name];
-        state.deps[name] = [];
-        let ctx = new Proxy({},{ 
+        state.deps[name] = {};
+        let ctx = new Proxy({},{
             get(t,member) { return sig('get', {name: member, parent: name}); },
             set(t,n,v) { state.fatal = {msg:`function ${name} is trying to change ${n}`}}
         });
@@ -31,18 +31,18 @@ let delayed = {
         sig('set',{ name, value })
     },
     set: (n,v,sig,state) => {
-        
+
         let { cache, deps, exports } = state;
 
         // save in cache
         let { name, value } = v;
         cache[name] = value;
-        
+
         // run functions
         let to_run = {};
-        Object.keys(deps).forEach(fn => { if (deps[fn].indexOf(name)>-1) to_run[fn] = true; })
+        Object.keys(deps).forEach(fn => { if (name in deps[fn]) to_run[fn] = true; })
         Object.keys(to_run).forEach(t => sig('run',t));
-    
+
         // notify channels
         if (exports.indexOf(name)>-1) sig('export', { name, value });
     },
@@ -61,12 +61,12 @@ let delayed = {
     'check circle': (n,v,sig,state) => {
         let stack = [];
         let check = (dep, stack) => {
-            if (stack.indexOf(dep)>-1) { 
-                stack.push(dep); 
-                state.fatal = {msg: 'circular dependency',stack}; 
+            if (stack.indexOf(dep)>-1) {
+                stack.push(dep);
+                state.fatal = {msg: 'circular dependency',stack};
                 return; }
             stack.push(dep);
-            if (dep in state.deps) state.deps[dep].forEach(dep => check(dep,stack));
+            if (dep in state.deps) Object.keys(state.deps[dep]).forEach(dep => check(dep,stack));
         }
         check(v,stack);
     },
@@ -87,8 +87,8 @@ let immediate = {
     },
     get: (sig,state,n,v) => {
         let { name, parent } = v;
-        if (state.deps[parent].indexOf(name) == -1 ){
-            state.deps[parent].push(name);
+        if (!(name in state.deps[parent])) {
+            state.deps[parent][name] = true;
             sig('check circle',parent);
         }
         return state.cache[name]
@@ -98,14 +98,14 @@ let immediate = {
 function auto(obj,verbose)
 {
     let state = {
-        fn: {}, 
-        cache: {}, 
+        fn: {},
+        cache: {},
         deps: {},
         channels: [],
         imports: [],
         exports: [],
-        subs: [],
-        fatal: null,
+        subs: {},
+        fatal: {},
         booting: true
     };
 
@@ -117,15 +117,24 @@ function auto(obj,verbose)
     };
 
     let { step, sig, internal } = signal(delayed,immediate,state,opt);
-    
-    sig('obj',obj);
+
+    // Handle both formats:
+    // Main test format: { data: null, count: fn }
+    // Channel format: { state: {...}, imports: [], exports: [] }
+    if ('state' in obj || 'imports' in obj || 'exports' in obj) {
+        // Channel format - signal the whole obj
+        sig('obj', obj);
+    } else {
+        // Main test format - wrap in state property
+        sig('obj', { state: obj });
+    }
 
     let cleanup = () => {
         let i = 0, limit = 10;
         let stop = false;
         while (internal().next.length>0 && !stop)
         {
-            if (internal().state.fatal != null) { 
+            if (Object.keys(internal().state.fatal).length > 0) {
                 // console.log('fatal error',internal().state.fatal,'. stopping.');
                 stop = true; return;
             }
