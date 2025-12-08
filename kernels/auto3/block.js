@@ -5,6 +5,9 @@
  *   - needs: inputs it expects from outside
  *   - gives: outputs it provides to outside
  *   - Automatic wiring via dispatch policy
+ *
+ * Key insight: cross-block communication uses the kernel's
+ * dispatch policy, not manual sig() calls in handlers.
  */
 
 import { kernel } from './kernel.js';
@@ -21,33 +24,26 @@ function block(config) {
     state.blockName = name;
     state.needs = needs;
     state.gives = gives;
-    state.wires = [];  // outgoing connections
+    state.wires = [];  // { from, targetBlock, to }
 
     // Get base reactive handlers
     let handlers = createReactiveHandlers();
 
-    // Add block-specific handlers
+    // Add input handler - receives values from other blocks
     handlers.input = {
         policy: 'deferred',
         handler: (n, value, sig, state) => {
             let { target, val } = value;
-            // Input from another block - just set it
             state.cache[target] = val;
             sig('invalidate', target);
         }
     };
 
+    // Output signal - will be routed to dispatch by the route function
+    // No handler needed - dispatch handles it entirely
     handlers.output = {
-        policy: 'deferred',
-        handler: (n, value, sig, state) => {
-            let { target, val } = value;
-            // Send to all wired blocks
-            for (let wire of state.wires) {
-                if (wire.from === target) {
-                    wire.target.sig('input', { target: wire.to, val });
-                }
-            }
-        }
+        policy: 'deferred',  // overridden by route
+        handler: () => {}    // no-op, dispatch does the work
     };
 
     // Modify set handler to also emit output for 'gives' values
@@ -55,8 +51,7 @@ function block(config) {
     handlers.set.handler = (n, value, sig, state) => {
         originalSetHandler(n, value, sig, state);
 
-        // If this is a 'gives' value, emit output
-        let { target, val } = value;
+        let { target } = value;
         if (state.gives.includes(target)) {
             sig('output', { target, val: state.cache[target] });
         }
@@ -70,56 +65,75 @@ function block(config) {
 
         originalRunHandler(n, value, sig, state);
 
-        // If this is a 'gives' value and it changed, emit output
         let newValue = state.cache[target];
         if (state.gives.includes(target) && oldValue !== newValue) {
             sig('output', { target, val: newValue });
         }
     };
 
-    // Create kernel
+    // Custom route function - returns dispatch policy for output signals
+    let route = (intent, state) => {
+        if (intent.name === 'output') {
+            let { target, val } = intent.value;
+
+            // Build dispatch targets from wires
+            let targets = [];
+            for (let wire of state.wires) {
+                if (wire.from === target) {
+                    targets.push({
+                        kernel: wire.targetBlock._.kernel,
+                        name: 'input',
+                        value: { target: wire.to, val }
+                    });
+                }
+            }
+
+            if (targets.length > 0) {
+                return { type: 'dispatch', targets };
+            }
+            return 'drop';  // no wires for this output
+        }
+
+        // Default routing for other signals
+        let handler = handlers[intent.name];
+        if (!handler) return 'drop';
+        if (typeof handler === 'function') return 'deferred';
+        return handler.policy || 'deferred';
+    };
+
+    // Create kernel with custom route
     let k = kernel({
         state,
-        handlers
+        handlers,
+        route
     });
 
-    // Define initial values (needs start as undefined)
+    // Define initial values
     for (let n of needs) {
         if (!(n in initialValues)) {
             state.cache[n] = undefined;
         }
     }
 
-    // Define all provided values/functions
     for (let n of Object.keys(initialValues)) {
         k.sig('define', { target: n, val: initialValues[n] });
     }
 
-    // Run to initialize
     k.run();
 
-    /**
-     * Wire this block's output to another block's input
-     */
     function wire(fromName, targetBlock, toName) {
         state.wires.push({
             from: fromName,
-            target: targetBlock,
-            to: toName || fromName  // default to same name
+            targetBlock: targetBlock,
+            to: toName || fromName
         });
     }
 
-    /**
-     * Set an input value (for external use)
-     */
     function set(target, val) {
         k.sig('set', { target, val });
         k.run();
     }
 
-    /**
-     * Get an output value (for external use)
-     */
     function get(target) {
         return k.sig('get', { target, parent: null });
     }
@@ -139,11 +153,9 @@ function block(config) {
 
 /**
  * Wire multiple blocks together by matching names
- * blocks that 'give' X automatically wire to blocks that 'need' X
  */
 function autoWire(blocks) {
-    // Build map of who gives what
-    let givers = {};  // name -> [block, ...]
+    let givers = {};
     for (let b of blocks) {
         for (let g of b.gives) {
             if (!givers[g]) givers[g] = [];
@@ -151,12 +163,11 @@ function autoWire(blocks) {
         }
     }
 
-    // Wire givers to needers
     for (let b of blocks) {
         for (let n of b.needs) {
             if (givers[n]) {
                 for (let giver of givers[n]) {
-                    if (giver !== b) {  // don't wire to self
+                    if (giver !== b) {
                         giver.wire(n, b, n);
                     }
                 }

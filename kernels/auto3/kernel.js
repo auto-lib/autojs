@@ -93,6 +93,12 @@ function kernel(config = {}) {
 
     /**
      * Dispatch intent to other kernels
+     *
+     * Targets can be:
+     *   - string: named peer, sends same signal
+     *   - kernel: direct reference, sends same signal
+     *   - { kernel, name, value }: send custom signal to kernel
+     *   - { peer, name, value }: send custom signal to named peer
      */
     function dispatch(intent, targets) {
         if (typeof targets === 'function') {
@@ -103,12 +109,22 @@ function kernel(config = {}) {
         }
         for (let target of targets) {
             if (typeof target === 'string') {
-                // Named peer
+                // Named peer - send same signal
                 if (peers[target]) {
                     peers[target].sig(intent.name, intent.value);
                 }
+            } else if (target && target.kernel && typeof target.kernel.sig === 'function') {
+                // Custom dispatch: { kernel, name, value }
+                let sigName = target.name || intent.name;
+                let sigValue = 'value' in target ? target.value : intent.value;
+                target.kernel.sig(sigName, sigValue);
+            } else if (target && target.peer && peers[target.peer]) {
+                // Custom dispatch to named peer: { peer, name, value }
+                let sigName = target.name || intent.name;
+                let sigValue = 'value' in target ? target.value : intent.value;
+                peers[target.peer].sig(sigName, sigValue);
             } else if (target && typeof target.sig === 'function') {
-                // Direct kernel reference
+                // Direct kernel reference - send same signal
                 target.sig(intent.name, intent.value);
             }
         }
