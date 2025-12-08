@@ -1,5 +1,23 @@
 # Next: Diff as a Core Principle
 
+## claude summary
+
+Where the diff layer goes: The kernel's transform system is the natural hook point. Every intent passes through transforms, so you can record everything there without changing the core architecture.
+
+  Three levels of diffing:
+  1. Data diff - what values changed (we have this via reactive deps)
+  2. Flow diff - did the execution path change (need to record traces)
+  3. Code diff - did handler code change (need to hash handlers)
+
+  Why the architecture is already diff-friendly:
+  - Everything is an intent (name + value) - serializable, hashable
+  - Policies are declarative - comparable
+  - Flow is explicit via dispatch - traceable
+
+  Suggested first step: A simple tracer.js that uses the transform system to record all intents without modifying the core. Then you can compare traces across runs and see what changed.
+
+  The write-up includes code sketches for hashing handlers, recording execution traces, and diffing runs.
+
 ## The Vision
 
 The entire point of this architecture is **change detection**. Not just "did the data change" but:
