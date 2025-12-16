@@ -26,6 +26,17 @@
 // dynamic values. static values can only be changed from the outside
 // where-as dynamic values can only change from the inside, basically
 
+// We've built a comprehensive excessive calls detection and root cause analysis system with:
+
+//   1. ✅ Consolidated reporting - One report instead of flooding console
+//   2. ✅ Root cause analysis - Traces back to static variables being set
+//   3. ✅ Value diffs - Shows old → new for each change
+//   4. ✅ Transaction activity log - Shows what's happening during collection
+//   5. ✅ Call count tracking - Shows which functions exceeded threshold
+//   6. ✅ Grace period - Allows normal boot behavior without warnings
+//   7. ✅ Exclusion list - Skip checks for expected high-frequency variables
+//   8. ✅ Fixed async propagation - set_internal now checks for actual changes
+
 /**
  * @template T
  * @param {T} obj
@@ -98,6 +109,7 @@ let auto = (obj,opt) => {
     let call_rate_backoff = opt && 'call_rate_backoff' in opt ? opt.call_rate_backoff : 5000; // backoff period in ms
     let call_rate_debug_count = opt && 'call_rate_debug_count' in opt ? opt.call_rate_debug_count : 10; // how many updates to log after backoff
     let call_rate_grace_period = opt && 'call_rate_grace_period' in opt ? opt.call_rate_grace_period : 3000; // grace period after boot (ms)
+    let excessive_calls_exclude = opt && 'excessive_calls_exclude' in opt ? opt.excessive_calls_exclude : {}; // variables to exclude from checks
     let boot_time = performance.now(); // when auto was initialized
     let call_timestamps = {}; // track timestamps of function calls per function
     let backed_off_functions = {}; // functions currently in backoff mode
@@ -444,6 +456,12 @@ let auto = (obj,opt) => {
 
     let check_call_rate = (name) => {
         if (!max_calls_per_second) return; // feature disabled
+
+        // Skip check for excluded variables (e.g., mouse position, scroll position)
+        if (excessive_calls_exclude && name in excessive_calls_exclude) {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[excluded] skipping call rate check for ${name}`);
+            return;
+        }
 
         let now = performance.now();
 

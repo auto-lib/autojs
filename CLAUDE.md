@@ -92,11 +92,19 @@ export default {
 ## Options
 ```js
 auto(obj, {
-    trace: (t) => {},        // Transaction callback
-    watch: { varName: true }, // Debug logging for specific vars
-    tag: 'my-app',           // Log prefix
-    deep_log: false,         // Verbose logging
-    auto_batch: true,        // Auto-batch rapid sets (default: true)
-    deep_equal: true         // Use deep equality for objects (default: true)
+    trace: (t) => {},                // Transaction callback
+    watch: { varName: true },         // Debug logging for specific vars
+    tag: 'my-app',                    // Log prefix
+    deep_log: false,                  // Verbose logging
+    auto_batch: true,                 // Auto-batch rapid sets (default: true)
+    deep_equal: true,                 // Use deep equality for objects (default: true)
+
+    // Excessive calls detection (for catching infinite loops)
+    max_calls_per_second: 10,         // Threshold for excessive calls (default: 10)
+    call_rate_grace_period: 3000,     // Grace period after boot in ms (default: 3000)
+    excessive_calls_exclude: {        // Variables to exclude from checks
+        mousei: true,                  // e.g., mouse position
+        scrollY: true                  // e.g., scroll position
+    }
 });
 ```
