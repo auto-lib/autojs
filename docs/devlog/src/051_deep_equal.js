@@ -95,7 +95,7 @@ let auto = (obj,opt) => {
     let watch = opt && 'watch' in opt ? opt.watch : {};
     let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100; // log a message any time a function takes longer than report_lag milliseconds (default 100)
     let tests = opt && 'tests' in opt ? opt.tests : {}; // before boot run a test
-    let use_deep_equal = opt && 'deep_equal' in opt ? opt.deep_equal : false; // use deep equality for change detection
+    let use_deep_equal = opt && 'deep_equal' in opt ? opt.deep_equal : true; // use deep equality for change detection
 
     // Call rate detection (for detecting infinite loops)
     let max_calls_per_second = opt && 'max_calls_per_second' in opt ? opt.max_calls_per_second : 10;
