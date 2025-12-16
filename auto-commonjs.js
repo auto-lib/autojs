@@ -59,8 +59,12 @@ let auto = (obj,opt) => {
     let backed_off_functions = {};
     let debug_updates_remaining = {};
     let current_triggers = [];
-    let trigger_history = {};
-    let trigger_history_size = opt && 'trigger_history_size' in opt ? opt.trigger_history_size : 20;
+    let excessive_calls_collection_period = opt && 'excessive_calls_collection_period' in opt ? opt.excessive_calls_collection_period : 2000;
+    let static_value_history_size = opt && 'static_value_history_size' in opt ? opt.static_value_history_size : 30;
+    let static_value_history = {};
+    let excessive_functions_collected = new Set();
+    let excessive_collection_timer = null;
+    let collecting_excessive_calls = false;
     let get_vars = (name,array_only) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
@@ -103,61 +107,119 @@ let auto = (obj,opt) => {
             Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]))
         }
     }
-    let record_trigger = (fn_name) => {
-        if (!trigger_history[fn_name]) {
-            trigger_history[fn_name] = [];
+    let record_static_change = (name, old_val, new_val) => {
+        if (name in fn) return;
+        if (!static_value_history[name]) {
+            static_value_history[name] = [];
         }
-        let dominated_triggers = [];
-        if (deps[fn_name]) {
-            current_triggers.forEach(t => {
-                if (t.name in deps[fn_name]) {
-                    dominated_triggers.push({
-                        name: t.name,
-                        value: t.value,
-                        timestamp: Date.now()
-                    });
-                }
-            });
-        }
-        if (dominated_triggers.length === 0 && current_triggers.length > 0) {
-            current_triggers.forEach(t => {
-                trigger_history[fn_name].push({
-                    name: `via ${t.name}`,
-                    value: t.value,
-                    timestamp: Date.now()
-                });
-            });
-        } else {
-            dominated_triggers.forEach(t => {
-                trigger_history[fn_name].push(t);
-            });
-        }
-        if (trigger_history[fn_name].length > trigger_history_size) {
-            trigger_history[fn_name] = trigger_history[fn_name].slice(-trigger_history_size);
+        static_value_history[name].push({
+            old: old_val,
+            new: new_val,
+            timestamp: performance.now()
+        });
+        if (static_value_history[name].length > static_value_history_size) {
+            static_value_history[name] = static_value_history[name].slice(-static_value_history_size);
         }
     }
-    let format_trigger_history = (fn_name) => {
-        if (!trigger_history[fn_name] || trigger_history[fn_name].length === 0) {
-            return '  (no trigger history)';
-        }
-        let counts = {};
-        trigger_history[fn_name].forEach(t => {
-            let key = t.name;
-            if (!counts[key]) counts[key] = { count: 0, examples: [] };
-            counts[key].count++;
-            if (counts[key].examples.length < 3) {
-                counts[key].examples.push(t.value);
+    let find_root_causes = (fn_name) => {
+        let roots = new Set();
+        let visited = new Set();
+        let traverse = (name) => {
+            if (visited.has(name)) return;
+            visited.add(name);
+            if (!(name in fn)) {
+                roots.add(name);
+                return;
             }
+            if (deps[name]) {
+                Object.keys(deps[name]).forEach(dep => traverse(dep));
+            }
+        };
+        traverse(fn_name);
+        return Array.from(roots);
+    }
+    let build_dependency_chain = (root, target) => {
+        let chains = [];
+        let visited = new Set();
+        let dfs = (current, path) => {
+            if (visited.has(current)) return;
+            if (current === target) {
+                chains.push([...path, current]);
+                return;
+            }
+            visited.add(current);
+            if (dependents[current]) {
+                Object.keys(dependents[current]).forEach(dep => {
+                    dfs(dep, [...path, current]);
+                });
+            }
+            visited.delete(current);
+        };
+        dfs(root, []);
+        if (chains.length === 0) return null;
+        return chains.sort((a, b) => a.length - b.length)[0];
+    }
+    let format_value = (val) => {
+        if (val === null) return 'null';
+        if (val === undefined) return 'undefined';
+        if (typeof val === 'string') return `"${val}"`;
+        if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+        if (Array.isArray(val)) {
+            if (val.length === 0) return '[]';
+            if (val.length <= 3) return `[${val.map(v => format_value(v)).join(', ')}]`;
+            return `[${val.length} items]`;
+        }
+        if (typeof val === 'object') {
+            let keys = Object.keys(val);
+            if (keys.length === 0) return '{}';
+            if (keys.length <= 3) return `{${keys.join(', ')}}`;
+            return `{${keys.length} keys}`;
+        }
+        return String(val);
+    }
+    let generate_root_cause_report = () => {
+        if (excessive_functions_collected.size === 0) return;
+        let root_cause_map = {};
+        excessive_functions_collected.forEach(fn_name => {
+            let roots = find_root_causes(fn_name);
+            roots.forEach(root => {
+                if (!root_cause_map[root]) root_cause_map[root] = [];
+                root_cause_map[root].push(fn_name);
+            });
         });
-        let lines = [];
-        lines.push(`  trigger history (last ${trigger_history[fn_name].length}):`);
-        let sorted = Object.entries(counts).sort((a, b) => b[1].count - a[1].count);
-        sorted.forEach(([name, data]) => {
-            let pct = Math.round(100 * data.count / trigger_history[fn_name].length);
-            let examples = data.examples.map(v => JSON.stringify(v)).join(', ');
-            lines.push(`    ${name}: ${data.count}x (${pct}%) - examples: ${examples}`);
+        console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        console.log(`${tag?'['+tag+'] ':''}EXCESSIVE UPDATES DETECTED - Root Cause Analysis`);
+        console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        console.log('');
+        let sorted_roots = Object.entries(root_cause_map)
+            .sort((a, b) => b[1].length - a[1].length);
+        sorted_roots.forEach(([root, affected_fns]) => {
+            let history = static_value_history[root] || [];
+            let recent = history.slice(-10);
+            console.log(`${tag?'['+tag+'] ':''}Root Cause: '${root}' (static variable)`);
+            console.log(`  ${history.length} changes in last ${call_rate_window}ms`);
+            console.log('');
+            if (recent.length > 0) {
+                console.log(`  Recent changes to ${root}:`);
+                recent.forEach((change, i) => {
+                    let ago = (performance.now() - change.timestamp).toFixed(1);
+                    console.log(`    [${ago}ms ago] ${format_value(change.old)} → ${format_value(change.new)}`);
+                });
+                console.log('');
+            }
+            console.log(`  Affected functions (${affected_fns.length}):`);
+            affected_fns.forEach(fn_name => {
+                let chain = build_dependency_chain(root, fn_name);
+                if (chain && chain.length > 1) {
+                    console.log(`    ${chain.join(' → ')}`);
+                } else {
+                    console.log(`    ${root} → ${fn_name}`);
+                }
+            });
+            console.log('');
         });
-        return lines.join('\n');
+        console.log(`${tag?'['+tag+'] ':''}All affected functions backed off for ${call_rate_backoff}ms`);
+        console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     }
     let check_call_rate = (name) => {
         if (!max_calls_per_second) return;
@@ -170,41 +232,25 @@ let auto = (obj,opt) => {
         call_timestamps[name] = call_timestamps[name].filter(t => t >= window_start);
         if (call_timestamps[name].length > max_calls_per_second) {
             if (!backed_off_functions[name]) {
-                console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-                console.log(`${tag?'['+tag+'] ':''}EXCESSIVE CALLS detected for function '${name}'`);
-                console.log(`  calls: ${call_timestamps[name].length} in ${call_rate_window}ms (threshold: ${max_calls_per_second})`);
-                console.log(`  stack:`, stack);
-                if (current_triggers.length > 0) {
-                    let direct_triggers = current_triggers.filter(t => deps[name] && t.name in deps[name]);
-                    if (direct_triggers.length > 0) {
-                        console.log(`  current trigger:`, direct_triggers.map(t => `${t.name} = ${JSON.stringify(t.value)}`).join(', '));
-                    } else {
-                        console.log(`  current trigger: indirect via`, current_triggers.map(t => t.name).join(', '));
-                    }
-                }
-                if (deps[name] && Object.keys(deps[name]).length > 0) {
-                    console.log(`  dependencies:`, Object.keys(deps[name]));
-                    console.log(`  current values:`, Object.keys(deps[name]).reduce((acc, dep) => {
-                        acc[dep] = value[dep];
-                        return acc;
-                    }, {}));
-                } else {
-                    console.log(`  dependencies: none`);
-                }
-                console.log(format_trigger_history(name));
-                if (dependents[name] && Object.keys(dependents[name]).length > 0) {
-                    console.log(`  affects:`, Object.keys(dependents[name]));
-                }
-                console.log(`  backing off for ${call_rate_backoff}ms`);
-                console.log(`  will log next ${call_rate_debug_count} updates after backoff to help debug`);
-                console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+                excessive_functions_collected.add(name);
                 backed_off_functions[name] = true;
-                setTimeout(() => {
-                    delete backed_off_functions[name];
-                    call_timestamps[name] = [];
-                    debug_updates_remaining[name] = call_rate_debug_count;
-                    console.log(`${tag?'['+tag+'] ':''}Backoff period ended for '${name}' - resuming updates (will log next ${call_rate_debug_count} updates)`);
-                }, call_rate_backoff);
+                if (!collecting_excessive_calls) {
+                    collecting_excessive_calls = true;
+                    if (deep_log) console.log(`${tag?'['+tag+'] ':''}[excessive calls] Starting ${excessive_calls_collection_period}ms collection period...`);
+                    excessive_collection_timer = setTimeout(() => {
+                        generate_root_cause_report();
+                        collecting_excessive_calls = false;
+                        excessive_functions_collected.clear();
+                        setTimeout(() => {
+                            Object.keys(backed_off_functions).forEach(fn_name => {
+                                delete backed_off_functions[fn_name];
+                                call_timestamps[fn_name] = [];
+                                debug_updates_remaining[fn_name] = call_rate_debug_count;
+                            });
+                            if (deep_log) console.log(`${tag?'['+tag+'] ':''}Backoff period ended - resuming all functions`);
+                        }, call_rate_backoff);
+                    }, excessive_calls_collection_period);
+                }
             }
         }
     }
@@ -215,7 +261,6 @@ let auto = (obj,opt) => {
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}skipping ${name} - in backoff mode`);
             return;
         }
-        record_trigger(name);
         if (debug_updates_remaining[name] && debug_updates_remaining[name] > 0) {
             console.log(`${tag?'['+tag+'] ':''}[DEBUG] update #${call_rate_debug_count - debug_updates_remaining[name] + 1} for '${name}'`);
             if (deps[name] && Object.keys(deps[name]).length > 0) {
@@ -548,7 +593,9 @@ let auto = (obj,opt) => {
             return;
         }
         if (count && name in counts) counts[name]['setter'] += 1;
+        let old_val = value[name];
         value[name] = val;
+        record_static_change(name, old_val, val);
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[setter]`,name,'=',value[name],get_vars(name).deps);
         if (in_batch) {
             batch_triggers.push({ name, value: val });
@@ -674,7 +721,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.52.2'
+        v: '1.53.1'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
