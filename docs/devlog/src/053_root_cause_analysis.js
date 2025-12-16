@@ -110,6 +110,8 @@ let auto = (obj,opt) => {
     let excessive_collection_timer = null; // timer for collection period
     let collecting_excessive_calls = false; // are we currently in collection mode?
     let collection_start_time = 0; // when collection started
+    let transaction_log = []; // log of all transactions during collection
+    let transaction_log_size = 50; // keep last 50 transactions
 
     // used when a function (of a dynamic variable) causes an exception / has an error
     // we print out all the values of the dependent variables of the function
@@ -367,6 +369,38 @@ let auto = (obj,opt) => {
             console.log('');
         });
 
+        console.log(`${tag?'['+tag+'] ':''}Transaction Activity During Collection:`);
+        console.log(`  ${transaction_log.length} transactions in ~${(performance.now() - collection_start_time).toFixed(0)}ms`);
+        console.log('');
+
+        // Group transactions by trigger to show patterns
+        let trigger_counts = {};
+        transaction_log.forEach(txn => {
+            txn.triggers.forEach(t => {
+                if (!trigger_counts[t.name]) trigger_counts[t.name] = 0;
+                trigger_counts[t.name]++;
+            });
+        });
+
+        let sorted_triggers = Object.entries(trigger_counts).sort((a, b) => b[1] - a[1]);
+        if (sorted_triggers.length > 0) {
+            console.log(`  Most frequent triggers:`);
+            sorted_triggers.slice(0, 10).forEach(([name, count]) => {
+                console.log(`    ${name}: ${count} transactions`);
+            });
+            console.log('');
+        }
+
+        // Show last few transactions
+        let recent_txns = transaction_log.slice(-10);
+        console.log(`  Last ${recent_txns.length} transactions:`);
+        recent_txns.forEach(txn => {
+            let ago = (performance.now() - txn.timestamp).toFixed(1);
+            let trigger_names = txn.triggers.map(t => t.name).join(', ');
+            console.log(`    [${ago}ms ago] txn#${txn.id}: ${trigger_names} → ${txn.affected} affected, ${txn.changed} changed`);
+        });
+        console.log('');
+
         console.log(`${tag?'['+tag+'] ':''}All affected functions backed off for ${call_rate_backoff}ms`);
         console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     }
@@ -410,6 +444,7 @@ let auto = (obj,opt) => {
                         // Reset collection state
                         collecting_excessive_calls = false;
                         excessive_functions_collected.clear();
+                        transaction_log = []; // clear transaction log
 
                         // Schedule backoff removal for all backed-off functions
                         setTimeout(() => {
@@ -862,6 +897,22 @@ let auto = (obj,opt) => {
 
         // Phase 8: Notify subscriptions for changed values
         phase8_notify_subscriptions(actually_changed);
+
+        // Log transaction during collection period (NEW in 053)
+        if (collecting_excessive_calls) {
+            transaction_log.push({
+                id: txn_counter,
+                timestamp: performance.now(),
+                triggers: triggers.map(t => ({ name: t.name, value: t.value })),
+                affected: sorted.length,
+                changed: actually_changed.size
+            });
+
+            // Trim log to max size
+            if (transaction_log.length > transaction_log_size) {
+                transaction_log = transaction_log.slice(-transaction_log_size);
+            }
+        }
 
         // Call user's trace function
         if (trace_fn) trace_fn(trace);

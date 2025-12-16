@@ -66,6 +66,8 @@ let auto = (obj,opt) => {
     let excessive_collection_timer = null;
     let collecting_excessive_calls = false;
     let collection_start_time = 0;
+    let transaction_log = [];
+    let transaction_log_size = 50;
     let get_vars = (name,array_only) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
@@ -244,6 +246,32 @@ let auto = (obj,opt) => {
             });
             console.log('');
         });
+        console.log(`${tag?'['+tag+'] ':''}Transaction Activity During Collection:`);
+        console.log(`  ${transaction_log.length} transactions in ~${(performance.now() - collection_start_time).toFixed(0)}ms`);
+        console.log('');
+        let trigger_counts = {};
+        transaction_log.forEach(txn => {
+            txn.triggers.forEach(t => {
+                if (!trigger_counts[t.name]) trigger_counts[t.name] = 0;
+                trigger_counts[t.name]++;
+            });
+        });
+        let sorted_triggers = Object.entries(trigger_counts).sort((a, b) => b[1] - a[1]);
+        if (sorted_triggers.length > 0) {
+            console.log(`  Most frequent triggers:`);
+            sorted_triggers.slice(0, 10).forEach(([name, count]) => {
+                console.log(`    ${name}: ${count} transactions`);
+            });
+            console.log('');
+        }
+        let recent_txns = transaction_log.slice(-10);
+        console.log(`  Last ${recent_txns.length} transactions:`);
+        recent_txns.forEach(txn => {
+            let ago = (performance.now() - txn.timestamp).toFixed(1);
+            let trigger_names = txn.triggers.map(t => t.name).join(', ');
+            console.log(`    [${ago}ms ago] txn#${txn.id}: ${trigger_names} → ${txn.affected} affected, ${txn.changed} changed`);
+        });
+        console.log('');
         console.log(`${tag?'['+tag+'] ':''}All affected functions backed off for ${call_rate_backoff}ms`);
         console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     }
@@ -268,6 +296,7 @@ let auto = (obj,opt) => {
                         generate_root_cause_report();
                         collecting_excessive_calls = false;
                         excessive_functions_collected.clear();
+                        transaction_log = [];
                         setTimeout(() => {
                             Object.keys(backed_off_functions).forEach(fn_name => {
                                 delete backed_off_functions[fn_name];
@@ -587,6 +616,18 @@ let auto = (obj,opt) => {
         let actually_changed = phase6_detect_changes(triggers, sorted, old_values);
         let trace = phase7_build_trace(triggers, actually_changed, txn_counter);
         phase8_notify_subscriptions(actually_changed);
+        if (collecting_excessive_calls) {
+            transaction_log.push({
+                id: txn_counter,
+                timestamp: performance.now(),
+                triggers: triggers.map(t => ({ name: t.name, value: t.value })),
+                affected: sorted.length,
+                changed: actually_changed.size
+            });
+            if (transaction_log.length > transaction_log_size) {
+                transaction_log = transaction_log.slice(-transaction_log_size);
+            }
+        }
         if (trace_fn) trace_fn(trace);
         return trace;
     }
@@ -748,7 +789,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.53.6'
+        v: '1.53.7'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
