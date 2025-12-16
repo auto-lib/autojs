@@ -97,6 +97,8 @@ let auto = (obj,opt) => {
     let call_rate_window = opt && 'call_rate_window' in opt ? opt.call_rate_window : 1000;
     let call_rate_backoff = opt && 'call_rate_backoff' in opt ? opt.call_rate_backoff : 5000; // backoff period in ms
     let call_rate_debug_count = opt && 'call_rate_debug_count' in opt ? opt.call_rate_debug_count : 10; // how many updates to log after backoff
+    let call_rate_grace_period = opt && 'call_rate_grace_period' in opt ? opt.call_rate_grace_period : 3000; // grace period after boot (ms)
+    let boot_time = performance.now(); // when auto was initialized
     let call_timestamps = {}; // track timestamps of function calls per function
     let backed_off_functions = {}; // functions currently in backoff mode
     let debug_updates_remaining = {}; // remaining debug logs for each function
@@ -444,6 +446,12 @@ let auto = (obj,opt) => {
         if (!max_calls_per_second) return; // feature disabled
 
         let now = performance.now();
+
+        // Skip check during grace period (allow initialization to complete without warnings)
+        if (call_rate_grace_period && now - boot_time < call_rate_grace_period) {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[grace period] skipping call rate check for ${name}`);
+            return;
+        }
 
         // Initialize tracking for this function if needed
         if (!call_timestamps[name]) {

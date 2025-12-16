@@ -55,6 +55,8 @@ let auto = (obj,opt) => {
     let call_rate_window = opt && 'call_rate_window' in opt ? opt.call_rate_window : 1000;
     let call_rate_backoff = opt && 'call_rate_backoff' in opt ? opt.call_rate_backoff : 5000;
     let call_rate_debug_count = opt && 'call_rate_debug_count' in opt ? opt.call_rate_debug_count : 10;
+    let call_rate_grace_period = opt && 'call_rate_grace_period' in opt ? opt.call_rate_grace_period : 3000;
+    let boot_time = performance.now();
     let call_timestamps = {};
     let backed_off_functions = {};
     let debug_updates_remaining = {};
@@ -303,6 +305,10 @@ let auto = (obj,opt) => {
     let check_call_rate = (name) => {
         if (!max_calls_per_second) return;
         let now = performance.now();
+        if (call_rate_grace_period && now - boot_time < call_rate_grace_period) {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[grace period] skipping call rate check for ${name}`);
+            return;
+        }
         if (!call_timestamps[name]) {
             call_timestamps[name] = [];
         }
@@ -837,7 +843,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.53.11'
+        v: '1.53.12'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
