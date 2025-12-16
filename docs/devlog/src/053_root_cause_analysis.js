@@ -391,13 +391,19 @@ let auto = (obj,opt) => {
             console.log('');
         }
 
-        // Show last few transactions
+        // Show last few transactions with trigger values
         let recent_txns = transaction_log.slice(-10);
         console.log(`  Last ${recent_txns.length} transactions:`);
         recent_txns.forEach(txn => {
             let ago = (performance.now() - txn.timestamp).toFixed(1);
             let trigger_names = txn.triggers.map(t => t.name).join(', ');
             console.log(`    [${ago}ms ago] txn#${txn.id}: ${trigger_names} → ${txn.affected} affected, ${txn.changed} changed`);
+
+            // Show trigger values for better debugging
+            txn.triggers.forEach(t => {
+                let val_str = format_value(t.value);
+                console.log(`      ${t.name} = ${val_str}`);
+            });
         });
         console.log('');
 
@@ -928,6 +934,34 @@ let auto = (obj,opt) => {
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}async resolution for ${name}:`,val);
 
         if (fatal.msg) return;
+
+        // Add the same change detection logic as setter (to prevent null → null and duplicate propagations)
+        let old_val = value[name];
+
+        // Skip if both old and new values are falsy (null, undefined, 0, false, '')
+        if (!old_val && !val) {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[async skip] ${name} both old and new are falsy`);
+            return;
+        }
+
+        // Change detection using deep_equal for objects/arrays
+        let hasChanged;
+        let isObject = typeof val === 'object' && val !== null;
+
+        if (use_deep_equal && isObject) {
+            hasChanged = !deep_equal(old_val, val);
+        } else if (isObject) {
+            // Objects/arrays always count as changed when deep_equal disabled
+            hasChanged = true;
+        } else {
+            // Primitives use === comparison
+            hasChanged = old_val !== val;
+        }
+
+        if (!hasChanged) {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[async skip] ${name} value hasn't changed`);
+            return;
+        }
 
         value[name] = val;
 

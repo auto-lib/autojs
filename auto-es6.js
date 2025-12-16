@@ -268,6 +268,10 @@ let auto = (obj,opt) => {
             let ago = (performance.now() - txn.timestamp).toFixed(1);
             let trigger_names = txn.triggers.map(t => t.name).join(', ');
             console.log(`    [${ago}ms ago] txn#${txn.id}: ${trigger_names} → ${txn.affected} affected, ${txn.changed} changed`);
+            txn.triggers.forEach(t => {
+                let val_str = format_value(t.value);
+                console.log(`      ${t.name} = ${val_str}`);
+            });
         });
         console.log('');
         console.log(`${tag?'['+tag+'] ':''}All affected functions backed off for ${call_rate_backoff}ms`);
@@ -632,6 +636,24 @@ let auto = (obj,opt) => {
     let set_internal = (name, val) => {
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}async resolution for ${name}:`,val);
         if (fatal.msg) return;
+        let old_val = value[name];
+        if (!old_val && !val) {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[async skip] ${name} both old and new are falsy`);
+            return;
+        }
+        let hasChanged;
+        let isObject = typeof val === 'object' && val !== null;
+        if (use_deep_equal && isObject) {
+            hasChanged = !deep_equal(old_val, val);
+        } else if (isObject) {
+            hasChanged = true;
+        } else {
+            hasChanged = old_val !== val;
+        }
+        if (!hasChanged) {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}[async skip] ${name} value hasn't changed`);
+            return;
+        }
         value[name] = val;
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[async resolved]`,name,'=',value[name]);
         propagate({ name, value: val });
@@ -787,7 +809,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.53.7'
+        v: '1.53.9'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
