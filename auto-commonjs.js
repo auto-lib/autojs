@@ -50,6 +50,9 @@ let auto = (obj,opt) => {
     let watch = opt && 'watch' in opt ? opt.watch : {};
     let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100;
     let tests = opt && 'tests' in opt ? opt.tests : {};
+    let max_calls_per_second = opt && 'max_calls_per_second' in opt ? opt.max_calls_per_second : 100;
+    let call_rate_window = opt && 'call_rate_window' in opt ? opt.call_rate_window : 1000;
+    let call_timestamps = {};
     let get_vars = (name,array_only) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
@@ -68,18 +71,20 @@ let auto = (obj,opt) => {
         return o;
     }
     let show_vars = (name) => console.log(`${tag?'['+tag+'] ':''}EXCEPTION in ${name}`,get_vars(name).deps);
-    let fail = (msg,stop) => {
+    let fail = (msg,stop,details) => {
         fatal.msg = msg;
         fatal.stack = stack.map(s => s);
+        if (details) fatal.details = details;
         let vars = get_vars(stack[stack.length-1],true);
         if (typeof fn['#fatal'] === 'function')
         {
             try {
-                fn['#fatal']({msg,res,stack:stack,vars});
+                fn['#fatal']({msg,res,stack:stack,vars,details});
             } catch (e) {
                 console.log(`${tag?'['+tag+'] ':''}EXCEPTION running #fatal function`,e);
                 console.log(' stack',stack);
                 console.log(' vars',vars);
+                if (details) console.log(' details',details);
             }
         }
     }
@@ -88,6 +93,24 @@ let auto = (obj,opt) => {
         {
             if (name in watch) console.log(`${tag?'['+tag+'] ':''}[run subs]`,name);
             Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]))
+        }
+    }
+    let check_call_rate = (name) => {
+        if (!max_calls_per_second) return;
+        let now = performance.now();
+        if (!call_timestamps[name]) {
+            call_timestamps[name] = [];
+        }
+        call_timestamps[name].push(now);
+        let window_start = now - call_rate_window;
+        call_timestamps[name] = call_timestamps[name].filter(t => t >= window_start);
+        if (call_timestamps[name].length > max_calls_per_second) {
+            fail('excessive calls detected', false, {
+                function: name,
+                calls: call_timestamps[name].length,
+                window_ms: call_rate_window,
+                threshold: max_calls_per_second
+            });
         }
     }
     let update = (name,src,caller) => {
@@ -104,6 +127,8 @@ let auto = (obj,opt) => {
         if (count) counts[name]['update'] += 1;
         if (fatal.msg) return;
         stack.push(name);
+        check_call_rate(name);
+        if (fatal.msg) return;
         if (stack.indexOf(name)!==stack.length-1) { fail('circular dependency'); return; }
         if (deps[name]) {
             Object.keys(deps[name]).forEach(dep => {
@@ -458,7 +483,7 @@ let auto = (obj,opt) => {
     }
     let default_fatal = (_) => {
         console.log(`${tag?'['+tag+'] ':''}FATAL`,_._.fatal.msg);
-        console.log(' stack',_._.fatal.stack);
+        console.log(_._.fatal);
         console.log(' _',_);
         console.log(' (there might be an error below too if your function failed as well)');
     }
@@ -495,7 +520,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.49.5'
+        v: '1.50.0'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

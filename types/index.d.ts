@@ -13,7 +13,8 @@ export type Reactive<T> = DataProperties<T> & FunctionReturnTypes<T>;
 export type AutoOptions = {
   watch?: Object,
   report_lag?: number,
-  tests?: Object
+  tests?: Object,
+  tag?: string,
 }
 
 type SubscribeFunction = (value: any) => void;
