@@ -1,16 +1,18 @@
 
-// 050: Call Rate Detection
+// 050: Call Rate Detection with Backoff
 //
 // Add detection for functions being called excessively (potential infinite loops).
 // If a function is called more than max_calls_per_second times within call_rate_window,
-// trigger a fatal error with details about which function and the call stack.
+// it logs a warning to console and temporarily stops updating that function (backoff).
+// The rest of the system continues working normally.
 //
 // This helps debug situations where a function is being triggered repeatedly,
-// possibly due to circular dependencies or reactive loops.
+// possibly due to circular dependencies or reactive loops, without breaking the entire app.
 //
 // Options:
-//   max_calls_per_second: number (default: null/disabled) - threshold for fatal error
+//   max_calls_per_second: number (default: 10) - threshold for backoff
 //   call_rate_window: number (default: 1000ms) - time window to measure calls
+//   call_rate_backoff: number (default: 5000ms) - how long to pause updates for that function
 
 // the biggest thing to understand is the distinction between static and
 // dynamic values. static values can only be changed from the outside
@@ -84,7 +86,9 @@ let auto = (obj,opt) => {
     // Call rate detection (for detecting infinite loops)
     let max_calls_per_second = opt && 'max_calls_per_second' in opt ? opt.max_calls_per_second : 10;
     let call_rate_window = opt && 'call_rate_window' in opt ? opt.call_rate_window : 1000;
+    let call_rate_backoff = opt && 'call_rate_backoff' in opt ? opt.call_rate_backoff : 5000; // backoff period in ms
     let call_timestamps = {}; // track timestamps of function calls per function
+    let backed_off_functions = {}; // functions currently in backoff mode
 
     // used when a function (of a dynamic variable) causes an exception / has an error
     // we print out all the values of the dependent variables of the function
@@ -173,12 +177,22 @@ let auto = (obj,opt) => {
 
         // Check if we've exceeded the threshold
         if (call_timestamps[name].length > max_calls_per_second) {
-            fail('excessive calls detected', false, {
-                function: name,
-                calls: call_timestamps[name].length,
-                window_ms: call_rate_window,
-                threshold: max_calls_per_second
-            });
+            // Don't fail - just back off for a period
+            if (!backed_off_functions[name]) {
+                console.log(`${tag?'['+tag+'] ':''}EXCESSIVE CALLS detected for function '${name}'`);
+                console.log(`  calls: ${call_timestamps[name].length} in ${call_rate_window}ms (threshold: ${max_calls_per_second})`);
+                console.log(`  stack:`, stack);
+                console.log(`  backing off for ${call_rate_backoff}ms`);
+
+                backed_off_functions[name] = true;
+
+                // Schedule backoff removal
+                setTimeout(() => {
+                    delete backed_off_functions[name];
+                    call_timestamps[name] = []; // reset call history
+                    console.log(`${tag?'['+tag+'] ':''}Backoff period ended for '${name}' - resuming updates`);
+                }, call_rate_backoff);
+            }
         }
     }
 
@@ -190,6 +204,12 @@ let auto = (obj,opt) => {
         if (deep_log&&(src||caller)) console.log(`${tag?'['+tag+'] ':''}updating ${name}`,src?'because '+src:'',caller?'called by '+caller:'');
 
         if (value[name]) return;
+
+        // Skip if function is in backoff mode
+        if (backed_off_functions[name]) {
+            if (deep_log) console.log(`${tag?'['+tag+'] ':''}skipping ${name} - in backoff mode`);
+            return;
+        }
 
         if (name in watch && caller)
         {
@@ -386,12 +406,13 @@ let auto = (obj,opt) => {
     /**
      * Phase 4: Clear Values
      * Delete values to mark them for recomputation
+     * Skip backed-off functions to preserve their last known value
      */
     let phase4_clear_values = (sorted) => {
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}[phase 4: clear values]`);
 
         sorted.forEach(name => {
-            if (name in value) {
+            if (name in value && !backed_off_functions[name]) {
                 delete value[name];
             }
         });
