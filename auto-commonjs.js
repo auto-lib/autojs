@@ -50,6 +50,7 @@ let auto = (obj,opt) => {
     let watch = opt && 'watch' in opt ? opt.watch : {};
     let report_lag = opt && 'report_lag' in opt ? opt.report_lag : 100;
     let tests = opt && 'tests' in opt ? opt.tests : {};
+    let use_deep_equal = opt && 'deep_equal' in opt ? opt.deep_equal : true;
     let max_calls_per_second = opt && 'max_calls_per_second' in opt ? opt.max_calls_per_second : 10;
     let call_rate_window = opt && 'call_rate_window' in opt ? opt.call_rate_window : 1000;
     let call_rate_backoff = opt && 'call_rate_backoff' in opt ? opt.call_rate_backoff : 5000;
@@ -242,6 +243,27 @@ let auto = (obj,opt) => {
         }
         return value[name];
     }
+    let deep_equal = (a, b) => {
+        if (a === b) return true;
+        if (a == null || b == null) return false;
+        if (typeof a !== 'object' || typeof b !== 'object') return false;
+        if (Array.isArray(a) && Array.isArray(b)) {
+            if (a.length !== b.length) return false;
+            for (let i = 0; i < a.length; i++) {
+                if (!deep_equal(a[i], b[i])) return false;
+            }
+            return true;
+        }
+        if (Array.isArray(a) !== Array.isArray(b)) return false;
+        let keysA = Object.keys(a);
+        let keysB = Object.keys(b);
+        if (keysA.length !== keysB.length) return false;
+        for (let key of keysA) {
+            if (!keysB.includes(key)) return false;
+            if (!deep_equal(a[key], b[key])) return false;
+        }
+        return true;
+    };
     /**
      * Phase 1: Invalidate
      * Mark all values affected by a change (recursively find dependents)
@@ -346,8 +368,15 @@ let auto = (obj,opt) => {
         sorted.forEach(name => {
             let old_val = old_values[name];
             let new_val = value[name];
+            let hasChanged;
             let isObject = typeof new_val === 'object' && new_val !== null;
-            let hasChanged = isObject || old_val !== new_val;
+            if (use_deep_equal && isObject) {
+                hasChanged = !deep_equal(old_val, new_val);
+            } else if (isObject) {
+                hasChanged = true;
+            } else {
+                hasChanged = old_val !== new_val;
+            }
             if (hasChanged) {
                 actually_changed.add(name);
                 if (deep_log) {
@@ -577,7 +606,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.50.0'
+        v: '1.51.1'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
