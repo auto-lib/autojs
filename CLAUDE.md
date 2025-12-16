@@ -38,8 +38,14 @@ deno run test.js
 
 All three are generated from `docs/devlog/src/0XX_*.js` (the latest numbered file) by `tests/runall.js`.
 
-### Development Flow
-The library evolves through numbered source files in `docs/devlog/src/` (e.g., `047_auto_batching.js`). The test runner copies the latest to the root auto files and bumps the version.
+### Making Changes to the Library
+**Important**: Never edit `auto-es6.js` directly. Changes are made by:
+1. Find the latest numbered file in `docs/devlog/src/` (e.g., `051_deep_equal.js`)
+2. Copy it to a new file with incremented number (e.g., `052_new_feature.js`)
+3. Make your changes in the new file
+4. Run `cd tests && node runall.js` to generate the auto-*.js files and run tests
+
+The test runner automatically copies the highest-numbered source file to the root auto files and updates the version in package.json.
 
 ### 8-Phase Propagation Cycle
 When a value changes, propagation occurs in these phases:

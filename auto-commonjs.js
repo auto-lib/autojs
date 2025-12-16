@@ -59,6 +59,8 @@ let auto = (obj,opt) => {
     let backed_off_functions = {};
     let debug_updates_remaining = {};
     let current_triggers = [];
+    let trigger_history = {};
+    let trigger_history_size = opt && 'trigger_history_size' in opt ? opt.trigger_history_size : 20;
     let get_vars = (name,array_only) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
@@ -101,6 +103,62 @@ let auto = (obj,opt) => {
             Object.keys(subs[name]).forEach( tag => subs[name][tag](value[name]))
         }
     }
+    let record_trigger = (fn_name) => {
+        if (!trigger_history[fn_name]) {
+            trigger_history[fn_name] = [];
+        }
+        let dominated_triggers = [];
+        if (deps[fn_name]) {
+            current_triggers.forEach(t => {
+                if (t.name in deps[fn_name]) {
+                    dominated_triggers.push({
+                        name: t.name,
+                        value: t.value,
+                        timestamp: Date.now()
+                    });
+                }
+            });
+        }
+        if (dominated_triggers.length === 0 && current_triggers.length > 0) {
+            current_triggers.forEach(t => {
+                trigger_history[fn_name].push({
+                    name: `via ${t.name}`,
+                    value: t.value,
+                    timestamp: Date.now()
+                });
+            });
+        } else {
+            dominated_triggers.forEach(t => {
+                trigger_history[fn_name].push(t);
+            });
+        }
+        if (trigger_history[fn_name].length > trigger_history_size) {
+            trigger_history[fn_name] = trigger_history[fn_name].slice(-trigger_history_size);
+        }
+    }
+    let format_trigger_history = (fn_name) => {
+        if (!trigger_history[fn_name] || trigger_history[fn_name].length === 0) {
+            return '  (no trigger history)';
+        }
+        let counts = {};
+        trigger_history[fn_name].forEach(t => {
+            let key = t.name;
+            if (!counts[key]) counts[key] = { count: 0, examples: [] };
+            counts[key].count++;
+            if (counts[key].examples.length < 3) {
+                counts[key].examples.push(t.value);
+            }
+        });
+        let lines = [];
+        lines.push(`  trigger history (last ${trigger_history[fn_name].length}):`);
+        let sorted = Object.entries(counts).sort((a, b) => b[1].count - a[1].count);
+        sorted.forEach(([name, data]) => {
+            let pct = Math.round(100 * data.count / trigger_history[fn_name].length);
+            let examples = data.examples.map(v => JSON.stringify(v)).join(', ');
+            lines.push(`    ${name}: ${data.count}x (${pct}%) - examples: ${examples}`);
+        });
+        return lines.join('\n');
+    }
     let check_call_rate = (name) => {
         if (!max_calls_per_second) return;
         let now = performance.now();
@@ -116,6 +174,14 @@ let auto = (obj,opt) => {
                 console.log(`${tag?'['+tag+'] ':''}EXCESSIVE CALLS detected for function '${name}'`);
                 console.log(`  calls: ${call_timestamps[name].length} in ${call_rate_window}ms (threshold: ${max_calls_per_second})`);
                 console.log(`  stack:`, stack);
+                if (current_triggers.length > 0) {
+                    let direct_triggers = current_triggers.filter(t => deps[name] && t.name in deps[name]);
+                    if (direct_triggers.length > 0) {
+                        console.log(`  current trigger:`, direct_triggers.map(t => `${t.name} = ${JSON.stringify(t.value)}`).join(', '));
+                    } else {
+                        console.log(`  current trigger: indirect via`, current_triggers.map(t => t.name).join(', '));
+                    }
+                }
                 if (deps[name] && Object.keys(deps[name]).length > 0) {
                     console.log(`  dependencies:`, Object.keys(deps[name]));
                     console.log(`  current values:`, Object.keys(deps[name]).reduce((acc, dep) => {
@@ -125,6 +191,7 @@ let auto = (obj,opt) => {
                 } else {
                     console.log(`  dependencies: none`);
                 }
+                console.log(format_trigger_history(name));
                 if (dependents[name] && Object.keys(dependents[name]).length > 0) {
                     console.log(`  affects:`, Object.keys(dependents[name]));
                 }
@@ -148,6 +215,7 @@ let auto = (obj,opt) => {
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}skipping ${name} - in backoff mode`);
             return;
         }
+        record_trigger(name);
         if (debug_updates_remaining[name] && debug_updates_remaining[name] > 0) {
             console.log(`${tag?'['+tag+'] ':''}[DEBUG] update #${call_rate_debug_count - debug_updates_remaining[name] + 1} for '${name}'`);
             if (deps[name] && Object.keys(deps[name]).length > 0) {
@@ -606,7 +674,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.51.1'
+        v: '1.52.2'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
