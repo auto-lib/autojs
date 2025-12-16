@@ -184,14 +184,33 @@ let auto = (obj,opt) => {
         excessive_functions_collected.forEach(fn_name => {
             let roots = find_root_causes(fn_name);
             roots.forEach(root => {
-                if (!root_cause_map[root]) root_cause_map[root] = [];
-                root_cause_map[root].push(fn_name);
+                if (static_value_history[root] && static_value_history[root].length > 0) {
+                    if (!root_cause_map[root]) root_cause_map[root] = [];
+                    root_cause_map[root].push(fn_name);
+                }
             });
         });
         console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
         console.log(`${tag?'['+tag+'] ':''}EXCESSIVE UPDATES DETECTED - Root Cause Analysis`);
         console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
         console.log('');
+        if (Object.keys(root_cause_map).length === 0) {
+            console.log(`${tag?'['+tag+'] ':''}No root causes with tracked changes found.`);
+            console.log('');
+            console.log(`${tag?'['+tag+'] ':''}Affected functions (${excessive_functions_collected.size}):`);
+            excessive_functions_collected.forEach(fn_name => {
+                console.log(`  ${fn_name}`);
+            });
+            console.log('');
+            console.log(`${tag?'['+tag+'] ':''}This likely means:`);
+            console.log(`  - Changes happened during initialization (before tracking started)`);
+            console.log(`  - Or updates are triggered by async operations completing`);
+            console.log(`  - Or functions are being called internally without setter being called`);
+            console.log('');
+            console.log(`${tag?'['+tag+'] ':''}All affected functions backed off for ${call_rate_backoff}ms`);
+            console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+            return;
+        }
         let sorted_roots = Object.entries(root_cause_map)
             .sort((a, b) => b[1].length - a[1].length);
         sorted_roots.forEach(([root, affected_fns]) => {
@@ -729,7 +748,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.53.4'
+        v: '1.53.5'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

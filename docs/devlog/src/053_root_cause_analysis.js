@@ -289,8 +289,11 @@ let auto = (obj,opt) => {
         excessive_functions_collected.forEach(fn_name => {
             let roots = find_root_causes(fn_name);
             roots.forEach(root => {
-                if (!root_cause_map[root]) root_cause_map[root] = [];
-                root_cause_map[root].push(fn_name);
+                // Only include roots that have actual change history
+                if (static_value_history[root] && static_value_history[root].length > 0) {
+                    if (!root_cause_map[root]) root_cause_map[root] = [];
+                    root_cause_map[root].push(fn_name);
+                }
             });
         });
 
@@ -299,6 +302,25 @@ let auto = (obj,opt) => {
         console.log(`${tag?'['+tag+'] ':''}EXCESSIVE UPDATES DETECTED - Root Cause Analysis`);
         console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
         console.log('');
+
+        // Check if we found any roots with changes
+        if (Object.keys(root_cause_map).length === 0) {
+            console.log(`${tag?'['+tag+'] ':''}No root causes with tracked changes found.`);
+            console.log('');
+            console.log(`${tag?'['+tag+'] ':''}Affected functions (${excessive_functions_collected.size}):`);
+            excessive_functions_collected.forEach(fn_name => {
+                console.log(`  ${fn_name}`);
+            });
+            console.log('');
+            console.log(`${tag?'['+tag+'] ':''}This likely means:`);
+            console.log(`  - Changes happened during initialization (before tracking started)`);
+            console.log(`  - Or updates are triggered by async operations completing`);
+            console.log(`  - Or functions are being called internally without setter being called`);
+            console.log('');
+            console.log(`${tag?'['+tag+'] ':''}All affected functions backed off for ${call_rate_backoff}ms`);
+            console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+            return;
+        }
 
         // Sort root causes by number of affected functions
         let sorted_roots = Object.entries(root_cause_map)
