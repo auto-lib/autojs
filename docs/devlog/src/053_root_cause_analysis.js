@@ -917,11 +917,6 @@ let auto = (obj,opt) => {
             return;
         }
 
-        // Record static variable change for root cause analysis (NEW in 053)
-        // Do this BEFORE early returns so we capture all attempted sets
-        let old_val = value[name];
-        record_static_change(name, old_val, val);
-
         // Skip if both old and new values are falsy (null, undefined, 0, false, '')
         if (!value[name] && !val) return;
 
@@ -934,7 +929,11 @@ let auto = (obj,opt) => {
 
         if (count && name in counts) counts[name]['setter'] += 1;
 
+        // Record static variable change for root cause analysis (NEW in 053)
+        // Do this AFTER early returns so we only track changes that actually propagate
+        let old_val = value[name];
         value[name] = val; // save
+        record_static_change(name, old_val, val);
 
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[setter]`,name,'=',value[name],get_vars(name).deps);
 

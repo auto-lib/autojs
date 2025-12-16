@@ -614,15 +614,15 @@ let auto = (obj,opt) => {
             fail('outside code trying to set unknown variable '+name);
             return;
         }
-        let old_val = value[name];
-        record_static_change(name, old_val, val);
         if (!value[name] && !val) return;
         if (value[name] === val && (typeof val !== 'object' || val === null)) {
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}[no change] ${name} already equals`,val);
             return;
         }
         if (count && name in counts) counts[name]['setter'] += 1;
+        let old_val = value[name];
         value[name] = val;
+        record_static_change(name, old_val, val);
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[setter]`,name,'=',value[name],get_vars(name).deps);
         if (in_batch) {
             batch_triggers.push({ name, value: val });
@@ -748,7 +748,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.53.5'
+        v: '1.53.6'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
