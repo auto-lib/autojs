@@ -53,8 +53,11 @@ let auto = (obj,opt) => {
     let max_calls_per_second = opt && 'max_calls_per_second' in opt ? opt.max_calls_per_second : 10;
     let call_rate_window = opt && 'call_rate_window' in opt ? opt.call_rate_window : 1000;
     let call_rate_backoff = opt && 'call_rate_backoff' in opt ? opt.call_rate_backoff : 5000;
+    let call_rate_debug_count = opt && 'call_rate_debug_count' in opt ? opt.call_rate_debug_count : 10;
     let call_timestamps = {};
     let backed_off_functions = {};
+    let debug_updates_remaining = {};
+    let current_triggers = [];
     let get_vars = (name,array_only) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
@@ -108,15 +111,31 @@ let auto = (obj,opt) => {
         call_timestamps[name] = call_timestamps[name].filter(t => t >= window_start);
         if (call_timestamps[name].length > max_calls_per_second) {
             if (!backed_off_functions[name]) {
+                console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
                 console.log(`${tag?'['+tag+'] ':''}EXCESSIVE CALLS detected for function '${name}'`);
                 console.log(`  calls: ${call_timestamps[name].length} in ${call_rate_window}ms (threshold: ${max_calls_per_second})`);
                 console.log(`  stack:`, stack);
+                if (deps[name] && Object.keys(deps[name]).length > 0) {
+                    console.log(`  dependencies:`, Object.keys(deps[name]));
+                    console.log(`  current values:`, Object.keys(deps[name]).reduce((acc, dep) => {
+                        acc[dep] = value[dep];
+                        return acc;
+                    }, {}));
+                } else {
+                    console.log(`  dependencies: none`);
+                }
+                if (dependents[name] && Object.keys(dependents[name]).length > 0) {
+                    console.log(`  affects:`, Object.keys(dependents[name]));
+                }
                 console.log(`  backing off for ${call_rate_backoff}ms`);
+                console.log(`  will log next ${call_rate_debug_count} updates after backoff to help debug`);
+                console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
                 backed_off_functions[name] = true;
                 setTimeout(() => {
                     delete backed_off_functions[name];
                     call_timestamps[name] = [];
-                    console.log(`${tag?'['+tag+'] ':''}Backoff period ended for '${name}' - resuming updates`);
+                    debug_updates_remaining[name] = call_rate_debug_count;
+                    console.log(`${tag?'['+tag+'] ':''}Backoff period ended for '${name}' - resuming updates (will log next ${call_rate_debug_count} updates)`);
                 }, call_rate_backoff);
             }
         }
@@ -127,6 +146,30 @@ let auto = (obj,opt) => {
         if (backed_off_functions[name]) {
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}skipping ${name} - in backoff mode`);
             return;
+        }
+        if (debug_updates_remaining[name] && debug_updates_remaining[name] > 0) {
+            console.log(`${tag?'['+tag+'] ':''}[DEBUG] update #${call_rate_debug_count - debug_updates_remaining[name] + 1} for '${name}'`);
+            if (deps[name] && Object.keys(deps[name]).length > 0) {
+                let triggering_deps = current_triggers
+                    .map(t => t.name)
+                    .filter(t => t in deps[name]);
+                if (triggering_deps.length > 0) {
+                    console.log(`  triggered by:`, triggering_deps);
+                    triggering_deps.forEach(dep => {
+                        let trigger = current_triggers.find(t => t.name === dep);
+                        if (trigger) {
+                            console.log(`    ${dep} = ${JSON.stringify(trigger.value)}`);
+                        }
+                    });
+                } else {
+                    console.log(`  triggered by: indirect dependency change`);
+                }
+            }
+            debug_updates_remaining[name]--;
+            if (debug_updates_remaining[name] === 0) {
+                delete debug_updates_remaining[name];
+                console.log(`${tag?'['+tag+'] ':''}[DEBUG] logging complete for '${name}'`);
+            }
         }
         if (name in watch && caller)
         {
@@ -361,6 +404,7 @@ let auto = (obj,opt) => {
             triggers = [triggers];
         }
         txn_counter += 1;
+        current_triggers = triggers;
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}[txn ${txn_counter}] propagating changes from`, triggers.map(t => t.name).join(', '));
         let affected = new Set();
         triggers.forEach(trigger => {

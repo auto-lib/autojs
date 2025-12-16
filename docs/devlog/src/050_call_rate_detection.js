@@ -1,18 +1,26 @@
 
-// 050: Call Rate Detection with Backoff
+// 050: Call Rate Detection with Backoff and Debug Logging
 //
 // Add detection for functions being called excessively (potential infinite loops).
 // If a function is called more than max_calls_per_second times within call_rate_window,
-// it logs a warning to console and temporarily stops updating that function (backoff).
+// it logs detailed debug info to console and temporarily stops updating that function (backoff).
+// After backoff ends, it automatically logs the next N updates to help identify the cause.
 // The rest of the system continues working normally.
 //
 // This helps debug situations where a function is being triggered repeatedly,
 // possibly due to circular dependencies or reactive loops, without breaking the entire app.
 //
+// When backoff is triggered, it logs:
+//   - How many calls occurred
+//   - The function's dependencies and their current values
+//   - What other functions depend on it (will be affected by backoff)
+//   - After backoff: logs the next N updates showing which dependencies triggered each one
+//
 // Options:
 //   max_calls_per_second: number (default: 10) - threshold for backoff
 //   call_rate_window: number (default: 1000ms) - time window to measure calls
 //   call_rate_backoff: number (default: 5000ms) - how long to pause updates for that function
+//   call_rate_debug_count: number (default: 10) - how many updates to log after backoff ends
 
 // the biggest thing to understand is the distinction between static and
 // dynamic values. static values can only be changed from the outside
@@ -87,8 +95,11 @@ let auto = (obj,opt) => {
     let max_calls_per_second = opt && 'max_calls_per_second' in opt ? opt.max_calls_per_second : 10;
     let call_rate_window = opt && 'call_rate_window' in opt ? opt.call_rate_window : 1000;
     let call_rate_backoff = opt && 'call_rate_backoff' in opt ? opt.call_rate_backoff : 5000; // backoff period in ms
+    let call_rate_debug_count = opt && 'call_rate_debug_count' in opt ? opt.call_rate_debug_count : 10; // how many updates to log after backoff
     let call_timestamps = {}; // track timestamps of function calls per function
     let backed_off_functions = {}; // functions currently in backoff mode
+    let debug_updates_remaining = {}; // remaining debug logs for each function
+    let current_triggers = []; // current transaction's triggers (for debug logging)
 
     // used when a function (of a dynamic variable) causes an exception / has an error
     // we print out all the values of the dependent variables of the function
@@ -179,18 +190,39 @@ let auto = (obj,opt) => {
         if (call_timestamps[name].length > max_calls_per_second) {
             // Don't fail - just back off for a period
             if (!backed_off_functions[name]) {
+                console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
                 console.log(`${tag?'['+tag+'] ':''}EXCESSIVE CALLS detected for function '${name}'`);
                 console.log(`  calls: ${call_timestamps[name].length} in ${call_rate_window}ms (threshold: ${max_calls_per_second})`);
                 console.log(`  stack:`, stack);
+
+                // Show what this function depends on
+                if (deps[name] && Object.keys(deps[name]).length > 0) {
+                    console.log(`  dependencies:`, Object.keys(deps[name]));
+                    console.log(`  current values:`, Object.keys(deps[name]).reduce((acc, dep) => {
+                        acc[dep] = value[dep];
+                        return acc;
+                    }, {}));
+                } else {
+                    console.log(`  dependencies: none`);
+                }
+
+                // Show what depends on this function (what will break when we back off)
+                if (dependents[name] && Object.keys(dependents[name]).length > 0) {
+                    console.log(`  affects:`, Object.keys(dependents[name]));
+                }
+
                 console.log(`  backing off for ${call_rate_backoff}ms`);
+                console.log(`  will log next ${call_rate_debug_count} updates after backoff to help debug`);
+                console.log(`${tag?'['+tag+'] ':''}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
                 backed_off_functions[name] = true;
 
-                // Schedule backoff removal
+                // Schedule backoff removal and enable debug logging
                 setTimeout(() => {
                     delete backed_off_functions[name];
                     call_timestamps[name] = []; // reset call history
-                    console.log(`${tag?'['+tag+'] ':''}Backoff period ended for '${name}' - resuming updates`);
+                    debug_updates_remaining[name] = call_rate_debug_count; // enable debug logging
+                    console.log(`${tag?'['+tag+'] ':''}Backoff period ended for '${name}' - resuming updates (will log next ${call_rate_debug_count} updates)`);
                 }, call_rate_backoff);
             }
         }
@@ -209,6 +241,37 @@ let auto = (obj,opt) => {
         if (backed_off_functions[name]) {
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}skipping ${name} - in backoff mode`);
             return;
+        }
+
+        // Debug logging for functions that recently backed off
+        if (debug_updates_remaining[name] && debug_updates_remaining[name] > 0) {
+            console.log(`${tag?'['+tag+'] ':''}[DEBUG] update #${call_rate_debug_count - debug_updates_remaining[name] + 1} for '${name}'`);
+
+            // Show which dependencies triggered this update
+            if (deps[name] && Object.keys(deps[name]).length > 0) {
+                let triggering_deps = current_triggers
+                    .map(t => t.name)
+                    .filter(t => t in deps[name]);
+
+                if (triggering_deps.length > 0) {
+                    console.log(`  triggered by:`, triggering_deps);
+                    triggering_deps.forEach(dep => {
+                        let trigger = current_triggers.find(t => t.name === dep);
+                        if (trigger) {
+                            console.log(`    ${dep} = ${JSON.stringify(trigger.value)}`);
+                        }
+                    });
+                } else {
+                    console.log(`  triggered by: indirect dependency change`);
+                }
+            }
+
+            debug_updates_remaining[name]--;
+
+            if (debug_updates_remaining[name] === 0) {
+                delete debug_updates_remaining[name];
+                console.log(`${tag?'['+tag+'] ':''}[DEBUG] logging complete for '${name}'`);
+            }
         }
 
         if (name in watch && caller)
@@ -524,6 +587,9 @@ let auto = (obj,opt) => {
         }
 
         txn_counter += 1;
+
+        // Set current triggers for debug logging
+        current_triggers = triggers;
 
         if (deep_log) console.log(`${tag?'['+tag+'] ':''}[txn ${txn_counter}] propagating changes from`, triggers.map(t => t.name).join(', '));
 
