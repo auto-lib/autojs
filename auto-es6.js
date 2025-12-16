@@ -63,6 +63,7 @@ let auto = (obj,opt) => {
     let excessive_functions_collected = new Set();
     let excessive_collection_timer = null;
     let collecting_excessive_calls = false;
+    let collection_start_time = 0;
     let get_vars = (name,array_only) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
@@ -193,16 +194,22 @@ let auto = (obj,opt) => {
             .sort((a, b) => b[1].length - a[1].length);
         sorted_roots.forEach(([root, affected_fns]) => {
             let history = static_value_history[root] || [];
+            let now = performance.now();
             let recent = history.slice(-10);
+            let oldest_timestamp = recent.length > 0 ? recent[0].timestamp : now;
+            let time_span = now - oldest_timestamp;
             console.log(`${tag?'['+tag+'] ':''}Root Cause: '${root}' (static variable)`);
-            console.log(`  ${history.length} changes in last ${call_rate_window}ms`);
+            console.log(`  ${history.length} changes tracked (showing last ${recent.length})`);
             console.log('');
             if (recent.length > 0) {
                 console.log(`  Recent changes to ${root}:`);
                 recent.forEach((change, i) => {
-                    let ago = (performance.now() - change.timestamp).toFixed(1);
+                    let ago = (now - change.timestamp).toFixed(1);
                     console.log(`    [${ago}ms ago] ${format_value(change.old)} → ${format_value(change.new)}`);
                 });
+                console.log('');
+            } else {
+                console.log(`  (no changes recorded - may have been set before tracking started)`);
                 console.log('');
             }
             console.log(`  Affected functions (${affected_fns.length}):`);
@@ -234,6 +241,7 @@ let auto = (obj,opt) => {
                 backed_off_functions[name] = true;
                 if (!collecting_excessive_calls) {
                     collecting_excessive_calls = true;
+                    collection_start_time = performance.now();
                     if (deep_log) console.log(`${tag?'['+tag+'] ':''}[excessive calls] Starting ${excessive_calls_collection_period}ms collection period...`);
                     excessive_collection_timer = setTimeout(() => {
                         generate_root_cause_report();
@@ -585,15 +593,15 @@ let auto = (obj,opt) => {
             fail('outside code trying to set unknown variable '+name);
             return;
         }
+        let old_val = value[name];
+        record_static_change(name, old_val, val);
         if (!value[name] && !val) return;
         if (value[name] === val && (typeof val !== 'object' || val === null)) {
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}[no change] ${name} already equals`,val);
             return;
         }
         if (count && name in counts) counts[name]['setter'] += 1;
-        let old_val = value[name];
         value[name] = val;
-        record_static_change(name, old_val, val);
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[setter]`,name,'=',value[name],get_vars(name).deps);
         if (in_batch) {
             batch_triggers.push({ name, value: val });
@@ -719,7 +727,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.53.1'
+        v: '1.53.4'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

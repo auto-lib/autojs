@@ -109,6 +109,7 @@ let auto = (obj,opt) => {
     let excessive_functions_collected = new Set(); // functions with excessive calls during collection
     let excessive_collection_timer = null; // timer for collection period
     let collecting_excessive_calls = false; // are we currently in collection mode?
+    let collection_start_time = 0; // when collection started
 
     // used when a function (of a dynamic variable) causes an exception / has an error
     // we print out all the values of the dependent variables of the function
@@ -305,18 +306,30 @@ let auto = (obj,opt) => {
 
         sorted_roots.forEach(([root, affected_fns]) => {
             let history = static_value_history[root] || [];
-            let recent = history.slice(-10); // last 10 changes
+
+            // Show all available changes (they're recent since we cap the history)
+            let now = performance.now();
+
+            // Get last 10 for display
+            let recent = history.slice(-10);
+
+            // Calculate time span of changes shown
+            let oldest_timestamp = recent.length > 0 ? recent[0].timestamp : now;
+            let time_span = now - oldest_timestamp;
 
             console.log(`${tag?'['+tag+'] ':''}Root Cause: '${root}' (static variable)`);
-            console.log(`  ${history.length} changes in last ${call_rate_window}ms`);
+            console.log(`  ${history.length} changes tracked (showing last ${recent.length})`);
             console.log('');
 
             if (recent.length > 0) {
                 console.log(`  Recent changes to ${root}:`);
                 recent.forEach((change, i) => {
-                    let ago = (performance.now() - change.timestamp).toFixed(1);
+                    let ago = (now - change.timestamp).toFixed(1);
                     console.log(`    [${ago}ms ago] ${format_value(change.old)} → ${format_value(change.new)}`);
                 });
+                console.log('');
+            } else {
+                console.log(`  (no changes recorded - may have been set before tracking started)`);
                 console.log('');
             }
 
@@ -365,6 +378,7 @@ let auto = (obj,opt) => {
                 // If this is the first excessive function, start collection timer
                 if (!collecting_excessive_calls) {
                     collecting_excessive_calls = true;
+                    collection_start_time = performance.now();
                     if (deep_log) console.log(`${tag?'['+tag+'] ':''}[excessive calls] Starting ${excessive_calls_collection_period}ms collection period...`);
 
                     excessive_collection_timer = setTimeout(() => {
@@ -881,6 +895,11 @@ let auto = (obj,opt) => {
             return;
         }
 
+        // Record static variable change for root cause analysis (NEW in 053)
+        // Do this BEFORE early returns so we capture all attempted sets
+        let old_val = value[name];
+        record_static_change(name, old_val, val);
+
         // Skip if both old and new values are falsy (null, undefined, 0, false, '')
         if (!value[name] && !val) return;
 
@@ -893,10 +912,7 @@ let auto = (obj,opt) => {
 
         if (count && name in counts) counts[name]['setter'] += 1;
 
-        // Record static variable change for root cause analysis (NEW in 053)
-        let old_val = value[name];
         value[name] = val; // save
-        record_static_change(name, old_val, val);
 
         if (name in watch) console.log(`${tag?'['+tag+'] ':''}[setter]`,name,'=',value[name],get_vars(name).deps);
 
