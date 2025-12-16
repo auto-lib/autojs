@@ -250,16 +250,23 @@ let auto = (obj,opt) => {
         console.log(`${tag?'['+tag+'] ':''}Transaction Activity During Collection:`);
         console.log(`  ${transaction_log.length} transactions in ~${(performance.now() - collection_start_time).toFixed(0)}ms`);
         console.log('');
+        let backed_off_list = Array.from(excessive_functions_collected);
+        if (backed_off_list.length > 0) {
+            console.log(`  Functions that exceeded threshold (backed off):`);
+            backed_off_list.slice(0, 20).forEach(name => {
+                let timestamps = call_timestamps[name] || [];
+                console.log(`    ${name}: ${timestamps.length} calls in ${call_rate_window}ms when threshold exceeded`);
+            });
+            console.log('');
+        }
         let sorted_call_counts = Object.entries(function_call_counts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 20);
         if (sorted_call_counts.length > 0) {
-            console.log(`  Most frequently updated functions:`);
+            console.log(`  Function calls during collection period (after backoff):`);
             sorted_call_counts.forEach(([name, count]) => {
                 let rate_per_second = (count / ((performance.now() - collection_start_time) / 1000)).toFixed(1);
-                let exceeded = count > max_calls_per_second;
-                let marker = exceeded ? ' ⚠️  EXCEEDED THRESHOLD' : '';
-                console.log(`    ${name}: ${count} calls (${rate_per_second}/sec)${marker}`);
+                console.log(`    ${name}: ${count} calls (${rate_per_second}/sec)`);
             });
             console.log('');
         }
@@ -830,7 +837,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.53.10'
+        v: '1.53.11'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

@@ -374,18 +374,28 @@ let auto = (obj,opt) => {
         console.log(`  ${transaction_log.length} transactions in ~${(performance.now() - collection_start_time).toFixed(0)}ms`);
         console.log('');
 
-        // Show function call counts (which functions were updated most frequently)
+        // Show which functions exceeded the threshold (these were backed off)
+        let backed_off_list = Array.from(excessive_functions_collected);
+        if (backed_off_list.length > 0) {
+            console.log(`  Functions that exceeded threshold (backed off):`);
+            backed_off_list.slice(0, 20).forEach(name => {
+                // Show how many calls they had when threshold was exceeded
+                let timestamps = call_timestamps[name] || [];
+                console.log(`    ${name}: ${timestamps.length} calls in ${call_rate_window}ms when threshold exceeded`);
+            });
+            console.log('');
+        }
+
+        // Show function call counts during collection period (after backoff)
         let sorted_call_counts = Object.entries(function_call_counts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 20); // top 20
 
         if (sorted_call_counts.length > 0) {
-            console.log(`  Most frequently updated functions:`);
+            console.log(`  Function calls during collection period (after backoff):`);
             sorted_call_counts.forEach(([name, count]) => {
                 let rate_per_second = (count / ((performance.now() - collection_start_time) / 1000)).toFixed(1);
-                let exceeded = count > max_calls_per_second;
-                let marker = exceeded ? ' ⚠️  EXCEEDED THRESHOLD' : '';
-                console.log(`    ${name}: ${count} calls (${rate_per_second}/sec)${marker}`);
+                console.log(`    ${name}: ${count} calls (${rate_per_second}/sec)`);
             });
             console.log('');
         }

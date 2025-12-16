@@ -1,6 +1,6 @@
 {
   "name": "@autolib/auto",
-  "version": "1.53.10",
+  "version": "1.53.11",
   "description": "reactivity without side effects",
   "main": "auto-es6.js",
   "type": "module",
