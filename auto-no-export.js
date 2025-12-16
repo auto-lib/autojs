@@ -66,6 +66,7 @@ let auto = (obj,opt) => {
     let collection_start_time = 0;
     let transaction_log = [];
     let transaction_log_size = 50;
+    let function_call_counts = {};
     let get_vars = (name,array_only) => {
         let o = { deps: {}, value: value[name] };
         if (name in deps)
@@ -247,6 +248,19 @@ let auto = (obj,opt) => {
         console.log(`${tag?'['+tag+'] ':''}Transaction Activity During Collection:`);
         console.log(`  ${transaction_log.length} transactions in ~${(performance.now() - collection_start_time).toFixed(0)}ms`);
         console.log('');
+        let sorted_call_counts = Object.entries(function_call_counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20);
+        if (sorted_call_counts.length > 0) {
+            console.log(`  Most frequently updated functions:`);
+            sorted_call_counts.forEach(([name, count]) => {
+                let rate_per_second = (count / ((performance.now() - collection_start_time) / 1000)).toFixed(1);
+                let exceeded = count > max_calls_per_second;
+                let marker = exceeded ? ' ⚠️  EXCEEDED THRESHOLD' : '';
+                console.log(`    ${name}: ${count} calls (${rate_per_second}/sec)${marker}`);
+            });
+            console.log('');
+        }
         let trigger_counts = {};
         transaction_log.forEach(txn => {
             txn.triggers.forEach(t => {
@@ -299,6 +313,7 @@ let auto = (obj,opt) => {
                         collecting_excessive_calls = false;
                         excessive_functions_collected.clear();
                         transaction_log = [];
+                        function_call_counts = {};
                         setTimeout(() => {
                             Object.keys(backed_off_functions).forEach(fn_name => {
                                 delete backed_off_functions[fn_name];
@@ -315,6 +330,10 @@ let auto = (obj,opt) => {
     let update = (name,src,caller) => {
         if (deep_log&&(src||caller)) console.log(`${tag?'['+tag+'] ':''}updating ${name}`,src?'because '+src:'',caller?'called by '+caller:'');
         if (value[name]) return;
+        if (collecting_excessive_calls) {
+            if (!function_call_counts[name]) function_call_counts[name] = 0;
+            function_call_counts[name]++;
+        }
         if (backed_off_functions[name]) {
             if (deep_log) console.log(`${tag?'['+tag+'] ':''}skipping ${name} - in backoff mode`);
             return;
@@ -809,7 +828,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.53.9'
+        v: '1.53.10'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

@@ -112,6 +112,7 @@ let auto = (obj,opt) => {
     let collection_start_time = 0; // when collection started
     let transaction_log = []; // log of all transactions during collection
     let transaction_log_size = 50; // keep last 50 transactions
+    let function_call_counts = {}; // track how many times each function was called during collection
 
     // used when a function (of a dynamic variable) causes an exception / has an error
     // we print out all the values of the dependent variables of the function
@@ -373,6 +374,22 @@ let auto = (obj,opt) => {
         console.log(`  ${transaction_log.length} transactions in ~${(performance.now() - collection_start_time).toFixed(0)}ms`);
         console.log('');
 
+        // Show function call counts (which functions were updated most frequently)
+        let sorted_call_counts = Object.entries(function_call_counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20); // top 20
+
+        if (sorted_call_counts.length > 0) {
+            console.log(`  Most frequently updated functions:`);
+            sorted_call_counts.forEach(([name, count]) => {
+                let rate_per_second = (count / ((performance.now() - collection_start_time) / 1000)).toFixed(1);
+                let exceeded = count > max_calls_per_second;
+                let marker = exceeded ? ' ⚠️  EXCEEDED THRESHOLD' : '';
+                console.log(`    ${name}: ${count} calls (${rate_per_second}/sec)${marker}`);
+            });
+            console.log('');
+        }
+
         // Group transactions by trigger to show patterns
         let trigger_counts = {};
         transaction_log.forEach(txn => {
@@ -451,6 +468,7 @@ let auto = (obj,opt) => {
                         collecting_excessive_calls = false;
                         excessive_functions_collected.clear();
                         transaction_log = []; // clear transaction log
+                        function_call_counts = {}; // clear call counts
 
                         // Schedule backoff removal for all backed-off functions
                         setTimeout(() => {
@@ -475,6 +493,12 @@ let auto = (obj,opt) => {
         if (deep_log&&(src||caller)) console.log(`${tag?'['+tag+'] ':''}updating ${name}`,src?'because '+src:'',caller?'called by '+caller:'');
 
         if (value[name]) return;
+
+        // Track function calls during collection (NEW in 053)
+        if (collecting_excessive_calls) {
+            if (!function_call_counts[name]) function_call_counts[name] = 0;
+            function_call_counts[name]++;
+        }
 
         // Skip if function is in backoff mode
         if (backed_off_functions[name]) {
