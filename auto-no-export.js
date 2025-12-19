@@ -451,14 +451,19 @@ let auto = (obj,opt) => {
         }
         return value[name];
     }
-    let deep_equal = (a, b) => {
+    let deep_equal = (a, b, cache) => {
         if (a === b) return true;
         if (a == null || b == null) return false;
         if (typeof a !== 'object' || typeof b !== 'object') return false;
+        if (!cache) cache = new Map();
+        if (cache.has(a)) {
+            return cache.get(a) === b;
+        }
+        cache.set(a, b);
         if (Array.isArray(a) && Array.isArray(b)) {
             if (a.length !== b.length) return false;
             for (let i = 0; i < a.length; i++) {
-                if (!deep_equal(a[i], b[i])) return false;
+                if (!deep_equal(a[i], b[i], cache)) return false;
             }
             return true;
         }
@@ -468,7 +473,7 @@ let auto = (obj,opt) => {
         if (keysA.length !== keysB.length) return false;
         for (let key of keysA) {
             if (!keysB.includes(key)) return false;
-            if (!deep_equal(a[key], b[key])) return false;
+            if (!deep_equal(a[key], b[key], cache)) return false;
         }
         return true;
     };
@@ -846,7 +851,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.53.13'
+        v: '1.54.0'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {
