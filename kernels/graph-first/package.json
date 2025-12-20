@@ -1,0 +1,17 @@
+{
+  "name": "auto-graph-first",
+  "version": "0.1.0",
+  "description": "Graph-first architecture exploration for Auto.js",
+  "type": "module",
+  "main": "src/graph-first.js",
+  "scripts": {
+    "test": "node tests/basic.test.js",
+    "example": "node example.js",
+    "demo-static": "node src/static-analysis.js",
+    "demo-runtime": "node src/runtime-tracking.js",
+    "demo-explicit": "node src/explicit-deps.js"
+  },
+  "keywords": ["reactive", "graph", "dataflow"],
+  "author": "",
+  "license": "ISC"
+}

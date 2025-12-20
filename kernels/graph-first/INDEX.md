@@ -21,7 +21,16 @@ Once you understand the concept:
    - Dynamic dependency problem and solutions
    - Alternative graph-centered architectures
 
-5. **[VISUAL-GUIDE.md](VISUAL-GUIDE.md)** - Diagrams and visual explanations
+5. **[DYNAMIC-DEPENDENCIES.md](DYNAMIC-DEPENDENCIES.md)** - Solving the dynamic dependency problem
+   - **The core question**: If the graph is built once, how do we handle conditional dependencies?
+   - **Three strategies** with implementations:
+     - Static Analysis (conservative, simple)
+     - Runtime Tracking (precise, complex)
+     - Explicit Dependencies (manual, exact)
+   - **Comparison and recommendation**
+   - Working code examples in `src/`
+
+6. **[VISUAL-GUIDE.md](VISUAL-GUIDE.md)** - Diagrams and visual explanations
    - Layer diagrams
    - Graph structure visualizations
    - Flow diagrams for initialization and updates
@@ -29,19 +38,39 @@ Once you understand the concept:
 
 ## Code
 
-6. **[src/graph-first.js](src/graph-first.js)** - The implementation (~300 lines)
+7. **[src/graph-first.js](src/graph-first.js)** - The implementation (~300 lines)
    - ReactiveGraph class (immutable structure)
    - GraphState class (mutable values)
    - Auto API function (proxy wrapper)
 
-7. **[example.js](example.js)** - Working demonstration
-   - Basic usage
-   - Graph introspection
-   - Visualization
+8. **[src/static-analysis.js](src/static-analysis.js)** - Strategy 1: Static dependency discovery
+   - Parse function source to find all `$.property` accesses
+   - Conservative but correct
+   - Run demo: `node src/static-analysis.js`
 
-8. **[tests/basic.test.js](tests/basic.test.js)** - Test suite
-   - 15 tests covering core functionality
-   - Run with: `node tests/basic.test.js`
+9. **[src/runtime-tracking.js](src/runtime-tracking.js)** - Strategy 2: Runtime tracking
+   - Track actual dependencies during execution
+   - Graph becomes mutable but precise
+   - Run demo: `node src/runtime-tracking.js`
+
+10. **[src/explicit-deps.js](src/explicit-deps.js)** - Strategy 3: Explicit dependencies
+    - User declares dependencies manually
+    - Like React's `useEffect` deps array
+    - Run demo: `node src/explicit-deps.js`
+
+11. **[example.js](example.js)** - Working demonstration
+    - Basic usage
+    - Graph introspection
+    - Visualization
+
+12. **[tests/basic.test.js](tests/basic.test.js)** - Test suite
+    - 15 tests covering core functionality
+    - Run with: `node tests/basic.test.js`
+
+13. **[tests/compare-strategies.test.js](tests/compare-strategies.test.js)** - Strategy comparison
+    - Side-by-side demonstration of all three approaches
+    - Shows trade-offs clearly
+    - Run with: `node tests/compare-strategies.test.js`
 
 ## Quick Start
 
