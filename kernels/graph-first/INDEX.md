@@ -10,22 +10,47 @@ If you're new to this kernel, read in this order:
 2. **[README.md](README.md)** - Overview of the graph-first approach
 3. **[THREE-LAYERS.md](THREE-LAYERS.md)** - ⭐ **The correct architecture: three independent layers**
 4. **[LAYERED-IMPLEMENTATION.md](LAYERED-IMPLEMENTATION.md)** - ⭐ **Complete working implementation**
-5. **[WHAT-IS-DIFFERENT.md](WHAT-IS-DIFFERENT.md)** - Current Auto.js IS a graph too! So what's different?
-6. **[DETAILED-COMPARISON.md](DETAILED-COMPARISON.md)** - Deep dive into how current Auto.js actually works vs graph-first
-7. **[COMPARISON.md](COMPARISON.md)** - Side-by-side complexity comparison
+5. **[docs/MIGRATION-GUIDE.md](docs/MIGRATION-GUIDE.md)** - ⭐ **How to migrate from current Auto.js**
+6. **[docs/STRATEGY-GUIDE.md](docs/STRATEGY-GUIDE.md)** - ⭐ **Choosing dependency tracking strategies**
+7. **[WHAT-IS-DIFFERENT.md](WHAT-IS-DIFFERENT.md)** - Current Auto.js IS a graph too! So what's different?
+8. **[DETAILED-COMPARISON.md](DETAILED-COMPARISON.md)** - Deep dive into how current Auto.js actually works vs graph-first
+9. **[docs/SIDE-BY-SIDE.md](docs/SIDE-BY-SIDE.md)** - Same code in both architectures
+10. **[COMPARISON.md](COMPARISON.md)** - Side-by-side complexity comparison
+
+## Practical Guides
+
+Once you understand the architecture:
+
+11. **[docs/MIGRATION-GUIDE.md](docs/MIGRATION-GUIDE.md)** - ⭐ **Converting existing Auto.js code**
+    - API compatibility guide
+    - Step-by-step migration process
+    - Common issues and solutions
+    - Test conversion examples
+
+12. **[docs/STRATEGY-GUIDE.md](docs/STRATEGY-GUIDE.md)** - ⭐ **Choosing the right strategy**
+    - Static Analysis vs Runtime Tracking vs Explicit
+    - Decision tree and comparison table
+    - Real-world examples
+    - Common mistakes to avoid
+
+13. **[docs/SIDE-BY-SIDE.md](docs/SIDE-BY-SIDE.md)** - ⭐ **Direct comparison**
+    - Same code in both architectures
+    - What happens under the hood
+    - Performance characteristics
+    - Feature comparison table
 
 ## Deep Dive
 
-Once you understand the concept:
+For technical deep dives:
 
-8. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete technical walkthrough (original version)
+14. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete technical walkthrough (original version)
    - Core components explained
    - Step-by-step initialization flow
    - Step-by-step update flow
    - Dynamic dependency problem and solutions
    - Alternative graph-centered architectures
 
-9. **[DYNAMIC-DEPENDENCIES.md](DYNAMIC-DEPENDENCIES.md)** - ⭐ **Solving the dynamic dependency problem**
+15. **[DYNAMIC-DEPENDENCIES.md](DYNAMIC-DEPENDENCIES.md)** - ⭐ **Solving the dynamic dependency problem**
    - **The core question**: If the graph is built once, how do we handle conditional dependencies?
    - **Three strategies** with implementations:
      - Static Analysis (conservative, simple)
@@ -36,7 +61,7 @@ Once you understand the concept:
    - **[QUICKSTART.md](QUICKSTART.md)** - Run the demos
    - Working code examples in `src/`
 
-10. **[VISUAL-GUIDE.md](VISUAL-GUIDE.md)** - Diagrams and visual explanations (original version)
+16. **[VISUAL-GUIDE.md](VISUAL-GUIDE.md)** - Diagrams and visual explanations (original version)
    - Layer diagrams
    - Graph structure visualizations
    - Flow diagrams for initialization and updates
@@ -46,73 +71,73 @@ Once you understand the concept:
 
 **Three-Layer Implementation (RECOMMENDED):**
 
-11. **[src/layer1-graph.js](src/layer1-graph.js)** - Pure DirectedGraph (~270 lines)
+17. **[src/layer1-graph.js](src/layer1-graph.js)** - Pure DirectedGraph (~270 lines)
     - Generic graph data structure
     - No Auto.js knowledge
     - Reusable for anything
     - Run demo: `node example-layered.js`
 
-12. **[src/layer2-graph-builder.js](src/layer2-graph-builder.js)** - Graph builders (~230 lines)
+18. **[src/layer2-graph-builder.js](src/layer2-graph-builder.js)** - Graph builders (~230 lines)
     - StaticAnalysisBuilder (parse source)
     - RuntimeTrackingBuilder (proxy tracking)
     - ExplicitBuilder (user declaration)
     - Strategies are swappable
 
-13. **[src/layer3-reactive.js](src/layer3-reactive.js)** - ReactiveSystem (~120 lines)
+19. **[src/layer3-reactive.js](src/layer3-reactive.js)** - ReactiveSystem (~120 lines)
     - Uses any DirectedGraph
     - Manages values and dirty tracking
     - Decoupled from graph building
 
-14. **[src/auto-layered.js](src/auto-layered.js)** - High-level API (~100 lines)
+20. **[src/auto-layered.js](src/auto-layered.js)** - High-level API (~100 lines)
     - Ties layers together
     - `auto()`, `auto.static()`, `auto.runtime()`, `auto.explicit()`
     - **This is the recommended implementation**
 
 **Original Implementation:**
 
-15. **[src/graph-first.js](src/graph-first.js)** - Original monolithic version (~300 lines)
+21. **[src/graph-first.js](src/graph-first.js)** - Original monolithic version (~300 lines)
     - ReactiveGraph class (immutable structure)
     - GraphState class (mutable values)
     - Auto API function (proxy wrapper)
 
-16. **[src/static-analysis.js](src/static-analysis.js)** - Strategy 1: Static dependency discovery
+22. **[src/static-analysis.js](src/static-analysis.js)** - Strategy 1: Static dependency discovery
     - Parse function source to find all `$.property` accesses
     - Conservative but correct
     - Run demo: `node src/static-analysis.js`
 
-17. **[src/runtime-tracking.js](src/runtime-tracking.js)** - Strategy 2: Runtime tracking
+23. **[src/runtime-tracking.js](src/runtime-tracking.js)** - Strategy 2: Runtime tracking
     - Track actual dependencies during execution
     - Graph becomes mutable but precise
     - Run demo: `node src/runtime-tracking.js`
 
-18. **[src/explicit-deps.js](src/explicit-deps.js)** - Strategy 3: Explicit dependencies
+24. **[src/explicit-deps.js](src/explicit-deps.js)** - Strategy 3: Explicit dependencies
     - User declares dependencies manually
     - Like React's `useEffect` deps array
     - Run demo: `node src/explicit-deps.js`
 
 **Examples and Tests:**
 
-19. **[example-layered.js](example-layered.js)** - ⭐ **Three-layer demo**
+25. **[example-layered.js](example-layered.js)** - ⭐ **Three-layer demo**
     - Shows each layer independently
     - Shows them working together
     - Run with: `node example-layered.js`
 
-20. **[tests/test-layers.js](tests/test-layers.js)** - ⭐ **Three-layer tests**
+26. **[tests/test-layers.js](tests/test-layers.js)** - ⭐ **Three-layer tests**
     - 22 tests covering all layers
     - Tests each layer independently
     - All pass ✓
     - Run with: `node tests/test-layers.js`
 
-21. **[example.js](example.js)** - Original demo
+27. **[example.js](example.js)** - Original demo
     - Basic usage
     - Graph introspection
     - Visualization
 
-22. **[tests/basic.test.js](tests/basic.test.js)** - Original test suite
+28. **[tests/basic.test.js](tests/basic.test.js)** - Original test suite
     - 15 tests covering core functionality
     - Run with: `node tests/basic.test.js`
 
-23. **[tests/compare-strategies.test.js](tests/compare-strategies.test.js)** - Strategy comparison
+29. **[tests/compare-strategies.test.js](tests/compare-strategies.test.js)** - Strategy comparison
     - Side-by-side demonstration of all three approaches
     - Shows trade-offs clearly
     - Run with: `node tests/compare-strategies.test.js`
