@@ -129,6 +129,7 @@ class DirectedGraph {
 
     /**
      * Topological sort - order nodes so dependencies come before dependents
+     * If edge a->b exists, then a comes before b in the result
      */
     topologicalSort() {
         const sorted = [];
@@ -143,10 +144,10 @@ class DirectedGraph {
 
             visiting.add(node);
 
-            // Visit successors first (dependencies)
-            const successors = this.getSuccessors(node);
-            for (let succ of successors) {
-                visit(succ);
+            // Visit predecessors first (dependencies must execute first)
+            const predecessors = this.getPredecessors(node);
+            for (let pred of predecessors) {
+                visit(pred);
             }
 
             visiting.delete(node);

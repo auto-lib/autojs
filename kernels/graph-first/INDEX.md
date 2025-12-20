@@ -8,22 +8,24 @@ If you're new to this kernel, read in this order:
 
 1. **[INSIGHT.md](INSIGHT.md)** - Why does Auto.js exist? What is it for?
 2. **[README.md](README.md)** - Overview of the graph-first approach
-3. **[WHAT-IS-DIFFERENT.md](WHAT-IS-DIFFERENT.md)** - ⭐ **Current Auto.js IS a graph too! So what's different?**
-4. **[DETAILED-COMPARISON.md](DETAILED-COMPARISON.md)** - Deep dive into how current Auto.js actually works vs graph-first
-5. **[COMPARISON.md](COMPARISON.md)** - Side-by-side complexity comparison
+3. **[THREE-LAYERS.md](THREE-LAYERS.md)** - ⭐ **The correct architecture: three independent layers**
+4. **[LAYERED-IMPLEMENTATION.md](LAYERED-IMPLEMENTATION.md)** - ⭐ **Complete working implementation**
+5. **[WHAT-IS-DIFFERENT.md](WHAT-IS-DIFFERENT.md)** - Current Auto.js IS a graph too! So what's different?
+6. **[DETAILED-COMPARISON.md](DETAILED-COMPARISON.md)** - Deep dive into how current Auto.js actually works vs graph-first
+7. **[COMPARISON.md](COMPARISON.md)** - Side-by-side complexity comparison
 
 ## Deep Dive
 
 Once you understand the concept:
 
-6. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete technical walkthrough
+8. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete technical walkthrough (original version)
    - Core components explained
    - Step-by-step initialization flow
    - Step-by-step update flow
    - Dynamic dependency problem and solutions
    - Alternative graph-centered architectures
 
-7. **[DYNAMIC-DEPENDENCIES.md](DYNAMIC-DEPENDENCIES.md)** - ⭐ **Solving the dynamic dependency problem**
+9. **[DYNAMIC-DEPENDENCIES.md](DYNAMIC-DEPENDENCIES.md)** - ⭐ **Solving the dynamic dependency problem**
    - **The core question**: If the graph is built once, how do we handle conditional dependencies?
    - **Three strategies** with implementations:
      - Static Analysis (conservative, simple)
@@ -34,7 +36,7 @@ Once you understand the concept:
    - **[QUICKSTART.md](QUICKSTART.md)** - Run the demos
    - Working code examples in `src/`
 
-8. **[VISUAL-GUIDE.md](VISUAL-GUIDE.md)** - Diagrams and visual explanations
+10. **[VISUAL-GUIDE.md](VISUAL-GUIDE.md)** - Diagrams and visual explanations (original version)
    - Layer diagrams
    - Graph structure visualizations
    - Flow diagrams for initialization and updates
@@ -42,43 +44,121 @@ Once you understand the concept:
 
 ## Code
 
-**Core Implementation:**
+**Three-Layer Implementation (RECOMMENDED):**
 
-9. **[src/graph-first.js](src/graph-first.js)** - The implementation (~300 lines)
-   - ReactiveGraph class (immutable structure)
-   - GraphState class (mutable values)
-   - Auto API function (proxy wrapper)
+11. **[src/layer1-graph.js](src/layer1-graph.js)** - Pure DirectedGraph (~270 lines)
+    - Generic graph data structure
+    - No Auto.js knowledge
+    - Reusable for anything
+    - Run demo: `node example-layered.js`
 
-10. **[src/static-analysis.js](src/static-analysis.js)** - Strategy 1: Static dependency discovery
+12. **[src/layer2-graph-builder.js](src/layer2-graph-builder.js)** - Graph builders (~230 lines)
+    - StaticAnalysisBuilder (parse source)
+    - RuntimeTrackingBuilder (proxy tracking)
+    - ExplicitBuilder (user declaration)
+    - Strategies are swappable
+
+13. **[src/layer3-reactive.js](src/layer3-reactive.js)** - ReactiveSystem (~120 lines)
+    - Uses any DirectedGraph
+    - Manages values and dirty tracking
+    - Decoupled from graph building
+
+14. **[src/auto-layered.js](src/auto-layered.js)** - High-level API (~100 lines)
+    - Ties layers together
+    - `auto()`, `auto.static()`, `auto.runtime()`, `auto.explicit()`
+    - **This is the recommended implementation**
+
+**Original Implementation:**
+
+15. **[src/graph-first.js](src/graph-first.js)** - Original monolithic version (~300 lines)
+    - ReactiveGraph class (immutable structure)
+    - GraphState class (mutable values)
+    - Auto API function (proxy wrapper)
+
+16. **[src/static-analysis.js](src/static-analysis.js)** - Strategy 1: Static dependency discovery
     - Parse function source to find all `$.property` accesses
     - Conservative but correct
     - Run demo: `node src/static-analysis.js`
 
-11. **[src/runtime-tracking.js](src/runtime-tracking.js)** - Strategy 2: Runtime tracking
+17. **[src/runtime-tracking.js](src/runtime-tracking.js)** - Strategy 2: Runtime tracking
     - Track actual dependencies during execution
     - Graph becomes mutable but precise
     - Run demo: `node src/runtime-tracking.js`
 
-12. **[src/explicit-deps.js](src/explicit-deps.js)** - Strategy 3: Explicit dependencies
+18. **[src/explicit-deps.js](src/explicit-deps.js)** - Strategy 3: Explicit dependencies
     - User declares dependencies manually
     - Like React's `useEffect` deps array
     - Run demo: `node src/explicit-deps.js`
 
-13. **[example.js](example.js)** - Working demonstration
+**Examples and Tests:**
+
+19. **[example-layered.js](example-layered.js)** - ⭐ **Three-layer demo**
+    - Shows each layer independently
+    - Shows them working together
+    - Run with: `node example-layered.js`
+
+20. **[tests/test-layers.js](tests/test-layers.js)** - ⭐ **Three-layer tests**
+    - 22 tests covering all layers
+    - Tests each layer independently
+    - All pass ✓
+    - Run with: `node tests/test-layers.js`
+
+21. **[example.js](example.js)** - Original demo
     - Basic usage
     - Graph introspection
     - Visualization
 
-14. **[tests/basic.test.js](tests/basic.test.js)** - Test suite
+22. **[tests/basic.test.js](tests/basic.test.js)** - Original test suite
     - 15 tests covering core functionality
     - Run with: `node tests/basic.test.js`
 
-15. **[tests/compare-strategies.test.js](tests/compare-strategies.test.js)** - Strategy comparison
+23. **[tests/compare-strategies.test.js](tests/compare-strategies.test.js)** - Strategy comparison
     - Side-by-side demonstration of all three approaches
     - Shows trade-offs clearly
     - Run with: `node tests/compare-strategies.test.js`
 
 ## Quick Start
+
+### Recommended: Three-Layer Implementation
+
+```bash
+# Run the demo
+node example-layered.js
+
+# Run tests (22 tests, all pass ✓)
+node tests/test-layers.js
+
+# Use in your code
+import auto from './src/auto-layered.js';
+
+// Default: static analysis
+let $ = auto({
+    data: null,
+    count: ($) => $.data ? $.data.length : 0,
+    msg: ($) => `Got ${$.count} items`
+});
+
+$.data = [1, 2, 3];
+console.log($.msg);  // "Got 3 items"
+
+// Introspect
+console.log($._.deps);        // { count: ['data'], msg: ['count'] }
+console.log($._.order);       // ['data', 'count', 'msg']
+console.log($.visualize());   // GraphViz DOT
+
+// Use different strategies
+import { computed } from './src/auto-layered.js';
+
+const $1 = auto.static(definition);
+const $2 = auto.runtime(definition);
+const $3 = auto.explicit({
+    a: 1,
+    b: 2,
+    sum: computed(['a', 'b'], ($) => $.a + $.b)
+});
+```
+
+### Original Implementation
 
 ```bash
 # Run the example
@@ -89,17 +169,6 @@ node tests/basic.test.js
 
 # Use in your code
 import auto from './src/graph-first.js';
-
-let $ = auto({
-    data: null,
-    count: ($) => $.data ? $.data.length : 0,
-    msg: ($) => `Got ${$.count} items`
-});
-
-// Inspect the graph
-console.log($._.graph.edges);
-console.log($._.order);
-console.log($.visualize());
 ```
 
 ## Key Concepts

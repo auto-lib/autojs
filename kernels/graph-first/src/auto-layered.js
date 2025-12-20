@@ -35,11 +35,17 @@ function auto(definition, options = {}) {
             if (prop === '_') {
                 return {
                     graph: graph,
+                    // deps: what does X depend on (predecessors)
                     deps: Object.fromEntries(
-                        Array.from(graph.edges.entries()).map(([k, v]) => [k, Array.from(v)])
+                        Array.from(graph.reverseEdges.entries())
+                            .filter(([_, v]) => v.size > 0)
+                            .map(([k, v]) => [k, Array.from(v)])
                     ),
+                    // dependents: who depends on X (successors)
                     dependents: Object.fromEntries(
-                        Array.from(graph.reverseEdges.entries()).map(([k, v]) => [k, Array.from(v)])
+                        Array.from(graph.edges.entries())
+                            .filter(([_, v]) => v.size > 0)
+                            .map(([k, v]) => [k, Array.from(v)])
                     ),
                     fn: Array.from(graph.nodes.entries())
                         .filter(([_, meta]) => meta.type === 'computed')
