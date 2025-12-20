@@ -8,29 +8,33 @@ If you're new to this kernel, read in this order:
 
 1. **[INSIGHT.md](INSIGHT.md)** - Why does Auto.js exist? What is it for?
 2. **[README.md](README.md)** - Overview of the graph-first approach
-3. **[COMPARISON.md](COMPARISON.md)** - How is this different from current Auto.js?
+3. **[WHAT-IS-DIFFERENT.md](WHAT-IS-DIFFERENT.md)** - ⭐ **Current Auto.js IS a graph too! So what's different?**
+4. **[DETAILED-COMPARISON.md](DETAILED-COMPARISON.md)** - Deep dive into how current Auto.js actually works vs graph-first
+5. **[COMPARISON.md](COMPARISON.md)** - Side-by-side complexity comparison
 
 ## Deep Dive
 
 Once you understand the concept:
 
-4. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete technical walkthrough
+6. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete technical walkthrough
    - Core components explained
    - Step-by-step initialization flow
    - Step-by-step update flow
    - Dynamic dependency problem and solutions
    - Alternative graph-centered architectures
 
-5. **[DYNAMIC-DEPENDENCIES.md](DYNAMIC-DEPENDENCIES.md)** - Solving the dynamic dependency problem
+7. **[DYNAMIC-DEPENDENCIES.md](DYNAMIC-DEPENDENCIES.md)** - ⭐ **Solving the dynamic dependency problem**
    - **The core question**: If the graph is built once, how do we handle conditional dependencies?
    - **Three strategies** with implementations:
      - Static Analysis (conservative, simple)
      - Runtime Tracking (precise, complex)
      - Explicit Dependencies (manual, exact)
    - **Comparison and recommendation**
+   - **[ANSWER.md](ANSWER.md)** - Quick answer version
+   - **[QUICKSTART.md](QUICKSTART.md)** - Run the demos
    - Working code examples in `src/`
 
-6. **[VISUAL-GUIDE.md](VISUAL-GUIDE.md)** - Diagrams and visual explanations
+8. **[VISUAL-GUIDE.md](VISUAL-GUIDE.md)** - Diagrams and visual explanations
    - Layer diagrams
    - Graph structure visualizations
    - Flow diagrams for initialization and updates
@@ -38,36 +42,38 @@ Once you understand the concept:
 
 ## Code
 
-7. **[src/graph-first.js](src/graph-first.js)** - The implementation (~300 lines)
+**Core Implementation:**
+
+9. **[src/graph-first.js](src/graph-first.js)** - The implementation (~300 lines)
    - ReactiveGraph class (immutable structure)
    - GraphState class (mutable values)
    - Auto API function (proxy wrapper)
 
-8. **[src/static-analysis.js](src/static-analysis.js)** - Strategy 1: Static dependency discovery
-   - Parse function source to find all `$.property` accesses
-   - Conservative but correct
-   - Run demo: `node src/static-analysis.js`
+10. **[src/static-analysis.js](src/static-analysis.js)** - Strategy 1: Static dependency discovery
+    - Parse function source to find all `$.property` accesses
+    - Conservative but correct
+    - Run demo: `node src/static-analysis.js`
 
-9. **[src/runtime-tracking.js](src/runtime-tracking.js)** - Strategy 2: Runtime tracking
-   - Track actual dependencies during execution
-   - Graph becomes mutable but precise
-   - Run demo: `node src/runtime-tracking.js`
+11. **[src/runtime-tracking.js](src/runtime-tracking.js)** - Strategy 2: Runtime tracking
+    - Track actual dependencies during execution
+    - Graph becomes mutable but precise
+    - Run demo: `node src/runtime-tracking.js`
 
-10. **[src/explicit-deps.js](src/explicit-deps.js)** - Strategy 3: Explicit dependencies
+12. **[src/explicit-deps.js](src/explicit-deps.js)** - Strategy 3: Explicit dependencies
     - User declares dependencies manually
     - Like React's `useEffect` deps array
     - Run demo: `node src/explicit-deps.js`
 
-11. **[example.js](example.js)** - Working demonstration
+13. **[example.js](example.js)** - Working demonstration
     - Basic usage
     - Graph introspection
     - Visualization
 
-12. **[tests/basic.test.js](tests/basic.test.js)** - Test suite
+14. **[tests/basic.test.js](tests/basic.test.js)** - Test suite
     - 15 tests covering core functionality
     - Run with: `node tests/basic.test.js`
 
-13. **[tests/compare-strategies.test.js](tests/compare-strategies.test.js)** - Strategy comparison
+15. **[tests/compare-strategies.test.js](tests/compare-strategies.test.js)** - Strategy comparison
     - Side-by-side demonstration of all three approaches
     - Shows trade-offs clearly
     - Run with: `node tests/compare-strategies.test.js`
