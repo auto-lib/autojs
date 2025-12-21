@@ -48,12 +48,8 @@ function adaptInternalState($) {
         });
     }
 
-    // Convert subs format from {data: ['000']} to same format
-    const subs = {};
-    if (_.dependents) {
-        // Note: The graph-first kernel doesn't have subscriptions yet
-        // This is a placeholder for future implementation
-    }
+    // Subs format is already correct: {data: ['000']}
+    const subs = _.subs || {};
 
     return {
         fn: _.fn || [],
@@ -145,19 +141,20 @@ async function runTest(name, test) {
         };
 
         // Tests that require subscription API (not yet implemented)
-        const needsSubscriptions = [
-            '015_subscribe', '016_unsubscribe', '017_unsubscribe_gaps',
-            '019_check_subscribe_effects', '020_check_only_subs_update',
-            '021_check_subs_on_dependency_chain', '028_subscribe_not_function_side_effects',
-            '029_sub_must_update', '037_trace', '049_batch_api', '050_batch_efficiency',
-            '051_auto_batch', '053_explicit_batch_priority', '054_auto_batch_loop_performance',
-            '055_auto_batch_twitch_test', '056_auto_batch_subscription_count',
-            '057_auto_batch_flush_fix', '058_explicit_batch_no_twitch',
-            '059_auto_flush_on_read', '060_change_detection_static',
-            '061_change_detection_computed', '062_change_detection_boolean',
-            '064_change_detection_mutation_problem', '065_change_detection_immutable',
-            '072_root_cause_analysis', '073_root_cause_with_batching'
-        ];
+        // const needsSubscriptions = [
+        //     '015_subscribe', '016_unsubscribe', '017_unsubscribe_gaps',
+        //     '019_check_subscribe_effects', '020_check_only_subs_update',
+        //     '021_check_subs_on_dependency_chain', '028_subscribe_not_function_side_effects',
+        //     '029_sub_must_update', '037_trace', '049_batch_api', '050_batch_efficiency',
+        //     '051_auto_batch', '053_explicit_batch_priority', '054_auto_batch_loop_performance',
+        //     '055_auto_batch_twitch_test', '056_auto_batch_subscription_count',
+        //     '057_auto_batch_flush_fix', '058_explicit_batch_no_twitch',
+        //     '059_auto_flush_on_read', '060_change_detection_static',
+        //     '061_change_detection_computed', '062_change_detection_boolean',
+        //     '064_change_detection_mutation_problem', '065_change_detection_immutable',
+        //     '072_root_cause_analysis', '073_root_cause_with_batching'
+        // ];
+        const needsSubscriptions = [];
 
         if (ignored[name]) {
             console.log(name + ": skipped (" + ignored[name] + ")");
@@ -219,6 +216,8 @@ async function runTest(name, test) {
             console.log(name + ": execution error - " + e.message);
             failed++;
             results.push({ name, status: 'failed', error: e.message });
+            console.log($, global);
+            process.exit(1);
             return;
         }
 

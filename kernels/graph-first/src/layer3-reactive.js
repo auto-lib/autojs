@@ -14,6 +14,9 @@ class ReactiveSystem {
         this.values = new Map();
         this.dirty = new Set();
         this.computing = new Set();  // For cycle detection during computation
+        this.subscriptions = new Map();  // name -> Map(id -> callback)
+        this.nextSubId = 0;  // Counter for subscription IDs
+        this.freedSubIds = [];  // Pool of freed subscription IDs to reuse
 
         // Initialize static values
         for (let [name, metadata] of graph.nodes) {
@@ -83,6 +86,9 @@ class ReactiveSystem {
             this.dirty.add(node);
         }
 
+        // Notify subscribers of static value change
+        this._notifySubscribers(name, value);
+
         if (this.options.debug) {
             console.log(`Set ${name}, affected:`, Array.from(affected));
         }
@@ -121,12 +127,20 @@ class ReactiveSystem {
                 }
             });
 
+            // Get old value for change detection
+            const oldValue = this.values.get(name);
+
             // Execute the function
             const result = metadata.fn(proxy);
 
             // Store result and mark clean
             this.values.set(name, result);
             this.dirty.delete(name);
+
+            // Notify subscribers if value changed
+            if (oldValue !== result) {
+                this._notifySubscribers(name, result);
+            }
 
             if (this.options.debug) {
                 console.log(`Computed ${name} =`, result);
@@ -158,6 +172,57 @@ class ReactiveSystem {
             values: Object.fromEntries(this.values),
             dirty: Array.from(this.dirty)
         };
+    }
+
+    /**
+     * Subscribe to value changes
+     */
+    subscribe(name, callback) {
+        const metadata = this.graph.nodes.get(name);
+        if (!metadata) {
+            throw new Error(`Unknown variable: ${name}`);
+        }
+
+        // Reuse freed ID or create new one
+        let subId;
+        if (this.freedSubIds.length > 0) {
+            subId = this.freedSubIds.shift();
+        } else {
+            subId = String(this.nextSubId++).padStart(3, '0');
+        }
+
+        // Initialize subscriptions map for this variable if needed
+        if (!this.subscriptions.has(name)) {
+            this.subscriptions.set(name, new Map());
+        }
+
+        // Store the callback
+        this.subscriptions.get(name).set(subId, callback);
+
+        // Call immediately with current value
+        callback(this.get(name));
+
+        // Return unsubscribe function
+        const self = this;
+        return () => {
+            self.subscriptions.get(name)?.delete(subId);
+            // Add freed ID to pool for reuse
+            self.freedSubIds.push(subId);
+            // Keep freed IDs sorted
+            self.freedSubIds.sort();
+        };
+    }
+
+    /**
+     * Notify all subscribers of a value change
+     */
+    _notifySubscribers(name, value) {
+        const subs = this.subscriptions.get(name);
+        if (subs) {
+            for (let [_, callback] of subs) {
+                callback(value);
+            }
+        }
     }
 
     /**

@@ -34,7 +34,12 @@ function auto(definition, options = {}) {
         get(target, prop) {
             // Introspection
             if (prop === '_') {
-                
+                // Convert subscriptions from Map(id -> callback) to array of IDs
+                const subs = {};
+                for (let [varName, subMap] of target.subscriptions) {
+                    subs[varName] = Array.from(subMap.keys());
+                }
+
                 return {
                     graph: graph,
                     // deps: what does X depend on (predecessors)
@@ -54,6 +59,7 @@ function auto(definition, options = {}) {
                         .filter(([_, meta]) => meta.type === 'computed')
                         .map(([name, _]) => name),
                     value: Object.fromEntries(target.values),
+                    subs: subs,
                     dirty: Array.from(target.dirty),
                     order: graph.topologicalSort(),
                 };
@@ -75,6 +81,17 @@ function auto(definition, options = {}) {
 
             if (prop === 'snapshot') {
                 return () => target.snapshot();
+            }
+
+            // Subscription API: $.#.varName.subscribe(callback)
+            if (prop === '#') {
+                return new Proxy({}, {
+                    get(_, varName) {
+                        return {
+                            subscribe: (callback) => target.subscribe(varName, callback)
+                        };
+                    }
+                });
             }
 
             // Normal property access
