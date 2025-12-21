@@ -60,14 +60,26 @@ class StaticAnalysisBuilder extends GraphBuilder {
     }
 
     /**
-     * Parse function source to find $.property accesses
+     * Parse function source to find property accesses
+     * Supports any parameter name: ($), (_), (state), etc.
      */
     _analyzeFunction(fn, name) {
         const source = fn.toString();
         const deps = new Set();
 
-        // Pattern 1: $.propertyName
-        const directPattern = /\$\.(\w+)/g;
+        // Extract parameter name from function signature
+        // Matches: ($) =>, _ =>, (state) =>, function($), etc.
+        const paramMatch = source.match(/^\s*(?:function\s*)?\(?\s*(\$|\w+)\s*\)?\s*=>/);
+        const paramName = paramMatch ? paramMatch[1] : '$';  // Default to $ if no match
+
+        // Escape special regex characters in parameter name
+        const escapedParam = paramName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Use word boundary only for word characters (not for $)
+        const boundary = /^\w+$/.test(paramName) ? '\\b' : '';
+
+        // Pattern 1: paramName.propertyName (e.g., $.data or _.data)
+        const directPattern = new RegExp(`${boundary}${escapedParam}\\.(\\w+)`, 'g');
         let match;
         while ((match = directPattern.exec(source)) !== null) {
             if (match[1] !== name) {  // Don't include self
@@ -75,16 +87,16 @@ class StaticAnalysisBuilder extends GraphBuilder {
             }
         }
 
-        // Pattern 2: $["propertyName"] or $['propertyName']
-        const bracketPattern = /\$\[["'](\w+)["']\]/g;
+        // Pattern 2: paramName["propertyName"] or paramName['propertyName']
+        const bracketPattern = new RegExp(`${boundary}${escapedParam}\\[["'](\\w+)["']\\]`, 'g');
         while ((match = bracketPattern.exec(source)) !== null) {
             if (match[1] !== name) {
                 deps.add(match[1]);
             }
         }
 
-        // Pattern 3: Destructuring { x, y } = $
-        const destructuringPattern = /const\s*{([^}]+)}\s*=\s*\$/g;
+        // Pattern 3: Destructuring { x, y } = paramName
+        const destructuringPattern = new RegExp(`const\\s*{([^}]+)}\\s*=\\s*${escapedParam}`, 'g');
         while ((match = destructuringPattern.exec(source)) !== null) {
             const props = match[1].split(',').map(p => {
                 // Handle: { foo }, { foo: bar }, { foo = default }
