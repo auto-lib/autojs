@@ -15,6 +15,7 @@ import ReactiveSystem from './layer3-reactive.js';
  * Main auto() function
  */
 function auto(definition, options = {}) {
+
     // Layer 2: Build the graph using chosen strategy
     const builder = options.builder || new StaticAnalysisBuilder(options);
     const graph = builder.build(definition);
@@ -33,12 +34,14 @@ function auto(definition, options = {}) {
         get(target, prop) {
             // Introspection
             if (prop === '_') {
+                
                 return {
                     graph: graph,
                     // deps: what does X depend on (predecessors)
+                    // Only include computed nodes (not static values)
                     deps: Object.fromEntries(
                         Array.from(graph.reverseEdges.entries())
-                            .filter(([_, v]) => v.size > 0)
+                            .filter(([k, _]) => graph.nodes.get(k)?.type === 'computed')
                             .map(([k, v]) => [k, Array.from(v)])
                     ),
                     // dependents: who depends on X (successors)

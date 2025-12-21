@@ -20,6 +20,10 @@ class ReactiveSystem {
             if (metadata.type === 'static') {
                 this.values.set(name, metadata.initialValue);
             }
+            else
+            {
+                this.dirty.add(name);
+            }
         }
 
         if (options.debug) {
@@ -88,6 +92,7 @@ class ReactiveSystem {
      * Compute a single node
      */
     _compute(name) {
+
         const metadata = this.graph.nodes.get(name);
         if (!metadata || !metadata.fn) return;
 
@@ -135,6 +140,7 @@ class ReactiveSystem {
      * Flush - eagerly compute all dirty nodes in topological order
      */
     flush() {
+        
         const order = this.graph.topologicalSort();
 
         for (let name of order) {
