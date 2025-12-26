@@ -8,7 +8,7 @@ import fs from 'fs';
 
 let fail = (msg) => { console.trace(msg); process.exit(1); }
 
-let devlog_path = "../docs/devlog/src"
+let devlog_path = "../docs/development/devlog/src"
 
 /* this code bums me out. wish it was cleaner. man i don't like node... */
 /* it's weird - auto's code is good. why is this different? */

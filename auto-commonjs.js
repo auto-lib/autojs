@@ -853,7 +853,7 @@ let auto = (obj,opt) => {
     const res = {
         _: { subs, fn, deps, value, fatal },
         '#': {},
-        v: '1.54.0'
+        v: '1.54.1'
     };
     res.add_static = (inner_obj) => {
         Object.keys(inner_obj).forEach(name => {

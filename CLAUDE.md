@@ -36,11 +36,11 @@ deno run test.js
 - `auto-commonjs.js` - CommonJS version for Node
 - `auto-no-export.js` - Browser version (no export)
 
-All three are generated from `docs/devlog/src/0XX_*.js` (the latest numbered file) by `tests/runall.js`.
+All three are generated from `docs/development/devlog/src/0XX_*.js` (the latest numbered file) by `tests/runall.js`.
 
 ### Making Changes to the Library
 **Important**: Never edit `auto-es6.js` directly. Changes are made by:
-1. Find the latest numbered file in `docs/devlog/src/` (e.g., `051_deep_equal.js`)
+1. Find the latest numbered file in `docs/development/devlog/src/` (e.g., `051_deep_equal.js`)
 2. Copy it to a new file with incremented number (e.g., `052_new_feature.js`)
 3. Make your changes in the new file
 4. Run `cd tests && node runall.js` to generate the auto-*.js files and run tests
@@ -142,64 +142,55 @@ auto(obj, {
 
 ## Documentation Navigation
 
-This repository contains **97+ markdown files** documenting concepts, architecture, development history, and explorations. Here's where to find things:
+This repository contains **40+ markdown files** organized by audience and purpose. Documentation was reorganized on 2025-12-26 for clarity.
 
-### Current Structure (97 files, 12K+ lines)
-
-**Production Code**:
-- `/auto-es6.js`, `/auto-commonjs.js`, `/auto-no-export.js` - Generated distribution files (DO NOT EDIT)
-- `/docs/devlog/src/` - **Source of truth** (54 numbered versions, latest: 054_circular_reference_protection.js)
-- `/docs/devlog/readme.md` - Explains the devlog workflow
-
-**Core Documentation**:
-- `/readme.md` - Main project README
-- `/docs/ARCHITECTURE.md` - Complete system documentation
-- `/docs/internals.md` - Internal implementation details
-- `/docs/syntax.md` - API reference
-
-**Understanding Auto.js**:
-- `/docs/discussion/what-is-reactivity.md` - Core concept
-- `/docs/discussion/reactivity-is-a-game-changer.md` - Vision
-- `/docs/discussion/auto-architecture-observations.md` - Insights
-- `/docs/ok-but-what-is-auto.md` - Beginner explanation
-
-**Development & Planning**:
-- `/docs/status/KERNELS.md` - Kernel test progress dashboard
-- `/docs/PROJECT_SUMMARY.md` - Current development phases
-- `/docs/STRUCTURE_ANALYSIS.md` - Codebase organization
-- `/docs/todo.md` - Task tracking
-
-**Experimental/Ideas**:
-- `/docs/ideas/` - Future features (dom-as-state, etc.)
-- `/docs/rambling/` - Exploratory notes
-- `/kernels/*/` - Each kernel has self-contained docs
-
-**User Guides**:
-- `/docs/guide/building-objects-reactively.md` - Tutorial
-- `/docs/manual/special-functions.md` - Advanced features
-- `/docs/html.md` - HTML integration
-- `/docs/npm-and-node.md` - Package/deployment
-
-### Proposed Reorganization (In Progress)
-
-The documentation will be reorganized into:
+### Structure
 
 ```
 /docs/
-├── user/              # For library users (getting-started, API, examples)
-├── concepts/          # Understanding reactivity & philosophy
-├── development/       # For maintainers (architecture, internals, devlog)
-├── experiments/       # Research, ideas, discussions, analysis
-└── status/            # Project tracking (KERNELS.md, ROADMAP.md, DECISIONS.md)
-
-/kernels/              # Self-contained kernel experiments
+├── user/              # For people USING auto.js (6 files)
+├── concepts/          # Understanding reactivity & philosophy (5 files)
+├── development/       # For maintainers & contributors (7 files + devlog)
+├── experiments/       # Research, exploration, analysis (ideas, notes, archive)
+└── status/            # Project tracking (KERNELS.md, STRUCTURE.md)
 ```
+
+**Full structure reference**: `/docs/status/STRUCTURE.md`
+
+### Quick Reference
+
+**For users learning auto.js**:
+- Start: `/docs/user/getting-started.md`
+- Tutorial: `/docs/user/tutorial.md`
+- API: `/docs/user/api-reference.md`
+- Advanced: `/docs/user/advanced-features.md`
+
+**Understanding reactivity concepts**:
+- What: `/docs/concepts/what-is-reactivity.md`
+- Why: `/docs/concepts/why-reactivity-matters.md`
+- How: `/docs/concepts/how-auto-works.md`
+
+**For contributors/maintainers**:
+- Architecture: `/docs/development/architecture.md`
+- Internals: `/docs/development/internals.md`
+- Source: `/docs/development/devlog/src/054_circular_reference_protection.js` (latest)
+
+**Project tracking**:
+- Kernels: `/docs/status/KERNELS.md` - Test progress dashboard
+- Structure: `/docs/status/STRUCTURE.md` - Documentation organization
+- Todo: `/docs/development/todo.md` - Task tracking
+
+**Experimental work**:
+- Ideas: `/docs/experiments/ideas/`
+- Notes: `/docs/experiments/notes/`
+- Analysis: `/docs/experiments/analysis/`
 
 **When helping with documentation**:
 - Check `/docs/status/KERNELS.md` for kernel progress before suggesting architecture changes
-- Reference `/docs/ARCHITECTURE.md` for understanding the current production system
-- Look at `/docs/devlog/src/054_*.js` (latest) to see actual implementation
+- Reference `/docs/development/architecture.md` for understanding the current production system
+- Look at `/docs/development/devlog/src/054_*.js` (latest) to see actual implementation
 - Don't edit auto-*.js files directly - they're auto-generated
+- See `/docs/status/STRUCTURE.md` for complete file listing and navigation guide
 
 ## Development Workflow
 
@@ -228,7 +219,7 @@ The project is in an **exploration phase** - experimenting with different archit
 ### Making Changes to Production Library
 
 **For v0.54 (current production)**:
-1. Find latest in `/docs/devlog/src/` (currently 054_circular_reference_protection.js)
+1. Find latest in `/docs/development/devlog/src/` (currently 054_circular_reference_protection.js)
 2. Copy to new file with incremented number (e.g., 055_new_feature.js)
 3. Make changes in the new file
 4. Run `cd tests && node runall.js` to generate auto-*.js and run tests
