@@ -79,6 +79,13 @@ export default {
 }
 ```
 
+**Test Categories**: See `/docs/status/TEST-CATEGORIES.md` for complete categorization:
+- ✅ Core Behavior (~30) - Essential for all kernels
+- 🟡 Implementation (~15) - v0.54 internals, can use adapter
+- 🟢 Performance (~20) - Batching, change detection
+- 🟣 Debugging (~3) - Root cause, tracing
+- 🟠 Experimental (~1) - Recording
+
 ### Kernels Directory - Architectural Exploration
 `kernels/` contains experimental alternative implementations exploring different architectural approaches for a potential 2.0 rewrite.
 
@@ -112,6 +119,7 @@ cd tests && node runall.js
 - `/kernels/README.md` - Philosophy & overview of all 8+ kernel approaches
 - `/kernels/COMPARISON.md` - Detailed feature matrix & evaluation criteria
 - `/docs/status/KERNELS.md` - Current test pass rates & development status
+- `/docs/status/TEST-CATEGORIES.md` - Test categorization (essential vs optional)
 
 ## Key Invariants
 
@@ -177,6 +185,7 @@ This repository contains **40+ markdown files** organized by audience and purpos
 
 **Project tracking**:
 - Kernels: `/docs/status/KERNELS.md` - Test progress dashboard
+- Tests: `/docs/status/TEST-CATEGORIES.md` - Test categorization & guidance
 - Structure: `/docs/status/STRUCTURE.md` - Documentation organization
 - Todo: `/docs/development/todo.md` - Task tracking
 
@@ -231,8 +240,83 @@ The project is in an **exploration phase** - experimenting with different archit
 3. Update `/docs/status/KERNELS.md` when test pass rates change
 4. Document design decisions in kernel's own README
 
-## Current Development Focus
+## Purpose of the Rewrite
 
-**Primary**: Cleaning up repository structure, organizing documentation, tracking kernel progress
-**Active Kernels**: graph-first (most recent), channel (working prototype)
-**Philosophy**: Exploration phase - multiple valid approaches being tested
+The kernel exploration is driven by **real pain points** in the current v0.54 implementation. Understanding these issues is critical for evaluating which kernels solve the right problems.
+
+### Core Issues Being Addressed
+
+**1. Performance Problems**
+- **Issue**: Propagation can be inefficient, unnecessary recomputations
+- **Solutions explored**:
+  - Auto-batching (v0.47+) - Group rapid changes into single propagation
+  - Deep equality checks (v0.51+) - Skip propagation if values haven't actually changed
+- **Kernel impact**: Kernels must handle batching and change detection efficiently
+
+**2. Simplicity / Complexity**
+- **Issue**: Core implementation has grown complex (941 lines, 8 phases)
+- **Goal**: Minimal, understandable core that's easy to reason about
+- **Solutions explored**:
+  - Signal-based kernel (channel) - 65-line core, features as handlers
+  - Graph-first kernel - Separate graph topology from execution
+- **Kernel impact**: Core size and clarity are key evaluation criteria
+
+**3. Verifying Changes (Debugging)**
+- **Issue**: Hard to understand why values changed, debug complex propagations
+- **Solutions explored**:
+  - Trigger history (v0.52+) - Track what triggered each computation
+  - Root cause analysis (v0.53+) - Find original cause of change cascade
+  - Recording system (v0.66+, recorder.cjs) - Record/replay state changes
+- **Kernel impact**: Kernels need trace/debug infrastructure or adapter
+
+**4. Simplifying User Code**
+- **Issue**: Users need cleaner abstractions for common patterns
+- **Solutions explored**:
+  - Splitting into parts/boxes/channels - Modular reactive components
+  - Chart objects (auto4 kernel) - Domain-specific abstractions
+- **Kernel impact**: API ergonomics and composition patterns matter
+
+### The Path Forward
+
+The rewrite effort is moving from **exploration** to **purposeful iteration**. Focus areas:
+
+**1. Test Clarity**
+- **Goal**: Understand what each of the 75+ tests is actually validating
+- **Reference**: `/docs/status/TEST-CATEGORIES.md` - Complete test categorization
+- **Categories**:
+  - ✅ Core Behavior (~30 tests) - Essential, all kernels must pass
+  - 🟡 Implementation Details (~15 tests) - v0.54 internals, kernels can use adapter
+  - 🟢 Performance Features (~20 tests) - Batching, change detection (v0.47+, v0.51+)
+  - 🟣 Debugging Features (~3 tests) - Root cause, excessive calls (v0.52+, v0.53+)
+  - 🟠 Experimental (~1 test) - Recording (v0.66+)
+- **Action**: See TEST-CATEGORIES.md for detailed breakdown and guidance
+
+**2. New Feature Testing**
+- **Recording**: How to test record/replay? What guarantees does it need?
+- **Performance features**: How to test batching, deep equality work correctly?
+- **Debug features**: How to test trigger history, root cause analysis?
+- **Action**: Write test specs for each feature, determine if they belong in core test suite
+
+**3. Kernel Evaluation Criteria**
+When evaluating kernels, ask:
+- Does it solve the **performance** issues? (batching, change detection)
+- Is it **simpler** than v0.54? (core size, understandability)
+- Does it support **debugging** features? (tracing, recording)
+- Does it enable **user code simplicity**? (good abstractions, composability)
+- Does it pass all **essential tests**? (core behavior, not just v0.54 internals)
+
+### Current Development Focus
+
+**Immediate**:
+- Gaining clarity on existing tests - categorizing by purpose
+- Understanding which tests are essential vs implementation-specific
+- Documenting new features (recording, tracing) and their test requirements
+
+**Active Kernels**:
+- graph-first (most recent) - Explores simplicity through immutable graph structure
+- channel (working prototype) - Explores simplicity through 65-line signal core
+
+**Philosophy**:
+- Moving from exploration to purposeful iteration
+- Each kernel must solve real pain points, not just pass tests
+- Test suite needs clarity - what's core behavior vs v0.54 implementation details
