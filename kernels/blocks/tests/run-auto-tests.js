@@ -75,13 +75,14 @@ function createAdapter($) {
 
     // Get all values (may be undefined if circular dependency)
     // Sort keys for consistent ordering
+    // Don't include keys that throw errors (circular deps)
     const value = {};
     const sortedNames = Array.from(graph.nodes.keys()).sort();
     for (let name of sortedNames) {
         try {
             value[name] = resolver.get(name);
         } catch (e) {
-            value[name] = undefined;
+            // Don't include this key in value object if it can't be computed
         }
     }
 
