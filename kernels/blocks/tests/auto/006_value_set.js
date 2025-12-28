@@ -11,6 +11,7 @@ export default {
         fn: [],
         deps: {},
         value: { data: [1, 2, 3] },
-        stale: []
+        stale: [],
+        fatal: {}
     }
 };

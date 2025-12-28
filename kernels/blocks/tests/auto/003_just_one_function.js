@@ -9,6 +9,7 @@ export default {
         fn: ['func'],
         deps: { func: {} },
         value: { func: 'val' },
-        stale: []
+        stale: [],
+        fatal: {}
     }
 };

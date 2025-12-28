@@ -11,9 +11,10 @@ export default {
     _: {
         fn: ['result'],
         deps: {
-            result: { enabled: true, data: true, fallback: true }  // Static analysis finds all
+            result: { data: true, enabled: true, fallback: true }  // Static analysis finds all
         },
-        value: { enabled: true, data: [1, 2, 3], fallback: [], result: [1, 2, 3] },
-        stale: []
+        value: { data: [1, 2, 3], enabled: true, fallback: [], result: [1, 2, 3] },
+        stale: [],
+        fatal: {}
     }
 };

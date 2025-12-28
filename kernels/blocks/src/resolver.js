@@ -18,6 +18,7 @@ export class Resolver {
         this.functions = functions;   // Map or Object: name -> function
         this.values = new Map();      // Cached values
         this.stale = new Set();       // Variables that need recomputation
+        this._fatal = {};             // Fatal errors (for $._  compatibility)
 
         // Initialize with static values and mark computed values as stale
         for (let [name, fn] of Object.entries(functions)) {
@@ -149,15 +150,27 @@ export class Resolver {
         const sorted = [];
         const visited = new Set();
         const visiting = new Set();
+        const path = [];
 
         const visit = (node) => {
             if (!nodes.has(node)) return; // Only process nodes in subset
             if (visited.has(node)) return;
             if (visiting.has(node)) {
+                // Cycle detected - record the cycle path
+                const cycleStart = path.indexOf(node);
+                const cycle = path.slice(cycleStart);
+                cycle.push(node);
+
+                this._fatal = {
+                    msg: `Cycle detected involving: ${node}`,
+                    stack: cycle
+                };
+
                 throw new Error(`Cycle detected involving: ${node}`);
             }
 
             visiting.add(node);
+            path.push(node);
 
             // Visit dependencies first
             const deps = this.graph.getPredecessors(node);
@@ -165,6 +178,7 @@ export class Resolver {
                 visit(dep);
             }
 
+            path.pop();
             visiting.delete(node);
             visited.add(node);
             sorted.push(node);

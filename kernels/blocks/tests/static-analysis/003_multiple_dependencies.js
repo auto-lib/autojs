@@ -2,7 +2,7 @@
 
 export default {
     setup: ({ analyzeFunction }) => {
-        const fn = ($) => $.x + $.y + $.z;
+        const fn = (_) => _.x + _.y + _.z;
         return analyzeFunction(fn, 'sum');
     },
     expected: {

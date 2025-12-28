@@ -9,7 +9,7 @@ import DirectedGraph from './directed-graph.js';
 
 /**
  * Analyze a function to discover its dependencies
- * Uses regex on toString() to find $.propertyName patterns
+ * Uses regex on toString() to find paramName.propertyName patterns
  *
  * @param {Function} fn - The function to analyze
  * @param {string} name - Name of the variable (to exclude self-references)
@@ -19,8 +19,26 @@ export function analyzeFunction(fn, name) {
     const source = fn.toString();
     const deps = new Set();
 
-    // Pattern 1: $.propertyName (dot notation)
-    const dotPattern = /\$\.(\w+)/g;
+    // Extract parameter name from function signature
+    // Matches: ($) =>, (state) =>, function($), function(state), etc.
+    // Arrow function: ($) => or $ =>
+    let paramName = '$';
+    const arrowMatch = source.match(/^\s*(?:\(?\s*(\w+)\s*\)?)\s*=>/);
+    if (arrowMatch) {
+        paramName = arrowMatch[1];
+    } else {
+        // Traditional function: function($) or function name($)
+        const funcMatch = source.match(/^function\s+\w*\s*\(\s*(\w+)\s*\)/);
+        if (funcMatch) {
+            paramName = funcMatch[1];
+        }
+    }
+
+    // Escape special regex characters in param name
+    const escapedParam = paramName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Pattern 1: paramName.propertyName (dot notation)
+    const dotPattern = new RegExp(`${escapedParam}\\.(\\w+)`, 'g');
     let match;
     while ((match = dotPattern.exec(source)) !== null) {
         const propName = match[1];
@@ -29,8 +47,8 @@ export function analyzeFunction(fn, name) {
         }
     }
 
-    // Pattern 2: $["propertyName"] or $['propertyName'] (bracket notation)
-    const bracketPattern = /\$\[["'](\w+)["']\]/g;
+    // Pattern 2: paramName["propertyName"] or paramName['propertyName'] (bracket notation)
+    const bracketPattern = new RegExp(`${escapedParam}\\[["'](\\w+)["']\\]`, 'g');
     while ((match = bracketPattern.exec(source)) !== null) {
         const propName = match[1];
         if (propName !== name) {
@@ -38,8 +56,8 @@ export function analyzeFunction(fn, name) {
         }
     }
 
-    // Pattern 3: Destructuring - const { x, y } = $
-    const destructuringPattern = /const\s*{([^}]+)}\s*=\s*\$/g;
+    // Pattern 3: Destructuring - const { x, y } = paramName
+    const destructuringPattern = new RegExp(`const\\s*{([^}]+)}\\s*=\\s*${escapedParam}`, 'g');
     while ((match = destructuringPattern.exec(source)) !== null) {
         const props = match[1].split(',').map(p => {
             // Handle: { foo }, { foo: bar }, { foo = default }

@@ -9,7 +9,8 @@ export default {
     _: {
         fn: ['count'],
         deps: { count: { data: true } },
-        value: { data: null, count: 0 },
-        stale: []
+        value: { count: 0, data: null },
+        stale: [],
+        fatal: {}
     }
 };

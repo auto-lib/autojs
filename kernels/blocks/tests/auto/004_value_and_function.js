@@ -9,7 +9,8 @@ export default {
     _: {
         fn: ['doubled'],
         deps: { doubled: { x: true } },
-        value: { x: 5, doubled: 10 },
-        stale: []
+        value: { doubled: 10, x: 5 },
+        stale: [],
+        fatal: {}
     }
 };

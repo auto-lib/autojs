@@ -14,6 +14,7 @@ export default {
             c: { b: true }
         },
         value: { a: 1, b: 2, c: 3 },
-        stale: []
+        stale: [],
+        fatal: {}
     }
 };

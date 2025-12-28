@@ -9,6 +9,7 @@ export default {
         fn: [],
         deps: {},
         value: { x: 5 },
-        stale: []
+        stale: [],
+        fatal: {}
     }
 };
