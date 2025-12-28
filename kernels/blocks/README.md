@@ -4,6 +4,13 @@
 
 ## Implementation Status
 
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for deep dive into:
+- What is a block, what is a graph?
+- Dependency discovery strategies (static/runtime/explicit/hybrid)
+- Kernel as virtual machine
+- Graph vs execution: separation or integration?
+- Cross-block dependency resolution
+
 ✅ **Core Infrastructure** (from auto4):
 - `kernel.js` - Policy-based intent router (immediate, deferred, dispatch, drop)
 - `graph.js` - Reactive handlers (get, set, run, define, invalidate, check_circle)
@@ -388,8 +395,9 @@ diff.trace = traceCausality(diff);
 
 ```
 kernels/blocks/
-├── README.md                       # This file
+├── README.md                       # This file - overview and philosophy
 ├── QUICKSTART.md                   # Getting started guide
+├── ARCHITECTURE.md                 # Deep dive: blocks, graphs, kernels, dependency discovery
 ├── REAL-WORLD-USAGE.md            # How auto.js is used in production apps (prices-app, trade-portal)
 ├── package.json                    # NPM scripts
 ├── example.js                      # Full diff-driven testing example
