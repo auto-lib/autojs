@@ -1,15 +1,31 @@
 # Blocks: Modular Reactivity with Diff-Driven Testing
 
-**Status**: Initial implementation complete - ready for testing and iteration
+**Status**: ✅ Simplified architecture implemented and tested
 
 ## Implementation Status
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for deep dive into:
-- What is a block, what is a graph?
-- Dependency discovery strategies (static/runtime/explicit/hybrid)
-- Kernel as virtual machine
-- Graph vs execution: separation or integration?
-- Cross-block dependency resolution
+**Implementation Complete**: The simplified 4-module architecture is fully implemented and working.
+
+See architecture documents:
+- **[DESIGN-QUESTIONS.md](./DESIGN-QUESTIONS.md)** - Design exploration and decisions (START HERE)
+- **[ARCHITECTURE-SIMPLE.md](./ARCHITECTURE-SIMPLE.md)** - Simple architecture (4 modules) - **IMPLEMENTED**
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Deep dive into alternatives explored
+
+**Implemented Modules**:
+1. **DirectedGraph** (`src/directed-graph.js`) - Pure graph structure with topological sort
+2. **Static Analysis** (`src/static-analysis.js`) - Function → dependencies via toString/regex
+3. **Blocks** (`src/blocks.js`) - Grouping, wiring, cross-block graphs
+4. **Resolver** (`src/resolver.js`) - Stale tracking and execution
+5. **Auto** (`src/auto.js`) - Integration API
+
+**Key Decisions**:
+- ✅ Static analysis only (toString/regex) - simpler, predictable
+- ✅ 4 core modules: Graph, Static Analysis, Blocks, Resolver
+- ✅ No complex kernel - just simple resolver that executes in topological order
+- ✅ Optional inputs/outputs on blocks (flexible)
+- ✅ Explicit wiring with auto-wire helper
+- ✅ "Stale" instead of "dirty" terminology
+- ✅ Block-scoped variable access in resolver
 
 ✅ **Core Infrastructure** (from auto4):
 - `kernel.js` - Policy-based intent router (immediate, deferred, dispatch, drop)
@@ -32,6 +48,9 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for deep dive into:
 
 ```bash
 cd kernels/blocks
+
+# Simplified architecture test - verify 4-module implementation
+npm run test:simplified
 
 # Basic tests - verify core functionality
 npm run test:basic

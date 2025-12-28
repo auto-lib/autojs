@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test:basic": "node test-basic.js",
-    "test:example": "node example.js"
+    "test:example": "node example.js",
+    "test:simplified": "node test-simplified.js"
   },
   "keywords": [
     "reactivity",

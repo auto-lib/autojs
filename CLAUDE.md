@@ -343,6 +343,39 @@ See `/kernels/blocks/REAL-WORLD-USAGE.md` for detailed analysis of how auto.js i
 - Component composition patterns
 - Bidirectional URL ⟷ State sync
 
+**Architecture Exploration** (`/kernels/blocks/`):
+
+The blocks kernel is being refined toward a **simple, modular architecture**:
+
+**Core Modules** (4 independent, testable parts):
+1. **Graph** - Pure directed graph structure (nodes, edges, topology)
+2. **Static Analysis** - Convert functions to dependency graph via toString/regex
+3. **Blocks** - Group functions with optional inputs/outputs, wiring between blocks
+4. **Resolver** - Execute functions to resolve stale values (replaces complex kernel)
+
+**Key Simplifications**:
+- No complex kernel/signals - just a simple resolver that executes in topological order
+- Static analysis only (toString/regex) - simpler than runtime tracking
+- "Stale" instead of "dirty" for values that need recomputing
+- Blocks + wiring combined into one module (less conceptual overhead)
+
+**Design Questions** (see `/kernels/blocks/DESIGN-QUESTIONS.md`):
+- Should Block and Cross-Block be separate or combined? → **Combined into blocks.js**
+- Are inputs/outputs necessary? → **Optional** (validate when declared, flexible when not)
+- How should wiring work? → **Explicit wires + auto-wire helper**
+- What should Resolver know about? → **Just graph + functions** (clean separation)
+
+**Architecture Documents**:
+- `IMPLEMENTATION.md` - **Summary of completed implementation** (START HERE)
+- `DESIGN-QUESTIONS.md` - Design exploration and decisions
+- `ARCHITECTURE-SIMPLE.md` - Clean, modular architecture specification
+- `ARCHITECTURE.md` - Deep dive into alternatives explored
+
+**Status**: ✅ **Implementation complete** (2025-12-28)
+- 5 modules implemented and tested
+- All design decisions from DESIGN-QUESTIONS.md implemented
+- Test suite passing (`npm run test:simplified`)
+
 **4. Kernel Evaluation Criteria**
 When evaluating kernels, ask:
 - Does it solve the **performance** issues? (batching, change detection)
