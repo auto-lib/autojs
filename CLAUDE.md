@@ -332,6 +332,17 @@ URL + Data → Code' → Chart₂
 
 **Kernel Direction**: See `/kernels/blocks/` for exploration of this approach.
 
+**Real-World Context**: The blocks kernel is designed based on actual usage patterns in production charting apps:
+- `/Users/karl/prices-app` - Commodity price charting
+- `/Users/karl/trade-portal-app-v2` - Trade flow visualization
+
+See `/kernels/blocks/REAL-WORLD-USAGE.md` for detailed analysis of how auto.js is used in these apps, including:
+- URL as state encoding (chart configuration)
+- Data as external sources (API endpoints, JSON files)
+- Reactive pipelines (URL → state → data → transforms → chart)
+- Component composition patterns
+- Bidirectional URL ⟷ State sync
+
 **4. Kernel Evaluation Criteria**
 When evaluating kernels, ask:
 - Does it solve the **performance** issues? (batching, change detection)

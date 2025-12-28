@@ -66,10 +66,16 @@ Treat reactive systems as **visual transformation pipelines**:
 ```
 
 **Four-Part Test Structure**:
-1. **URL** - External data source (API endpoint, file, static data)
-2. **Data** - Input values loaded from URL
+1. **URL** - State encoding string (query parameters that configure the chart)
+2. **Data** - External data source (API endpoints, JSON files, test fixtures)
 3. **Code** - Reactive computation (one or more blocks)
 4. **Chart** - Output visualization or data structure
+
+**Critical Distinction**:
+- **URL** = Chart *configuration* (e.g., `?dataset=salmon&currency=EUR&start=2024-01`)
+- **Data** = Raw *data sources* (e.g., API returning `{ prices: [...], dates: [...] }`)
+
+See [REAL-WORLD-USAGE.md](./REAL-WORLD-USAGE.md) for detailed examples from production apps.
 
 **Diff-Driven Workflow**:
 ```
@@ -383,6 +389,8 @@ diff.trace = traceCausality(diff);
 ```
 kernels/blocks/
 ├── README.md                       # This file
+├── QUICKSTART.md                   # Getting started guide
+├── REAL-WORLD-USAGE.md            # How auto.js is used in production apps (prices-app, trade-portal)
 ├── package.json                    # NPM scripts
 ├── example.js                      # Full diff-driven testing example
 ├── test-basic.js                   # Basic verification tests

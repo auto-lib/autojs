@@ -139,6 +139,8 @@ Demonstrates:
 - Diff between USD and EUR versions
 - Full causality tracing
 
+**Note**: This is a simplified example. See [REAL-WORLD-USAGE.md](./REAL-WORLD-USAGE.md) for how auto.js is actually used in production charting apps (prices-app, trade-portal-app-v2), including the critical distinction between URL (state configuration) and data (external sources)
+
 ## Key Features
 
 ### Multi-Level Diffing
