@@ -49,15 +49,24 @@ See architecture documents:
 ```bash
 cd kernels/blocks
 
-# Simplified architecture test - verify 4-module implementation
+# All tests (39 tests: 29 module + 10 integration)
+npm test
+
+# Module tests only (29 tests)
+npm run test:modules
+
+# auto() integration tests (10 core behavior tests)
+npm run test:auto
+
+# Simplified architecture demo
 npm run test:simplified
 
-# Basic tests - verify core functionality
+# Legacy tests
 npm run test:basic
-
-# Full example - diff-driven testing with blocks
 npm run test:example
 ```
+
+**Test Suite**: 39 comprehensive tests organized by module. See [tests/README.md](./tests/README.md) for details.
 
 ## Core Insight
 

@@ -235,35 +235,94 @@ set(name, value) {
 
 ## Testing
 
-Three test files verify the implementation:
+Comprehensive test suite with 39 tests organized by module.
 
-### `test-simplified.js` - **Simplified Architecture Tests**
+### Test Organization
 
-Tests the 4-module implementation:
-- Test 1: Simple `auto()` usage
-- Test 2: Multiple blocks with explicit wiring
-- Test 3: Auto-wiring
-- Test 4: Graph analysis
+```
+tests/
+├── graph/           - 8 tests (DirectedGraph)
+├── static-analysis/ - 9 tests (dependency discovery)
+├── blocks/          - 6 tests (block composition)
+├── resolver/        - 6 tests (execution)
+└── auto/            - 10 tests (integration, core behavior)
+```
 
-**Run**: `npm run test:simplified`
+### Running Tests
 
-**Result**: ✅ All tests pass
+```bash
+# All tests (recommended)
+npm test
 
-### `test-basic.js` - **Basic Functionality**
+# Module tests only (29 tests)
+npm run test:modules
 
-Tests from original blocks kernel:
-- Single block
-- Wired blocks
-- Cross-block graphs
-- Diffing
+# auto() integration tests only (10 tests)
+npm run test:auto
+```
 
-**Run**: `npm run test:basic`
+### Test Philosophy
 
-### `example.js` - **Full Example**
+**Direct Module Testing**: Each module tested independently
+- Validates modules work in isolation
+- Tests internals (graph structure, stale tracking, etc.)
+- Faster, simpler tests
+- Clear progression from simple to complex
 
-Price charting application demonstrating diff-driven testing.
+**Integration Testing**: Core Behavior tests from main suite
+- Uses original auto.js test format with `$._`
+- Provides compatibility adapter
+- Validates end-to-end behavior
+- **10/30 Core Behavior tests** (33% coverage)
 
-**Run**: `npm run test:example`
+### Test Format
+
+**Module tests** export `setup`, `expected`, `validate`:
+```javascript
+export default {
+    setup: ({ buildGraph }) => {
+        return buildGraph({ x: 5, sum: ($) => $.x + 1 });
+    },
+    expected: { nodes: ['sum', 'x'], edgeCount: 1 },
+    validate: (graph) => ({
+        nodes: Array.from(graph.nodes.keys()).sort(),
+        edgeCount: graph.countEdges()
+    })
+};
+```
+
+**Auto tests** use original format:
+```javascript
+export default {
+    obj: { x: 5, doubled: ($) => $.x * 2 },
+    fn: ($) => {},
+    _: {
+        fn: ['doubled'],
+        deps: { doubled: { x: true } },
+        value: { x: 5, doubled: 10 },
+        stale: []
+    }
+};
+```
+
+### Test Results
+
+✅ **39/39 tests passing** (100%)
+
+- DirectedGraph: 8/8
+- Static Analysis: 9/9
+- Blocks: 6/6
+- Resolver: 6/6
+- auto() integration: 10/10
+
+See [tests/README.md](./tests/README.md) for detailed documentation.
+
+### Legacy Tests
+
+Original demonstration files:
+- `test-simplified.js` - Architecture demo (4 tests)
+- `test-basic.js` - Original basic tests
+- `example.js` - Price charting example
 
 ## File Structure
 

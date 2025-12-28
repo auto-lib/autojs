@@ -4,6 +4,9 @@
   "description": "Blocks kernel with diff-driven testing and cross-block graph analysis",
   "type": "module",
   "scripts": {
+    "test": "node tests/run-all-tests.js",
+    "test:modules": "node tests/run-module-tests.js",
+    "test:auto": "node tests/run-auto-tests.js",
     "test:basic": "node test-basic.js",
     "test:example": "node example.js",
     "test:simplified": "node test-simplified.js"
