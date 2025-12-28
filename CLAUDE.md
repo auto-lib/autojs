@@ -297,7 +297,42 @@ The rewrite effort is moving from **exploration** to **purposeful iteration**. F
 - **Debug features**: How to test trigger history, root cause analysis?
 - **Action**: Write test specs for each feature, determine if they belong in core test suite
 
-**3. Kernel Evaluation Criteria**
+**3. Testing Vision: Diff-Based Change Analysis**
+
+A new testing approach is emerging that treats tests as **transformation pipelines** with visual diff analysis:
+
+**The Four-Part Structure**:
+1. **URL** - External data source or API endpoint
+2. **Data** - Input data (static or from URL)
+3. **Code** - Reactive computation graph (auto.js code)
+4. **Chart** - Output visualization or data structure
+
+**The Testing Flow**:
+```
+URL + Data → Code → Chart₁
+           ↓ (modify code)
+URL + Data → Code' → Chart₂
+           ↓ (analyze)
+        Chart₁ ↔ Chart₂ (diff)
+```
+
+**Key Concepts**:
+- **Graph Invariant**: Same input → same output (deterministic computation)
+- **Diff-Driven Debugging**: Work backwards from chart diffs or forwards through code changes
+- **Block Composition**: Split code into modular blocks/boxes with clear boundaries
+- **Cross-Block Graphs**: Dependency graphs that span multiple blocks/modules
+- **Signals as Connectors**: Use signals to wire blocks together and pass data between them
+
+**Questions to Explore**:
+- How to split reactive code into composable blocks?
+- How to track which block's code/output changed?
+- How to represent graphs that span block boundaries?
+- What role do signals play in connecting blocks vs traditional reactive dependencies?
+- How to visualize diffs at the graph level vs the data level?
+
+**Kernel Direction**: See `/kernels/blocks/` for exploration of this approach.
+
+**4. Kernel Evaluation Criteria**
 When evaluating kernels, ask:
 - Does it solve the **performance** issues? (batching, change detection)
 - Is it **simpler** than v0.54? (core size, understandability)
@@ -311,12 +346,15 @@ When evaluating kernels, ask:
 - Gaining clarity on existing tests - categorizing by purpose
 - Understanding which tests are essential vs implementation-specific
 - Documenting new features (recording, tracing) and their test requirements
+- Exploring diff-based testing and block composition (see `/kernels/blocks/`)
 
 **Active Kernels**:
-- graph-first (most recent) - Explores simplicity through immutable graph structure
-- channel (working prototype) - Explores simplicity through 65-line signal core
+- **blocks** (newest) - Diff-driven testing, modular blocks, cross-block graphs, signals as connectors
+- **graph-first** - Explores simplicity through immutable graph structure
+- **channel** - Explores simplicity through 65-line signal core
 
 **Philosophy**:
 - Moving from exploration to purposeful iteration
 - Each kernel must solve real pain points, not just pass tests
 - Test suite needs clarity - what's core behavior vs v0.54 implementation details
+- Testing approach should enable understanding changes (diff-driven debugging)

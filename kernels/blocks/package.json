@@ -1,0 +1,19 @@
+{
+  "name": "blocks-kernel",
+  "version": "0.1.0",
+  "description": "Blocks kernel with diff-driven testing and cross-block graph analysis",
+  "type": "module",
+  "scripts": {
+    "test:basic": "node test-basic.js",
+    "test:example": "node example.js"
+  },
+  "keywords": [
+    "reactivity",
+    "blocks",
+    "diffing",
+    "testing",
+    "graph"
+  ],
+  "author": "",
+  "license": "MIT"
+}
