@@ -138,9 +138,36 @@ export class Resolver {
             }
         });
 
-        // Execute and cache
-        const result = fn($);
-        this.values.set(name, result);
+        // Create 'set' callback for async functions
+        const set = (value) => {
+            this.values.set(name, value);
+            // Mark dependents as stale when async value is set
+            const affected = this.graph.getReachable([name]);
+            for (let dep of affected) {
+                this.stale.add(dep);
+            }
+        };
+
+        // Check if function expects 'set' callback (2 parameters)
+        const expectsSetCallback = fn.length >= 2;
+
+        // Execute function (with set callback for async support)
+        const result = fn($, set);
+
+        // Handle the result based on function signature
+        if (result && typeof result.then === 'function') {
+            // Promise (async function) - await it
+            result.then(value => {
+                this.values.set(name, value);
+            }).catch(err => {
+                console.error(`Error in async function ${name}:`, err);
+            });
+        } else if (!expectsSetCallback) {
+            // Synchronous function - cache result immediately
+            this.values.set(name, result);
+        }
+        // If expectsSetCallback is true and no promise, don't cache the result
+        // The value will be set when the callback is invoked
     }
 
     /**

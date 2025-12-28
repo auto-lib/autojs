@@ -20,15 +20,16 @@ export function analyzeFunction(fn, name) {
     const deps = new Set();
 
     // Extract parameter name from function signature
-    // Matches: ($) =>, (state) =>, function($), function(state), etc.
-    // Arrow function: ($) => or $ =>
+    // Handles: ($) =>, (_, set) =>, $ =>, function($), async ($) =>, etc.
     let paramName = '$';
-    const arrowMatch = source.match(/^\s*(?:\(?\s*(\w+)\s*\)?)\s*=>/);
+
+    // Try arrow function: ($) =>, (_, set) =>, $ =>, async ($) =>, etc.
+    const arrowMatch = source.match(/^\s*(?:async\s+)?\(?\s*(\w+)/);
     if (arrowMatch) {
         paramName = arrowMatch[1];
     } else {
         // Traditional function: function($) or function name($)
-        const funcMatch = source.match(/^function\s+\w*\s*\(\s*(\w+)\s*\)/);
+        const funcMatch = source.match(/^(?:async\s+)?function\s+\w*\s*\(\s*(\w+)/);
         if (funcMatch) {
             paramName = funcMatch[1];
         }

@@ -118,6 +118,19 @@ async function runTest(testFile) {
             // The error is captured in $._fatal
         }
 
+        // Resolve all stale values (triggers initial computation of functions)
+        try {
+            $._resolver.resolveAll();
+        } catch (e) {
+            // Errors during resolution are expected (circular deps, etc.)
+            // The error is captured in $._resolver._fatal
+        }
+
+        // If test has timeout, wait for async operations to complete
+        if (test.timeout) {
+            await new Promise(resolve => setTimeout(resolve, test.timeout));
+        }
+
         // Get actual state via adapter
         const actual = createAdapter($);
 
