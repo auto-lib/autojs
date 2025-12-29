@@ -1,5 +1,7 @@
 # Blocks Kernel: Simple, Modular Architecture
 
+**Note**: This document describes the conceptual architecture design. The actual implementation is in `src/` and documented in [IMPLEMENTATION.md](./IMPLEMENTATION.md).
+
 This document describes a simplified, modular architecture where each component has one clear responsibility and can be tested independently.
 
 ## Core Philosophy
@@ -19,7 +21,7 @@ This document describes a simplified, modular architecture where each component 
 
 **Purpose**: Represent dependency relationships. No execution, no values, just structure.
 
-**File**: `src/graph.js`
+**File**: `src/directed-graph.js`
 
 ```javascript
 class Graph {
@@ -184,7 +186,7 @@ export { analyzeFunction, buildGraph };
 
 **Purpose**: Group related functions with explicit inputs/outputs.
 
-**File**: `src/block.js`
+**File**: `src/blocks.js`
 
 ```javascript
 /**
@@ -589,10 +591,9 @@ export { Resolver };
 **File**: `src/auto.js`
 
 ```javascript
-import { Graph } from './graph.js';
+import DirectedGraph from './directed-graph.js';
 import { buildGraph } from './static-analysis.js';
-import { Block } from './block.js';
-import { Wire, buildCrossBlockGraph, autoWire } from './cross-block-graph.js';
+import { Block, Wire, buildCrossBlockGraph, autoWire } from './blocks.js';
 import { Resolver } from './resolver.js';
 
 /**

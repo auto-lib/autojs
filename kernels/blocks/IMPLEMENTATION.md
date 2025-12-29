@@ -342,13 +342,10 @@ kernels/blocks/
 ├── README.md                  # Overview
 ├── DESIGN-QUESTIONS.md        # Design decisions
 ├── ARCHITECTURE-SIMPLE.md     # Architecture spec (IMPLEMENTED)
-├── ARCHITECTURE.md            # Deep dive into alternatives
-└── IMPLEMENTATION.md          # This file
-
-Legacy files (from auto4/graph-first):
-├── src/kernel.js              # Old - replaced by resolver.js
-├── src/graph.js               # Old - replaced by static-analysis.js
-├── src/block.js               # Old - replaced by blocks.js
+├── IMPLEMENTATION.md          # This file
+└── archive/                   # Archived design exploration docs
+    ├── ARCHITECTURE.md        # Deep dive into alternatives explored
+    └── REAL-WORLD-USAGE.md    # Production app analysis (old API)
 ```
 
 ## What Changed from Original Plan
@@ -358,7 +355,7 @@ Legacy files (from auto4/graph-first):
 - ✅ Replaced with simple Resolver
 - ✅ Simpler, more understandable
 
-### From ARCHITECTURE.md exploration:
+### From archive/ARCHITECTURE.md exploration:
 - ❌ Decided against "kernel as VM" approach
 - ❌ Decided against runtime tracking (proxy-based)
 - ✅ Stuck with static analysis only (toString/regex)
