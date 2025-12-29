@@ -336,22 +336,25 @@ URL + Data → Code' → Chart₂
 - `/Users/karl/prices-app` - Commodity price charting
 - `/Users/karl/trade-portal-app-v2` - Trade flow visualization
 
-See `/kernels/blocks/REAL-WORLD-USAGE.md` for detailed analysis of how auto.js is used in these apps, including:
+See `/kernels/blocks/archive/REAL-WORLD-USAGE.md` for detailed analysis of how auto.js is used in these apps, including:
 - URL as state encoding (chart configuration)
 - Data as external sources (API endpoints, JSON files)
 - Reactive pipelines (URL → state → data → transforms → chart)
 - Component composition patterns
 - Bidirectional URL ⟷ State sync
 
-**Architecture Exploration** (`/kernels/blocks/`):
+**Note**: REAL-WORLD-USAGE.md references the old API and is archived. The actual implementation is simpler and focuses on core reactivity rather than diff-driven testing.
 
-The blocks kernel is being refined toward a **simple, modular architecture**:
+**Architecture** (`/kernels/blocks/`):
 
-**Core Modules** (4 independent, testable parts):
-1. **Graph** - Pure directed graph structure (nodes, edges, topology)
-2. **Static Analysis** - Convert functions to dependency graph via toString/regex
-3. **Blocks** - Group functions with optional inputs/outputs, wiring between blocks
-4. **Resolver** - Execute functions to resolve stale values (replaces complex kernel)
+The blocks kernel implements a **simple, modular architecture**:
+
+**Core Modules** (5 independent, testable parts):
+1. **DirectedGraph** (`src/directed-graph.js`) - Pure directed graph structure (nodes, edges, topology)
+2. **Static Analysis** (`src/static-analysis.js`) - Convert functions to dependency graph via toString/regex
+3. **Blocks** (`src/blocks.js`) - Group functions with optional inputs/outputs, wiring between blocks
+4. **Resolver** (`src/resolver.js`) - Execute functions to resolve stale values (replaces complex kernel)
+5. **Auto** (`src/auto.js`) - Integration API for users
 
 **Key Simplifications**:
 - No complex kernel/signals - just a simple resolver that executes in topological order
@@ -365,16 +368,23 @@ The blocks kernel is being refined toward a **simple, modular architecture**:
 - How should wiring work? → **Explicit wires + auto-wire helper**
 - What should Resolver know about? → **Just graph + functions** (clean separation)
 
-**Architecture Documents**:
+**Documentation**:
 - `IMPLEMENTATION.md` - **Summary of completed implementation** (START HERE)
+- `README.md` - Overview and quick start
+- `QUICKSTART.md` - Getting started guide with examples
 - `DESIGN-QUESTIONS.md` - Design exploration and decisions
-- `ARCHITECTURE-SIMPLE.md` - Clean, modular architecture specification
-- `ARCHITECTURE.md` - Deep dive into alternatives explored
+- `ARCHITECTURE-SIMPLE.md` - Clean, modular architecture specification (design doc)
+- `TESTING.md` - Test suite documentation
+- `archive/ARCHITECTURE.md` - Deep dive into alternatives explored (archived)
+- `archive/REAL-WORLD-USAGE.md` - Production app analysis, old API (archived)
 
 **Status**: ✅ **Implementation complete** (2025-12-28)
-- 5 modules implemented and tested
+- 5 modules implemented and tested (see `src/`)
+- 39 tests passing (100%) - 29 module tests + 10 integration tests
 - All design decisions from DESIGN-QUESTIONS.md implemented
-- Test suite passing (`npm run test:simplified`)
+- Documentation updated to match implementation (2025-12-29)
+- Old source files removed (kernel.js, graph.js, block.js)
+- Outdated docs archived
 
 **4. Kernel Evaluation Criteria**
 When evaluating kernels, ask:
@@ -390,10 +400,10 @@ When evaluating kernels, ask:
 - Gaining clarity on existing tests - categorizing by purpose
 - Understanding which tests are essential vs implementation-specific
 - Documenting new features (recording, tracing) and their test requirements
-- Exploring diff-based testing and block composition (see `/kernels/blocks/`)
+- Expanding blocks kernel test coverage (subscriptions, circular deps, async)
 
 **Active Kernels**:
-- **blocks** (newest) - Diff-driven testing, modular blocks, cross-block graphs, signals as connectors
+- **blocks** (newest) - ✅ Complete implementation: 5 simple modules, 39 tests passing, ~600 LOC vs 941 in v0.54
 - **graph-first** - Explores simplicity through immutable graph structure
 - **channel** - Explores simplicity through 65-line signal core
 
