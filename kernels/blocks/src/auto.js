@@ -17,18 +17,56 @@ import { Resolver } from './resolver.js';
  * @param {Object} definition - Object with { varName: valueOrFunction }
  * @returns {Proxy} - Proxy object that intercepts get/set
  */
-export function auto(definition) {
+export default function auto(definition) {
     // Build graph from definition
     const graph = buildGraph(definition);
 
     // Create resolver
     const resolver = new Resolver(graph, definition);
 
+    // Create subscription accessor
+    const subscriptionAccessor = new Proxy({}, {
+        get(target, varName) {
+            return {
+                subscribe: (callback) => resolver.subscribe(varName, callback)
+            };
+        }
+    });
+
     // Return proxy for get/set access
     return new Proxy(definition, {
         get(target, prop) {
             if (prop === '_resolver') return resolver;
             if (prop === '_graph') return graph;
+            if (prop === '#') return subscriptionAccessor;
+            if (prop === '_') {
+                // Provide $._  compatibility for tests
+                return {
+                    fn: Array.from(graph.nodes).filter(name => typeof definition[name] === 'function'),
+                    deps: (() => {
+                        const deps = {};
+                        for (let node of graph.nodes) {
+                            const predecessors = graph.getPredecessors(node);
+                            if (predecessors.length > 0) {
+                                deps[node] = Object.fromEntries(predecessors.map(p => [p, true]));
+                            }
+                        }
+                        return deps;
+                    })(),
+                    value: resolver.getAllValues(),
+                    subs: (() => {
+                        const subs = {};
+                        for (let [name] of Object.entries(definition)) {
+                            const ids = resolver.getSubscriptionIds(name);
+                            if (ids.length > 0) {
+                                subs[name] = ids;
+                            }
+                        }
+                        return subs;
+                    })(),
+                    fatal: resolver._fatal
+                };
+            }
             return resolver.get(prop);
         },
 

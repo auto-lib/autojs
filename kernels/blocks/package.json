@@ -1,5 +1,6 @@
 {
-  "name": "blocks-kernel",
+   "name": "@autolib/auto",
+    "main": "src/auto.js",
   "version": "0.1.0",
   "description": "Blocks kernel with diff-driven testing and cross-block graph analysis",
   "type": "module",

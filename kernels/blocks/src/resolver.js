@@ -19,6 +19,8 @@ export class Resolver {
         this.values = new Map();      // Cached values
         this.stale = new Set();       // Variables that need recomputation
         this._fatal = {};             // Fatal errors (for $._  compatibility)
+        this.subscriptions = new Map(); // name -> Map of id -> callback
+        this.nextSubId = 0;           // Counter for subscription IDs
 
         // Initialize with static values and mark computed values as stale
         for (let [name, fn] of Object.entries(functions)) {
@@ -81,9 +83,18 @@ export class Resolver {
         // Execute in topological order (dependencies first)
         const order = this._topologicalSort(staleAncestors);
 
+        // Track which variables were resolved
+        const resolved = new Set();
+
         for (let varName of order) {
             this._execute(varName);
             this.stale.delete(varName);
+            resolved.add(varName);
+        }
+
+        // Notify subscribers after all values are resolved
+        for (let varName of resolved) {
+            this._notifySubscribers(varName);
         }
     }
 
@@ -95,12 +106,21 @@ export class Resolver {
             return; // Nothing to do
         }
 
+        // Track which variables were resolved for subscription notifications
+        const resolved = new Set();
+
         // Execute all stale variables in topological order
         const order = this._topologicalSort(this.stale);
 
         for (let name of order) {
             this._execute(name);
             this.stale.delete(name);
+            resolved.add(name);
+        }
+
+        // Notify subscribers after all values are resolved
+        for (let name of resolved) {
+            this._notifySubscribers(name);
         }
     }
 
@@ -244,6 +264,64 @@ export class Resolver {
      */
     clearStale() {
         this.stale.clear();
+    }
+
+    /**
+     * Subscribe to changes on a variable
+     */
+    subscribe(name, callback) {
+        // Create subscription map for this variable if it doesn't exist
+        if (!this.subscriptions.has(name)) {
+            this.subscriptions.set(name, new Map());
+        }
+
+        // Generate unique ID (padded to 3 digits like '000', '001', etc.)
+        const id = String(this.nextSubId++).padStart(3, '0');
+
+        // Store the callback
+        this.subscriptions.get(name).set(id, callback);
+
+        // Return unsubscribe function
+        return () => {
+            if (this.subscriptions.has(name)) {
+                this.subscriptions.get(name).delete(id);
+
+                // Clean up empty maps
+                if (this.subscriptions.get(name).size === 0) {
+                    this.subscriptions.delete(name);
+                }
+            }
+        };
+    }
+
+    /**
+     * Notify subscribers of a variable change
+     */
+    _notifySubscribers(name) {
+        if (!this.subscriptions.has(name)) {
+            return; // No subscribers
+        }
+
+        const value = this.values.get(name);
+        const subscribers = this.subscriptions.get(name);
+
+        for (let callback of subscribers.values()) {
+            try {
+                callback(value);
+            } catch (err) {
+                console.error(`Error in subscriber for ${name}:`, err);
+            }
+        }
+    }
+
+    /**
+     * Get subscription IDs for a variable (for $._  compatibility)
+     */
+    getSubscriptionIds(name) {
+        if (!this.subscriptions.has(name)) {
+            return [];
+        }
+        return Array.from(this.subscriptions.get(name).keys());
     }
 
     /**

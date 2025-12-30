@@ -86,19 +86,36 @@ function createAdapter($) {
         }
     }
 
+    // Get subscriptions map: { varName: ['000', '001', ...] }
+    const subs = {};
+    for (let name of Object.keys(resolver.functions)) {
+        const ids = resolver.getSubscriptionIds(name);
+        if (ids.length > 0) {
+            subs[name] = ids;
+        }
+    }
+
     // Get stale list
     const stale = resolver.getStale();
 
     // Check for fatal errors (stored on resolver)
     const fatal = resolver._fatal || {};
 
-    return {
+    // Build result - always include deps and stale for consistency
+    const result = {
         fn: fn.sort(),
         deps,
         value,
         stale: stale.sort(),
         fatal
     };
+
+    // Add subs if there are any
+    if (Object.keys(subs).length > 0) {
+        result.subs = subs;
+    }
+
+    return result;
 }
 
 // Run a single test
@@ -110,9 +127,12 @@ async function runTest(testFile) {
         // Create auto object
         const $ = auto(test.obj);
 
+        // Create global object if test expects one
+        const global = {};
+
         // Run test function (may throw on circular deps)
         try {
-            test.fn($);
+            test.fn($, global);
         } catch (e) {
             // Errors during test function are expected (circular deps, etc.)
             // The error is captured in $._fatal
@@ -134,14 +154,19 @@ async function runTest(testFile) {
         // Get actual state via adapter
         const actual = createAdapter($);
 
-        // Check
-        const passed = deepEqual(actual, test._);
+        // Check both $._  and global object
+        let passed = deepEqual(actual, test._);
+        if (test.global) {
+            passed = passed && deepEqual(global, test.global);
+        }
 
         return {
             passed,
             actual,
             expected: test._,
-            error: null
+            error: null,
+            global,
+            expectedGlobal: test.global
         };
     } catch (error) {
         return {
