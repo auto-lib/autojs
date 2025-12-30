@@ -57,8 +57,9 @@ export function analyzeFunction(fn, name) {
         }
     }
 
-    // Pattern 3: Destructuring - const { x, y } = paramName
-    const destructuringPattern = new RegExp(`const\\s*{([^}]+)}\\s*=\\s*${escapedParam}`, 'g');
+    // Pattern 3: Destructuring - const/let/var { x, y } = paramName
+    // Use negative lookahead to ensure $ is not followed by a dot ($.something)
+    const destructuringPattern = new RegExp(`(?:const|let|var)\\s*{([^}]+)}\\s*=\\s*${escapedParam}(?!\\.)`, 'g');
     while ((match = destructuringPattern.exec(source)) !== null) {
         const props = match[1].split(',').map(p => {
             // Handle: { foo }, { foo: bar }, { foo = default }

@@ -270,6 +270,10 @@ export class Resolver {
      * Subscribe to changes on a variable
      */
     subscribe(name, callback) {
+        // Immediately call callback with current value (required for Svelte stores)
+        const currentValue = this.get(name);
+        callback(currentValue);
+
         // Create subscription map for this variable if it doesn't exist
         if (!this.subscriptions.has(name)) {
             this.subscriptions.set(name, new Map());

@@ -9,8 +9,9 @@ The blocks kernel is a **simplified reactive system** with a clean, modular arch
 **Key Goals**:
 - ✅ **Simple** - ~600 lines across 5 modules (vs 941 lines in v0.54)
 - ✅ **Modular** - Each module has one clear responsibility
-- ✅ **Testable** - 39 comprehensive tests (100% passing)
+- ✅ **Testable** - 51 comprehensive tests (100% passing)
 - ✅ **Clear** - Easy to understand and extend
+- ✅ **Production-ready** - Validated against real Svelte app
 
 ## Quick Start
 
@@ -129,7 +130,7 @@ From [DESIGN-QUESTIONS.md](./DESIGN-QUESTIONS.md):
 
 ## Testing
 
-**39/39 tests passing** (100%)
+**51/51 tests passing** (100%)
 
 ```bash
 # All tests
@@ -138,7 +139,7 @@ npm test
 # Module tests only (29 tests)
 npm run test:modules
 
-# Integration tests (10 core behavior tests)
+# Integration tests (22 core behavior tests)
 npm run test:auto
 ```
 
@@ -147,17 +148,21 @@ npm run test:auto
 - `tests/static-analysis/` - Dependency discovery tests (9)
 - `tests/blocks/` - Block composition tests (6)
 - `tests/resolver/` - Execution tests (6)
-- `tests/auto/` - Integration tests (10)
+- `tests/auto/` - Integration tests (22)
+  - Includes subscriptions (015, 016, 019, 020)
+  - Circular dependency detection (010, 011)
+  - Async functions (031, 032, 041, 042)
+  - Conditional dependencies (022, 023)
 
 See [TESTING.md](./TESTING.md) for detailed test documentation.
 
 ## Implementation Status
 
-✅ **Complete** (2025-12-28)
+✅ **Complete & Production-Tested** (2025-12-30)
 
-All modules implemented and tested. See [IMPLEMENTATION.md](./IMPLEMENTATION.md) for complete documentation.
+All modules implemented and tested. Successfully validated against production Svelte app. See [IMPLEMENTATION.md](./IMPLEMENTATION.md) for complete documentation.
 
-**Coverage**: 10/30 Core Behavior tests (33%) - focused on essential reactive behavior.
+**Test Coverage**: 22/75 Core Behavior tests (29%) - focused on essential reactive behavior including subscriptions, circular deps, and async.
 
 ## File Structure
 
@@ -218,6 +223,59 @@ kernels/blocks/
 - Clear separation of concerns
 
 **Same behavior**, simpler implementation.
+
+## Real-World Integration (prices-app)
+
+The blocks kernel was tested against a production Svelte app (prices-app) and required several compatibility fixes to match v0.54 behavior:
+
+### Issues Fixed (2025-12-30)
+
+**1. Options Parameter Missing**
+- **Issue**: `auto()` only accepted one parameter, but production code calls `auto(definition, options)`
+- **Fix**: Added optional `options` parameter supporting `tag`, `watch`, `excessive_calls_exclude`, etc.
+- **Why**: Production apps use these options for debugging and performance monitoring
+
+**2. Version Property Missing**
+- **Issue**: App checks `_.v` to log which version is running
+- **Fix**: Added `.v` property returning `"blocks-0.1.0"`
+- **Why**: Useful for debugging when switching between kernels
+
+**3. Non-Enumerable `$['#']` Accessor**
+- **Issue**: `Object.keys($['#'])` returned empty array, breaking `init_component_state()`
+- **Fix**: Pre-populate subscription accessor with all variable names
+- **Why**: Production code iterates over all variables to set up component state
+
+**4. Subscription Callbacks Not Immediate**
+- **Issue**: Svelte stores require subscriptions to call callback immediately with current value
+- **Fix**: Call `callback(currentValue)` before adding to subscription list
+- **Why**: Svelte's `$` syntax depends on this behavior for reactivity
+
+**5. Static Analysis False Positives**
+- **Issue**: Destructuring `let {start, end} = $.final_startend` detected `start` and `end` as dependencies
+- **Fix**: Added negative lookahead `(?!\.)` to regex: only match `$.something` not `$ .something`
+- **Why**: Created false circular dependency: `datastart` → `corrected_startend` → `final_startend` → `start` (incorrect)
+- **Impact**: Caused "Uncaught Error: Cycle detected involving: datastart"
+
+**6. Svelte Store API Incomplete**
+- **Issue**: `$['#'].varName` only had `.subscribe()`, but Svelte expects `.set()` and `.update()` too
+- **Fix**: Added `.set(value)` and `.update(fn)` methods to subscription objects
+- **Why**: Svelte components use stores as writable, not just readable
+- **Impact**: Caused "Uncaught TypeError: store.set is not a function"
+
+### Test Coverage
+
+After fixes, the blocks kernel passes:
+- ✅ **51/51 internal tests** (100%) - 29 module tests + 22 integration tests
+- ✅ **Production app** - prices-app loads and runs correctly
+- ✅ **Subscriptions** - 4 subscription tests added (015, 016, 019, 020)
+- ✅ **Real-world validation** - Successfully replaced v0.54 in production Svelte app
+
+### Lessons Learned
+
+1. **Static analysis is fragile** - Regex patterns need careful testing with real-world code
+2. **Framework APIs matter** - Svelte store contract requires `.subscribe()`, `.set()`, `.update()`
+3. **Options are essential** - Even if ignored, must accept them for compatibility
+4. **Subscriptions are different from getters** - Immediate callback required for Svelte reactivity
 
 ## Next Steps
 

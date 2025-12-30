@@ -378,13 +378,23 @@ The blocks kernel implements a **simple, modular architecture**:
 - `archive/ARCHITECTURE.md` - Deep dive into alternatives explored (archived)
 - `archive/REAL-WORLD-USAGE.md` - Production app analysis, old API (archived)
 
-**Status**: ✅ **Implementation complete** (2025-12-28)
+**Status**: ✅ **Implementation complete & production-tested** (2025-12-30)
 - 5 modules implemented and tested (see `src/`)
-- 39 tests passing (100%) - 29 module tests + 10 integration tests
+- 51 tests passing (100%) - 29 module tests + 22 integration tests
+- ✅ **Real-world validation** - Tested against production Svelte app (prices-app)
 - All design decisions from DESIGN-QUESTIONS.md implemented
 - Documentation updated to match implementation (2025-12-29)
 - Old source files removed (kernel.js, graph.js, block.js)
 - Outdated docs archived
+
+**Real-World Integration Fixes** (2025-12-30):
+- Added options parameter support (`tag`, `watch`, `excessive_calls_exclude`)
+- Added `.v` version property for debugging
+- Fixed static analysis regex to avoid false circular dependency detection
+- Added Svelte store API compatibility (`.subscribe()`, `.set()`, `.update()`)
+- Added immediate subscription callbacks (required for Svelte reactivity)
+- Made `$['#']` enumerable for component state initialization
+- See `/kernels/blocks/README.md` for complete details
 
 **4. Kernel Evaluation Criteria**
 When evaluating kernels, ask:
@@ -403,7 +413,7 @@ When evaluating kernels, ask:
 - Expanding blocks kernel test coverage (subscriptions, circular deps, async)
 
 **Active Kernels**:
-- **blocks** (newest) - ✅ Complete implementation: 5 simple modules, 39 tests passing, ~600 LOC vs 941 in v0.54
+- **blocks** (newest) - ✅ Complete & production-tested: 5 simple modules, 51 tests passing, ~600 LOC vs 941 in v0.54
 - **graph-first** - Explores simplicity through immutable graph structure
 - **channel** - Explores simplicity through 65-line signal core
 

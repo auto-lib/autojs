@@ -15,20 +15,58 @@ import { Resolver } from './resolver.js';
  * Create a simple reactive object (single block)
  *
  * @param {Object} definition - Object with { varName: valueOrFunction }
+ * @param {Object} options - Optional configuration (for compatibility, mostly ignored)
  * @returns {Proxy} - Proxy object that intercepts get/set
  */
-export default function auto(definition) {
+export default function auto(definition, options = {}) {
     // Build graph from definition
     const graph = buildGraph(definition);
 
     // Create resolver
     const resolver = new Resolver(graph, definition);
 
+    // Store options (for future use)
+    const opts = {
+        tag: options.tag,
+        watch: options.watch || {},
+        auto_batch: options.auto_batch !== undefined ? options.auto_batch : true,
+        deep_equal: options.deep_equal !== undefined ? options.deep_equal : true,
+        max_calls_per_second: options.max_calls_per_second || 10,
+        call_rate_grace_period: options.call_rate_grace_period || 3000,
+        excessive_calls_exclude: options.excessive_calls_exclude || {},
+        report_lag: options.report_lag || 100,
+        ...options
+    };
+
     // Create subscription accessor
-    const subscriptionAccessor = new Proxy({}, {
+    // Pre-populate it with all variable names so Object.keys() works
+    const subscriptionBase = {};
+    for (let name of Object.keys(definition)) {
+        subscriptionBase[name] = {
+            subscribe: (callback) => resolver.subscribe(name, callback),
+            set: (value) => resolver.set(name, value),
+            // Optional update method for Svelte store compatibility
+            update: (fn) => {
+                const current = resolver.get(name);
+                resolver.set(name, fn(current));
+            }
+        };
+    }
+
+    const subscriptionAccessor = new Proxy(subscriptionBase, {
         get(target, varName) {
+            // If it exists in target, return it
+            if (varName in target) {
+                return target[varName];
+            }
+            // Otherwise create it dynamically
             return {
-                subscribe: (callback) => resolver.subscribe(varName, callback)
+                subscribe: (callback) => resolver.subscribe(varName, callback),
+                set: (value) => resolver.set(varName, value),
+                update: (fn) => {
+                    const current = resolver.get(varName);
+                    resolver.set(varName, fn(current));
+                }
             };
         }
     });
@@ -38,6 +76,8 @@ export default function auto(definition) {
         get(target, prop) {
             if (prop === '_resolver') return resolver;
             if (prop === '_graph') return graph;
+            if (prop === '_options') return opts;
+            if (prop === 'v') return 'blocks-0.1.0'; // Version string
             if (prop === '#') return subscriptionAccessor;
             if (prop === '_') {
                 // Provide $._  compatibility for tests
