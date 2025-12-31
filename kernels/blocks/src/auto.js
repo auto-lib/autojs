@@ -25,6 +25,19 @@ export default function auto(definition, options = {}) {
     // Create resolver
     const resolver = new Resolver(graph, definition);
 
+    // Eagerly compute all initial values (like v0.54)
+    // Try to resolve each function individually - if there's a circular dependency,
+    // it will be caught and stored in _fatal, but other functions can still resolve
+    for (let name of Object.keys(definition)) {
+        if (typeof definition[name] === 'function') {
+            try {
+                resolver.get(name);  // This will resolve it if not circular
+            } catch (err) {
+                // Circular dependency or other error - already stored in _fatal by get()
+            }
+        }
+    }
+
     // Store options (for future use)
     const opts = {
         tag: options.tag,

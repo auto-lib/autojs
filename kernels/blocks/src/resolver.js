@@ -110,12 +110,24 @@ export class Resolver {
         const resolved = new Set();
 
         // Execute all stale variables in topological order
-        const order = this._topologicalSort(this.stale);
+        try {
+            const order = this._topologicalSort(this.stale);
 
-        for (let name of order) {
-            this._execute(name);
-            this.stale.delete(name);
-            resolved.add(name);
+            for (let name of order) {
+                try {
+                    this._execute(name);
+                    this.stale.delete(name);
+                    resolved.add(name);
+                } catch (err) {
+                    // Store error but continue with other variables
+                    this._fatal[name] = err.message || String(err);
+                    this.stale.delete(name);
+                }
+            }
+        } catch (err) {
+            // Topological sort failed (circular dependency)
+            // Leave variables stale - they can't be resolved
+            // Error will be thrown when trying to access them
         }
 
         // Notify subscribers after all values are resolved
@@ -172,22 +184,28 @@ export class Resolver {
         const expectsSetCallback = fn.length >= 2;
 
         // Execute function (with set callback for async support)
-        const result = fn($, set);
+        try {
+            const result = fn($, set);
 
-        // Handle the result based on function signature
-        if (result && typeof result.then === 'function') {
-            // Promise (async function) - await it
-            result.then(value => {
-                this.values.set(name, value);
-            }).catch(err => {
-                console.error(`Error in async function ${name}:`, err);
-            });
-        } else if (!expectsSetCallback) {
-            // Synchronous function - cache result immediately
-            this.values.set(name, result);
+            // Handle the result based on function signature
+            if (result && typeof result.then === 'function') {
+                // Promise (async function) - await it
+                result.then(value => {
+                    this.values.set(name, value);
+                }).catch(err => {
+                    console.error(`Error in async function ${name}:`, err);
+                });
+            } else if (!expectsSetCallback) {
+                // Synchronous function - cache result immediately
+                this.values.set(name, result);
+            }
+            // If expectsSetCallback is true and no promise, don't cache the result
+            // The value will be set when the callback is invoked
         }
-        // If expectsSetCallback is true and no promise, don't cache the result
-        // The value will be set when the callback is invoked
+        catch(e)
+        {
+            console.log('Error running function',name,e);
+        }
     }
 
     /**

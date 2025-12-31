@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "mapped-console": {
+      "command": "node",
+      "args": ["mcp/mapped-console-mcp.mjs"],
+      "cwd": "/Users/karl/prices-app"
+    }
+  }
+}

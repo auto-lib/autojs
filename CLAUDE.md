@@ -29,6 +29,126 @@ cd tests && node runall.js 005_dependent_function.js  # Run single test
 deno run test.js
 ```
 
+### Debugging Blocks Kernel with Prices-App MCP Server
+
+**Context**: The blocks kernel (`/kernels/blocks/`) is symlinked into the prices-app (`/Users/karl/prices-app`) for production testing. When working on the blocks kernel in this project, you often need to see console errors from the running prices-app.
+
+**Setup** (completed 2025-12-30):
+- Created `.mcp.json` in this project pointing to prices-app's MCP server with `cwd: "/Users/karl/prices-app"`
+- Set `enableAllProjectMcpServers: true` in `.claude/settings.local.json`
+- The MCP server (`mapped-console`) runs in prices-app and monitors `localhost:3000` via Chrome DevTools Protocol
+- **IMPORTANT**: After modifying `.mcp.json`, restart Claude Code for changes to take effect
+
+**Usage** (after Claude Code restart):
+```
+# Check for console errors in the running prices-app
+Use the mapped_console_refresh MCP tool
+
+# View existing logs without reload
+Use the mapped_console_tail MCP tool
+
+# Other available tools:
+- mapped_console_reload - Reload the page
+- mapped_console_clear - Clear logs
+- mapped_console_navigate - Navigate to URL
+- mapped_console_ping - Check CDP server health
+```
+
+**How it works**:
+1. Prices-app dev server runs on `localhost:3000` (started with `cd /Users/karl/prices-app/build && npm run dev_local_api`)
+2. CDP server (`cdp-console-jsonl.mjs`) runs headless Chromium watching the app
+3. MCP server (`mapped-console-mcp.mjs`) provides tools to Claude Code
+4. Logs written to `/Users/karl/prices-app/mcp/.claude/mapped-console.jsonl`
+
+**Current status** (2025-12-30):
+- ✅ MCP server configured with correct working directory
+- ✅ Blocks kernel version: `blocks-0.1.0`
+- ✅ Prices-app successfully loads with blocks kernel
+- ❌ **CRITICAL ISSUE**: MCP tools not accessible in Claude Code sessions
+
+**⚠️ IMPORTANT - Verifying Fresh Logs**:
+
+When checking for errors, **ALWAYS verify logs are fresh** using these checks:
+
+1. **Check log file timestamps**:
+   ```bash
+   ls -la /Users/karl/prices-app/mcp/.claude/mapped-console.jsonl
+   # Look at modification time - should be recent
+   ```
+
+2. **Check log entry timestamps** (most important):
+   ```bash
+   tail -5 /Users/karl/prices-app/mcp/.claude/mapped-console.jsonl
+   # Compare "ts" field to current UTC time
+   node -e "console.log('Current UTC:', new Date().toISOString())"
+   ```
+
+3. **Check heartbeat is active**:
+   ```bash
+   cat /Users/karl/prices-app/mcp/.claude/mcp-heartbeat.json
+   # Timestamp should be within last 30 seconds
+   ```
+
+**Known Issues (FIXED 2025-12-30)**:
+- ❌ **Bug**: CDP server was filtering out `console.trace()` events
+  - Line 201 only captured: `["error", "warning", "log"]`
+  - Missing: `"trace"` - which is what fatal errors use
+  - **Fix**: Added `"trace"` to the event filter in `cdp-console-jsonl.mjs`
+- ⚠️ **Lesson**: If real browser shows errors but CDP doesn't, check:
+  1. Are logs fresh? (timestamps current?)
+  2. Is the error type being filtered? (check event type filters)
+  3. Is the headless browser in a different state? (user interaction needed?)
+
+**Debugging Progress** (2025-12-30):
+
+*Problem*: MCP tools like `mapped_console_refresh` are not available when invoked in Claude Code, despite correct configuration.
+
+*Investigation findings*:
+1. ✅ `.mcp.json` exists and is correctly configured:
+   - Points to `/Users/karl/prices-app/mcp/mapped-console-mcp.mjs`
+   - Uses correct `cwd: "/Users/karl/prices-app"`
+2. ✅ `.claude/settings.local.json` has `enableAllProjectMcpServers: true`
+3. ✅ Permissions include `mcp__mapped-console` and all tool variants
+4. ✅ MCP server processes ARE running (verified with `ps aux`)
+   - 2 instances of `node mcp/mapped-console-mcp.mjs` running
+   - 1 instance of `node mcp/cdp-console-jsonl.mjs` running
+5. ✅ CDP server is capturing logs correctly
+   - Log file exists at `/Users/karl/prices-app/mcp/.claude/mapped-console.jsonl`
+   - Latest entry shows recent activity (hash path changes logged)
+6. ✅ MCP server code looks correct
+   - Defines tools: `mapped_console_tail`, `mapped_console_reload`, `mapped_console_navigate`, `mapped_console_clear`, `mapped_console_refresh`
+   - Uses proper MCP protocol (stdio, JSON-RPC)
+
+*Root cause hypothesis*:
+Claude Code has not **connected** to the MCP server even though it's configured and running. This typically happens when:
+- `.mcp.json` was created/modified AFTER Claude Code started
+- Claude Code needs to be restarted to discover and connect to project MCP servers
+- MCP servers defined in project `.mcp.json` require explicit restart to activate
+
+*Next steps to try*:
+1. **Restart Claude Code** - Most likely fix. After restart, MCP tools should become available.
+2. If restart doesn't work: Check Claude Code logs/console for MCP connection errors
+3. If still broken: Verify MCP server stdio protocol is working (test with manual invocation)
+4. If still broken: Check for path/permission issues blocking connection
+
+*Alternative solution created*:
+- Created `/Users/karl/autojs/watch-errors.mjs` as independent monitoring script
+- Works without MCP by reading log file directly and sending control commands
+- Usage:
+  ```bash
+  node watch-errors.mjs          # One-time check (auto-reloads page)
+  node watch-errors.mjs --follow # Real-time error monitoring
+  ```
+- Can be used as workaround if MCP connection can't be established
+- Should be deleted once MCP tools are working
+
+**Common workflow** (once MCP tools are working):
+1. User sees errors in prices-app browser
+2. Use `mapped_console_refresh` to capture errors in headless browser
+3. Identify issue in blocks kernel code (`/kernels/blocks/src/`)
+4. Fix the code, test passes
+5. Verify fix in prices-app using MCP tools
+
 ## Architecture
 
 ### Core Files
