@@ -600,6 +600,7 @@ The blocks kernel implements a **simple, modular architecture**:
 - `DESIGN-QUESTIONS.md` - Design exploration and decisions
 - `ARCHITECTURE-SIMPLE.md` - Clean, modular architecture specification (design doc)
 - `TESTING.md` - Test suite documentation
+- `/kernels/PRODUCTION-READINESS.md` - **Lessons from production integration** (async propagation, circular dependencies, testing gaps)
 - `archive/ARCHITECTURE.md` - Deep dive into alternatives explored (archived)
 - `archive/REAL-WORLD-USAGE.md` - Production app analysis, old API (archived)
 

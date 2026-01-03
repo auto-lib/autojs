@@ -21,6 +21,7 @@ export class Resolver {
         this._fatal = {};             // Fatal errors (for $._  compatibility)
         this.subscriptions = new Map(); // name -> Map of id -> callback
         this.nextSubId = 0;           // Counter for subscription IDs
+        this.reportedCycles = new Set(); // Track reported cycles to avoid flooding
 
         // Initialize with static values and mark computed values as stale
         for (let [name, fn] of Object.entries(functions)) {
@@ -248,7 +249,12 @@ export class Resolver {
                 cycle.push(node);
 
                 const cycleStr = cycle.join(' → ');
-                console.error(`🔴 CIRCULAR DEPENDENCY: ${cycleStr}`);
+
+                // Only log each unique cycle once to avoid console flooding
+                if (!this.reportedCycles.has(cycleStr)) {
+                    console.error(`🔴 CIRCULAR DEPENDENCY: ${cycleStr}`);
+                    this.reportedCycles.add(cycleStr);
+                }
 
                 this._fatal = {
                     msg: `Cycle detected: ${cycleStr}`,

@@ -41,6 +41,11 @@ export default function auto(definition, options = {}) {
                 resolver.get(name);  // This will resolve it if not circular
             } catch (err) {
                 // Circular dependency or other error - already stored in _fatal by get()
+                // Log full cycle info once if available
+                if (resolver._fatal && resolver._fatal.stack && !resolver._fatalLogged) {
+                    console.error(`[${tag}] 🔴 CYCLE PATH: ${resolver._fatal.stack.join(' → ')} → ${resolver._fatal.stack[0]}`);
+                    resolver._fatalLogged = true;
+                }
                 console.error(`[${tag}] Failed to resolve ${name}:`, err.message);
             }
         }
