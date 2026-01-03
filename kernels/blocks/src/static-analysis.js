@@ -24,12 +24,13 @@ export function analyzeFunction(fn, name) {
     let paramName = '$';
 
     // Try arrow function: ($) =>, (_, set) =>, $ =>, async ($) =>, etc.
-    const arrowMatch = source.match(/^\s*(?:async\s+)?\(?\s*(\w+)/);
+    // Match: optional "async ", optional "(", parameter name (including $), optional ","
+    const arrowMatch = source.match(/^\s*(?:async\s+)?\(?\s*([a-zA-Z_$][\w$]*)/);
     if (arrowMatch) {
         paramName = arrowMatch[1];
     } else {
         // Traditional function: function($) or function name($)
-        const funcMatch = source.match(/^(?:async\s+)?function\s+\w*\s*\(\s*(\w+)/);
+        const funcMatch = source.match(/^(?:async\s+)?function\s+\w*\s*\(\s*([a-zA-Z_$][\w$]*)/);
         if (funcMatch) {
             paramName = funcMatch[1];
         }
@@ -40,6 +41,7 @@ export function analyzeFunction(fn, name) {
 
     // Pattern 1: paramName.propertyName (dot notation)
     const dotPattern = new RegExp(`${escapedParam}\\.(\\w+)`, 'g');
+
     let match;
     while ((match = dotPattern.exec(source)) !== null) {
         const propName = match[1];

@@ -211,6 +211,8 @@ export class Resolver {
                     }
                     // Notify subscribers that value has been set
                     this._notifySubscribers(name);
+                    // Eagerly resolve all stale values to provide push-based reactivity
+                    this.resolveAll();
                 }).catch(err => {
                     console.error(`Error in async function ${name}:`, err);
                 });
@@ -245,8 +247,11 @@ export class Resolver {
                 const cycle = path.slice(cycleStart);
                 cycle.push(node);
 
+                const cycleStr = cycle.join(' → ');
+                console.error(`🔴 CIRCULAR DEPENDENCY: ${cycleStr}`);
+
                 this._fatal = {
-                    msg: `Cycle detected involving: ${node}`,
+                    msg: `Cycle detected: ${cycleStr}`,
                     stack: cycle
                 };
 
