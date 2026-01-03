@@ -95,9 +95,12 @@ export class Resolver {
         const resolved = new Set();
 
         for (let varName of order) {
-            this._execute(varName);
-            this.stale.delete(varName);
-            resolved.add(varName);
+            const executed = this._execute(varName);
+            if (executed) {
+                this.stale.delete(varName);
+                resolved.add(varName);
+            }
+            // If not executed (dependency still pending), leave it stale
         }
 
         // Notify subscribers after all values are resolved
@@ -123,9 +126,12 @@ export class Resolver {
 
             for (let name of order) {
                 try {
-                    this._execute(name);
-                    this.stale.delete(name);
-                    resolved.add(name);
+                    const executed = this._execute(name);
+                    if (executed) {
+                        this.stale.delete(name);
+                        resolved.add(name);
+                    }
+                    // If not executed (dependency still pending), leave it stale
                 } catch (err) {
                     // Store error but continue with other variables
                     this._fatal[name] = err.message || String(err);
@@ -146,17 +152,34 @@ export class Resolver {
 
     /**
      * Execute a function and cache its result
+     * Returns true if executed, false if skipped
      */
     _execute(name) {
         const fn = this.functions[name];
 
         if (typeof fn !== 'function') {
-            return; // Static value, nothing to execute
+            return true; // Static value, consider it "executed"
         }
 
         // Skip callback functions (starting with #)
         if (name.startsWith('#')) {
-            return; // Callbacks are not computed, they're invoked externally
+            return true; // Callbacks are not computed, consider them handled
+        }
+
+        // Check if any dependencies are still promises or stale (not yet computed)
+        // If so, skip execution - we'll execute when the dependency resolves
+        const deps = this.graph.getPredecessors(name);
+        for (let dep of deps) {
+            // Skip if dependency is still stale (not yet computed)
+            if (this.stale.has(dep)) {
+                return false;
+            }
+
+            // Skip if dependency value is a Promise (async not yet resolved)
+            const depValue = this.values.get(dep);
+            if (depValue && typeof depValue.then === 'function') {
+                return false;
+            }
         }
 
         // Determine block context (if namespaced)
@@ -202,7 +225,10 @@ export class Resolver {
 
             // Handle the result based on function signature
             if (result && typeof result.then === 'function') {
-                // Promise (async function) - await it
+                // Promise (async function) - store it immediately so dependents can detect pending state
+                this.values.set(name, result);
+
+                // Then await it
                 result.then(value => {
                     this.values.set(name, value);
                     // Mark dependents as stale
@@ -228,6 +254,8 @@ export class Resolver {
         {
             console.log('Error running function',name,e);
         }
+
+        return true; // Successfully executed
     }
 
     /**

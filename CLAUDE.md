@@ -600,6 +600,8 @@ The blocks kernel implements a **simple, modular architecture**:
 - `DESIGN-QUESTIONS.md` - Design exploration and decisions
 - `ARCHITECTURE-SIMPLE.md` - Clean, modular architecture specification (design doc)
 - `TESTING.md` - Test suite documentation
+- `INTEGRATION-TESTS.md` - **Integration tests for async propagation** (debugging real-world patterns)
+- `PROMISE-HANDLING_ANALYSIS.md` - How we need to rewrite prices-app / promise handling
 - `/kernels/PRODUCTION-READINESS.md` - **Lessons from production integration** (async propagation, circular dependencies, testing gaps)
 - `archive/ARCHITECTURE.md` - Deep dive into alternatives explored (archived)
 - `archive/REAL-WORLD-USAGE.md` - Production app analysis, old API (archived)
@@ -612,6 +614,13 @@ The blocks kernel implements a **simple, modular architecture**:
 - Documentation updated to match implementation (2025-12-29)
 - Old source files removed (kernel.js, graph.js, block.js)
 - Outdated docs archived
+
+**Async Propagation Fixes** (2026-01-03):
+- Fixed Promise detection: Promises now stored in values so dependents can detect pending state
+- Fixed execution order: Functions skip execution if dependencies are stale or Promises
+- Created 4 integration tests to capture real-world async patterns (`tests/integration/`)
+- Run tests: `cd kernels/blocks && node run-integration-tests.js`
+- See `INTEGRATION-TESTS.md` for detailed analysis and root cause findings
 
 **Real-World Integration Fixes** (2025-12-30):
 - Added options parameter support (`tag`, `watch`, `excessive_calls_exclude`)
