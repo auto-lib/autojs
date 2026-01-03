@@ -33,6 +33,25 @@ deno run test.js
 
 **Context**: The blocks kernel (`/kernels/blocks/`) is symlinked into the prices-app (`/Users/karl/prices-app`) for production testing. When working on the blocks kernel in this project, you often need to see console errors from the running prices-app.
 
+**🚨 CRITICAL: MCP SERVER ISSUES ARE ALWAYS TOP PRIORITY 🚨**
+
+If the MCP server tools (`mapped_console_refresh`, `mapped_console_tail`, etc.) are not working:
+
+1. **STOP IMMEDIATELY** - This is a critical blocker, more important than any other debugging task
+2. **NEVER suggest workarounds** like "I can read the logs directly" - this misses the point
+3. **DEBUG THE ROOT CAUSE** - Why isn't the MCP server working? What broke the connection?
+4. **FIX IT PERMANENTLY** - Don't just restart processes, understand and solve the underlying issue
+5. **IMPROVE THE TOOLING** - If the MCP server is unreliable, fragile, or hard to use, fix that too
+
+Questions to investigate when MCP tools fail:
+- Why did the MCP server disconnect?
+- Why isn't the heartbeat mechanism working?
+- Why don't the tools persist across sessions?
+- What changes can make this more reliable?
+- How can we make browser log access cleaner and easier to use?
+
+The MCP server is infrastructure - if it's broken, nothing else matters. Fix it first.
+
 **Setup** (completed 2025-12-30):
 - Created `.mcp.json` in this project pointing to prices-app's MCP server with `cwd: "/Users/karl/prices-app"`
 - Set `enableAllProjectMcpServers: true` in `.claude/settings.local.json`
@@ -60,11 +79,61 @@ Use the mapped_console_tail MCP tool
 3. MCP server (`mapped-console-mcp.mjs`) provides tools to Claude Code
 4. Logs written to `/Users/karl/prices-app/mcp/.claude/mapped-console.jsonl`
 
-**Current status** (2025-12-30):
-- ✅ MCP server configured with correct working directory
+**Current status** (2026-01-03):
+- ✅ MCP server configured and running
 - ✅ Blocks kernel version: `blocks-0.1.0`
-- ✅ Prices-app successfully loads with blocks kernel
-- ❌ **CRITICAL ISSUE**: MCP tools not accessible in Claude Code sessions
+- ✅ Blocks kernel symlinked at `/Users/karl/prices-app/build/node_modules/@autolib/auto`
+- ✅ **FIXED**: MCP server now uses absolute paths (2026-01-03)
+- ⚠️ **KNOWN ISSUE**: MCP tools may become unavailable mid-session - requires Claude Code restart
+- 🔄 **IN PROGRESS**: Verifying blocks kernel works correctly with prices-app
+
+**🚨 CRITICAL - NEVER ASSUME IT'S WORKING 🚨**:
+
+**RULE**: Console logs alone DO NOT confirm the app is working. You MUST verify:
+
+1. **Component Load Tracing** - Track which components are loading:
+   - Simple `console.log('✅ ComponentName.svelte loaded')` at top of each component's `<script>` tag
+   - **NO onMount()** - just direct console.log to see script execution
+   - Check logs to see how far the app gets before failing
+   - Key components to track:
+     - `App.svelte` - Root component
+     - `Portal.svelte` - Main layout
+     - `UsWholesale.svelte`, `Shrimp.svelte`, `Salmon.svelte`, `Groundfish.svelte` - Tab components
+   - If a component's log doesn't appear, it failed to load (check for errors before that point)
+
+2. **No Fatal Errors** - Console must be free of errors:
+   - Check for stack traces, "fatal error", "undefined", etc.
+   - MCP tools can show errors but not prove absence of errors
+   - Use `grep -E '"type":"(console.error|console.trace)"' /Users/karl/prices-app/mcp/.claude/mapped-console.jsonl`
+
+3. **Reactive Updates Work** - User interactions must trigger updates:
+   - Click buttons, change dropdowns, interact with charts
+   - Verify UI actually updates in response to interactions
+   - No need for verbose logs - just verify behavior works
+
+4. **Visual Confirmation** - The app must render correctly:
+   - Charts display
+   - Data loads
+   - Navigation works
+   - No blank screens or missing components
+
+**What "working" means**:
+- ✅ All expected component logs appear in order
+- ✅ No console errors
+- ✅ User interactions trigger UI updates
+- ✅ Charts and data render correctly
+
+**What "working" does NOT mean**:
+- ❌ Just seeing some console.log messages
+- ❌ No errors in the first 2 seconds (errors can happen later!)
+- ❌ "It compiled successfully" (compilation ≠ runtime success)
+- ❌ Verbose resolver logs (we removed these - too noisy)
+
+**Tracing Strategy**:
+- Add simple logs to Svelte components to trace execution flow
+- Logs show which components loaded successfully
+- Missing logs indicate where execution stopped (check for errors before that point)
+- Keep logs minimal - just component names, no detailed state
 
 **⚠️ IMPORTANT - Verifying Fresh Logs**:
 
@@ -99,37 +168,73 @@ When checking for errors, **ALWAYS verify logs are fresh** using these checks:
   2. Is the error type being filtered? (check event type filters)
   3. Is the headless browser in a different state? (user interaction needed?)
 
-**Debugging Progress** (2025-12-30):
+**Root Cause Analysis** (2026-01-03):
 
-*Problem*: MCP tools like `mapped_console_refresh` are not available when invoked in Claude Code, despite correct configuration.
+*Problem*: MCP tools were not available in Claude Code sessions despite MCP server being configured and "connected."
 
 *Investigation findings*:
-1. ✅ `.mcp.json` exists and is correctly configured:
-   - Points to `/Users/karl/prices-app/mcp/mapped-console-mcp.mjs`
-   - Uses correct `cwd: "/Users/karl/prices-app"`
-2. ✅ `.claude/settings.local.json` has `enableAllProjectMcpServers: true`
-3. ✅ Permissions include `mcp__mapped-console` and all tool variants
-4. ✅ MCP server processes ARE running (verified with `ps aux`)
-   - 2 instances of `node mcp/mapped-console-mcp.mjs` running
-   - 1 instance of `node mcp/cdp-console-jsonl.mjs` running
-5. ✅ CDP server is capturing logs correctly
-   - Log file exists at `/Users/karl/prices-app/mcp/.claude/mapped-console.jsonl`
-   - Latest entry shows recent activity (hash path changes logged)
-6. ✅ MCP server code looks correct
-   - Defines tools: `mapped_console_tail`, `mapped_console_reload`, `mapped_console_navigate`, `mapped_console_clear`, `mapped_console_refresh`
-   - Uses proper MCP protocol (stdio, JSON-RPC)
+1. ✅ `.mcp.json` configured correctly with `cwd: "/Users/karl/prices-app"`
+2. ❌ **BUG**: Claude Code does NOT respect the `cwd` parameter in `.mcp.json`
+   - MCP server ran from `/Users/karl/autojs/` instead of `/Users/karl/prices-app/`
+   - Relative paths in MCP server resolved to wrong directory
+3. ❌ Heartbeat file writes failed silently (wrong directory)
+   - MCP server tried to write to `/Users/karl/autojs/mcp/.claude/mcp-heartbeat.json`
+   - Directory doesn't exist, writes failed, heartbeat went stale
+4. ❌ CDP server wouldn't run without fresh heartbeat
+5. ❌ MCP tools became unavailable mid-session
 
-*Root cause hypothesis*:
-Claude Code has not **connected** to the MCP server even though it's configured and running. This typically happens when:
-- `.mcp.json` was created/modified AFTER Claude Code started
-- Claude Code needs to be restarted to discover and connect to project MCP servers
-- MCP servers defined in project `.mcp.json` require explicit restart to activate
+*Root cause*:
+- **Claude Code bug**: `.mcp.json` `cwd` parameter is ignored when spawning MCP servers
+- **MCP server design**: Used relative paths assuming correct working directory
+- **Silent failure**: Heartbeat writes failed silently instead of logging errors
 
-*Next steps to try*:
-1. **Restart Claude Code** - Most likely fix. After restart, MCP tools should become available.
-2. If restart doesn't work: Check Claude Code logs/console for MCP connection errors
-3. If still broken: Verify MCP server stdio protocol is working (test with manual invocation)
-4. If still broken: Check for path/permission issues blocking connection
+*Fix implemented* (2026-01-03):
+Modified `/Users/karl/prices-app/mcp/mapped-console-mcp.mjs` to use **absolute paths**:
+- Uses `import.meta.url` to resolve script location
+- Calculates `PRICES_APP_ROOT` as `path.resolve(__dirname, "..")`
+- All file paths now absolute: `path.join(PRICES_APP_ROOT, "mcp/.claude/...")`
+- CDP server spawn uses absolute paths and explicit `cwd`
+- Works regardless of where MCP server process is started from
+
+*Verification*:
+```bash
+cat /Users/karl/prices-app/mcp/.claude/mcp-heartbeat.json
+# Heartbeat should be < 30 seconds old (FRESH)
+node -e "console.log('Age:', Date.now() - $(cat /Users/karl/prices-app/mcp/.claude/mcp-heartbeat.json | jq -r '.ts'), 'ms');"
+```
+
+*Known limitation*:
+Even with fix, MCP tools may become unavailable mid-session due to Claude Code session state issues. **Restart Claude Code** if tools stop working.
+
+**Recommendations for Future Improvements**:
+
+1. **Better error handling** in MCP server:
+   - Log heartbeat write failures to stderr instead of silently failing
+   - Add startup health check that verifies file paths are writable
+   - Emit diagnostic messages when paths don't exist
+
+2. **Alternative registration method**:
+   - Consider using global MCP registration instead of `.mcp.json`:
+     ```bash
+     cd /Users/karl/prices-app
+     claude mcp add --transport stdio mapped-console -- node mcp/mapped-console-mcp.mjs
+     ```
+   - Global registration may be more reliable than project-level `.mcp.json`
+
+3. **Monitoring improvements**:
+   - Add health check endpoint that shows:
+     - Heartbeat age
+     - CDP server status
+     - Log file size/age
+     - Working directory verification
+   - Make it easy to diagnose issues without deep debugging
+
+4. **Documentation**:
+   - Update `/Users/karl/prices-app/mcp/readme.md` to document:
+     - The `cwd` bug in Claude Code's `.mcp.json` handling
+     - The absolute path fix implemented
+     - How to verify MCP server is healthy
+     - Common failure modes and how to diagnose them
 
 *Alternative solution created*:
 - Created `/Users/karl/autojs/watch-errors.mjs` as independent monitoring script

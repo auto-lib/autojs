@@ -19,6 +19,8 @@ import { Resolver } from './resolver.js';
  * @returns {Proxy} - Proxy object that intercepts get/set
  */
 export default function auto(definition, options = {}) {
+    const tag = options.tag || 'auto';
+
     // Build graph from definition
     const graph = buildGraph(definition);
 
@@ -30,10 +32,16 @@ export default function auto(definition, options = {}) {
     // it will be caught and stored in _fatal, but other functions can still resolve
     for (let name of Object.keys(definition)) {
         if (typeof definition[name] === 'function') {
+            // Skip special properties (starting with # like #fatal - these are callbacks, not computed)
+            if (name.startsWith('#')) {
+                continue;
+            }
+
             try {
                 resolver.get(name);  // This will resolve it if not circular
             } catch (err) {
                 // Circular dependency or other error - already stored in _fatal by get()
+                console.error(`[${tag}] Failed to resolve ${name}:`, err.message);
             }
         }
     }

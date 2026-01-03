@@ -45,6 +45,13 @@ export class Resolver {
         for (let dep of affected) {
             this.stale.add(dep);
         }
+
+        // Notify subscribers of the value that was set
+        this._notifySubscribers(name);
+
+        // Eagerly resolve all stale values and notify their subscribers
+        // This provides push-based reactivity (like v0.54) instead of lazy evaluation
+        this.resolveAll();
     }
 
     /**
@@ -146,6 +153,11 @@ export class Resolver {
             return; // Static value, nothing to execute
         }
 
+        // Skip callback functions (starting with #)
+        if (name.startsWith('#')) {
+            return; // Callbacks are not computed, they're invoked externally
+        }
+
         // Determine block context (if namespaced)
         const blockPrefix = name.includes('.') ? name.split('.')[0] + '.' : '';
 
@@ -192,6 +204,13 @@ export class Resolver {
                 // Promise (async function) - await it
                 result.then(value => {
                     this.values.set(name, value);
+                    // Mark dependents as stale
+                    const affected = this.graph.getReachable([name]);
+                    for (let dep of affected) {
+                        this.stale.add(dep);
+                    }
+                    // Notify subscribers that value has been set
+                    this._notifySubscribers(name);
                 }).catch(err => {
                     console.error(`Error in async function ${name}:`, err);
                 });
