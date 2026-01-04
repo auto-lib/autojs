@@ -594,9 +594,12 @@ The blocks kernel implements a **simple, modular architecture**:
 - What should Resolver know about? → **Just graph + functions** (clean separation)
 
 **Documentation**:
+- `BOUNDARIES-ALL-THE-WAY-DOWN.md` - **The fundamental paradigm** (boundaries not functions, resolution not execution, boundary-oriented programming)
+- `LINES-AS-BOUNDARIES.md` - **Boundaries in practice** (analyzing real production code through the boundary lens, theory meets practice)
+- `WHAT-IS-THIS.md` - **What this library fundamentally IS** (computation as material, programs as observable systems, the paradigm shift)
 - `BIG-PICTURE.md` - **The complete story** (reactivity as graphs, Svelte integration, async handling, through-lines)
 - `DEEPER-FOUNDATIONS.md` - **Fundamental nature of reactive state** (what stale means, functions as immutable facts, executions as first-class entities)
-- `BLOCKS-AS-FIRST-CLASS.md` - **Everything is a block** (functions ARE blocks, composition, testing, statistics, unified model, Blocks v2 vision)
+- `BLOCKS-AS-FIRST-CLASS.md` - **Everything is a block** (functions ARE blocks, composition, testing, statistics, unified model)
 - `IMPLEMENTATION.md` - **Summary of completed implementation** (START HERE for code)
 - `README.md` - Overview and quick start
 - `QUICKSTART.md` - Getting started guide with examples
