@@ -594,14 +594,15 @@ The blocks kernel implements a **simple, modular architecture**:
 - What should Resolver know about? → **Just graph + functions** (clean separation)
 
 **Documentation**:
-- `IMPLEMENTATION.md` - **Summary of completed implementation** (START HERE)
+- `BIG-PICTURE.md` - **The complete story** (reactivity as graphs, Svelte integration, async handling, through-lines)
+- `IMPLEMENTATION.md` - **Summary of completed implementation** (START HERE for code)
 - `README.md` - Overview and quick start
 - `QUICKSTART.md` - Getting started guide with examples
 - `DESIGN-QUESTIONS.md` - Design exploration and decisions
 - `ARCHITECTURE-SIMPLE.md` - Clean, modular architecture specification (design doc)
 - `TESTING.md` - Test suite documentation
 - `INTEGRATION-TESTS.md` - **Integration tests for async propagation** (debugging real-world patterns)
-- `PROMISE-HANDLING_ANALYSIS.md` - How we need to rewrite prices-app / promise handling
+- `PROMISE-HANDLING_ANALYSIS.md` - Promise handling analysis (why fixes were needed, alternatives)
 - `/kernels/PRODUCTION-READINESS.md` - **Lessons from production integration** (async propagation, circular dependencies, testing gaps)
 - `archive/ARCHITECTURE.md` - Deep dive into alternatives explored (archived)
 - `archive/REAL-WORLD-USAGE.md` - Production app analysis, old API (archived)
