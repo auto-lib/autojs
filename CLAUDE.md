@@ -596,6 +596,8 @@ The blocks kernel implements a **simple, modular architecture**:
 **Documentation**:
 - `BOUNDARIES-ALL-THE-WAY-DOWN.md` - **The fundamental paradigm** (boundaries not functions, resolution not execution, boundary-oriented programming)
 - `LINES-AS-BOUNDARIES.md` - **Boundaries in practice** (analyzing real production code through the boundary lens, theory meets practice)
+- `BLOCK-GRAPH-MECHANICS.md` - **How blocks actually work** (flat function graph, stale propagation across boundaries, UI integration, the two graphs)
+- `BLOCKS-AS-VALIDATION.md` - **Blocks as optimization** (validation enables block-level caching, bulk invalidation, faster propagation - all with flat graph execution)
 - `WHAT-IS-THIS.md` - **What this library fundamentally IS** (computation as material, programs as observable systems, the paradigm shift)
 - `BIG-PICTURE.md` - **The complete story** (reactivity as graphs, Svelte integration, async handling, through-lines)
 - `DEEPER-FOUNDATIONS.md` - **Fundamental nature of reactive state** (what stale means, functions as immutable facts, executions as first-class entities)
