@@ -595,6 +595,7 @@ The blocks kernel implements a **simple, modular architecture**:
 
 **Documentation**:
 - `BIG-PICTURE.md` - **The complete story** (reactivity as graphs, Svelte integration, async handling, through-lines)
+- `DEEPER-FOUNDATIONS.md` - **Fundamental nature of reactive state** (what stale means, functions as immutable facts, executions as first-class entities, Blocks v2 vision)
 - `IMPLEMENTATION.md` - **Summary of completed implementation** (START HERE for code)
 - `README.md` - Overview and quick start
 - `QUICKSTART.md` - Getting started guide with examples
