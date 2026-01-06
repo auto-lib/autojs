@@ -594,6 +594,7 @@ The blocks kernel implements a **simple, modular architecture**:
 - What should Resolver know about? → **Just graph + functions** (clean separation)
 
 **Documentation**:
+- `DATA-TRANSFORMATION-CORRECTNESS.md` - **What this really is** (verifiable data transformations, not reactive state; correctness, not execution; the real goal)
 - `WHY-THIS-EXISTS.md` - **The fundamental question** (what problem does reactive state solve? when is it better than procedural? why break down one giant function?)
 - `DEEP-STRUCTURES.md` - **The fundamental architecture** (three layers: Structure + State + Execution, five modules, minimum requirements, cleanest separation)
 - `BOUNDARIES-ALL-THE-WAY-DOWN.md` - **The fundamental paradigm** (boundaries not functions, resolution not execution, boundary-oriented programming)
